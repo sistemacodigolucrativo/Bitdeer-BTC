@@ -115,7 +115,7 @@ function string_field(array $input, string $name, int $max = 255): string {
     $value = $input[$name] ?? '';
     if (!is_string($value) || strlen($value) > $max * 4) fail(422, 'Campo inválido: ' . $name);
     $value = trim($value);
-    if (mb_strlen($value, 'UTF-8') > $max) fail(422, 'Campo excessivo: ' . $name);
+    if ((function_exists('mb_strlen') ? mb_strlen($value, 'UTF-8') : strlen($value)) > $max) fail(422, 'Campo excessivo: ' . $name);
     return $value;
 }
 
