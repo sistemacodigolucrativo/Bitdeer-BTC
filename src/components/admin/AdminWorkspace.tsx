@@ -65,7 +65,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         {editingMember && <form className="rounded-xl bg-[#1b2137] p-4 space-y-3"
           onSubmit={e=>{e.preventDefault();void change('admin.member.edit',{
             userId:editingMember.id,displayName:editingMember.display_name,
-            email:editingMember.email,phone:'',walletAddress:'',
+            email:editingMember.email,
           });setEditingMember(null);}}>
           <strong>Editar perfil de {editingMember.login}</strong>
           {(['display_name','email'] as const).map(k=><label key={k} className="block text-sm">
@@ -73,7 +73,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
             <input className="w-full bg-[#11182c] p-3 rounded-lg mt-1" value={editingMember[k]}
               onChange={e=>setEditingMember(m=>m?{...m,[k]:e.target.value}:m)}/>
           </label>)}
-          <p className="text-xs text-slate-400">Campos de telefone e carteira não serão recuperados neste formulário até a implantação dos detalhes completos de membro.</p>
+          <p className="text-xs text-slate-400">Os campos não exibidos serão preservados sem alterações.</p>
           <button className={btn} disabled={busy}>Salvar perfil</button>
           <button type="button" className="ml-2 text-sm" onClick={()=>setEditingMember(null)}>Cancelar</button>
         </form>}

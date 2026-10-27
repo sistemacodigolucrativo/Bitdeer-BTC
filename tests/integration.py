@@ -70,9 +70,10 @@ admin.call("admin.status",{"userId":alice_user["id"],"status":"active"})
 alice.call("profile",expected=401)  # revoked, not restored
 alice2=Client()
 alice2.call("login",{"login":"alice","password":"longpassword123"})
+before_accrual=float(alice2.call("profile")["mining"]["balanceUsd"])
 assert alice2.call("mining.start",{})["mining"]["running"]
 time.sleep(2)
-assert float(alice2.call("profile")["mining"]["balanceUsd"])>0
+assert float(alice2.call("profile")["mining"]["balanceUsd"])>before_accrual
 admin.call("admin.status",{"userId":alice_user["id"],"status":"suspended"})
 alice2.call("profile",expected=401)
 admin.call("admin.status",{"userId":alice_user["id"],"status":"active"})

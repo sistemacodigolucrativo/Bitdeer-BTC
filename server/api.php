@@ -299,13 +299,13 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $id=param_id($body,'userId');
         $name=string_field($body,'displayName',120);
         $email=string_field($body,'email',254);
-        $phone=string_field($body,'phone',30);
-        $wallet=string_field($body,'walletAddress',150);
+        $phone=array_key_exists('phone',$body) ? string_field($body,'phone',30) : null;
+        $wallet=array_key_exists('walletAddress',$body) ? string_field($body,'walletAddress',150) : null;
         if ($name==='' || !is_email_or_empty($email)) fail(422,'Nome/e-mail inválido');
         atomic($db, static function() use ($db,$actor,$id,$name,$email,$phone,$wallet): void {
             $row=query_one($db,'SELECT id FROM users WHERE id=? AND role="member"',[$id]);
             if (!$row) fail(404,'Membro inexistente');
-            execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=?,wallet_address=?,updated_at=? WHERE id=?',
+            execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=COALESCE(?,phone),wallet_address=COALESCE(?,wallet_address),updated_at=? WHERE id=?',
               [$name,$email,$phone,$wallet,now(),$id]);
             audit($db,(int)$actor['id'],'member.edit',$id,['fields'=>['display_name','email','phone','wallet_address']]);
         });
