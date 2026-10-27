@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/* Anotação nº 10: Suporte completo ao Modo Claro (Light Mode) */
+.theme-light {
+  color-scheme: light;
+}
+
+.theme-light,
+.theme-light body {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.theme-light main {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Background containers and cards */
+.theme-light .bg-\[\#121626\],
+.theme-light .bg-\[\#121526\],
+.theme-light .bg-\[\#090c17\] {
+  background-color: #f8fafc !important;
+}
+
+.theme-light .bg-\[\#101322\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.theme-light .bg-\[\#191e32\],
+.theme-light .bg-\[\#171b2d\],
+.theme-light .bg-\[\#181d33\],
+.theme-light .bg-\[\#1b2137\],
+.theme-light .bg-\[\#1e2238\],
+.theme-light .bg-\[\#1e2338\],
+.theme-light .bg-\[\#202742\],
+.theme-light .bg-\[\#141829\],
+.theme-light .bg-\[\#15192c\],
+.theme-light .bg-\[\#1d2238\],
+.theme-light .bg-\[\#121526\]\/50 {
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+}
+
+/* Border styling in light mode */
+.theme-light .border-\[\#262e49\],
+.theme-light .border-\[\#252c45\],
+.theme-light .border-\[\#232943\],
+.theme-light .border-\[\#252c48\],
+.theme-light .border-\[\#2d3656\],
+.theme-light .border-\[\#1f253d\],
+.theme-light .border-\[\#2b3350\],
+.theme-light .border-\[\#20263f\],
+.theme-light .border-\[\#232a43\] {
+  border-color: #e2e8f0 !important;
+}
+
+.theme-light .divide-\[\#1f253d\] > :not([hidden]) ~ :not([hidden]),
+.theme-light .divide-\[\#232943\] > :not([hidden]) ~ :not([hidden]) {
+  border-color: #f1f5f9 !important;
+}
+
+/* Text readability in light mode */
+.theme-light .text-white {
+  color: #0f172a !important;
+}
+
+.theme-light .text-slate-200,
+.theme-light .text-slate-300 {
+  color: #334155 !important;
+}
+
+.theme-light .text-slate-400 {
+  color: #64748b !important;
+}
+
+.theme-light .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Interactive hover effects */
+.theme-light .hover\:bg-\[\#1a2035\]:hover,
+.theme-light .hover\:bg-\[\#20263f\]:hover,
+.theme-light .hover\:bg-\[\#232b47\]:hover,
+.theme-light .hover\:bg-\[\#1a2037\]:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Form inputs, textareas, selects */
+.theme-light input,
+.theme-light select,
+.theme-light textarea {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light input::placeholder,
+.theme-light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Dark mode default remains standard high-contrast dark theme */
