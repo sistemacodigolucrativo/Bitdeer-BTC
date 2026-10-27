@@ -6,14 +6,16 @@
 import React, { useState, useEffect } from 'react';
 import { LanguageCode, AppScreen } from './types';
 import { storageService } from './services/storageService';
-import { miningService } from './services/miningService';
+import { AuthUser, session as backendSession, logout as backendLogout } from './services/api';
+import { AdminWorkspace } from './components/admin/AdminWorkspace';
+import { MemberWorkspace } from './components/MemberWorkspace';
 import { translations } from './i18n/translations';
 import { LanguageScreen } from './components/LanguageScreen';
 import { OnboardingPreviewScreen } from './components/OnboardingPreviewScreen';
 import { TerminalInitScreen } from './components/TerminalInitScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { CongratulationsModal } from './components/CongratulationsModal';
-import { MainAppWorkspace } from './components/MainAppWorkspace';
+
 
 class AppErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -73,6 +75,12 @@ export default function App() {
   });
   const [activeScreen, setActiveScreen] = useState<AppScreen>('language');
   const [showCongratulations, setShowCongratulations] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  useEffect(() => {
+    backendSession().then(user => {setAuthUser(user);setActiveScreen('workspace');})
+      .catch(() => {}).finally(() => setCheckingSession(false));
+  }, []);
 
   // Sync state with storage changes
   useEffect(() => {
@@ -108,11 +116,10 @@ export default function App() {
     setActiveScreen('login');
   };
 
-  const handleLoginSuccess = (username?: string) => {
-    if (username) {
-      storageService.savePreferences({ userName: username });
-    }
-    setShowCongratulations(true);
+  const handleLoginSuccess = (user: AuthUser) => {
+    setAuthUser(user);
+    setShowCongratulations(false);
+    setActiveScreen('workspace');
   };
 
   const handleProceedFromCongratulations = () => {
@@ -122,7 +129,7 @@ export default function App() {
 
   const handleResetData = () => {
     storageService.reset();
-    miningService.resetAll();
+
     const defaultLang = 'pt';
     setLanguage(defaultLang);
     storageService.savePreferences({ language: defaultLang });
@@ -134,9 +141,10 @@ export default function App() {
     <AppErrorBoundary>
       <div className={`min-h-screen ${theme === 'light' ? 'theme-light bg-slate-100 text-slate-900' : 'bg-[#090c17] text-slate-100'} flex flex-col items-center justify-center p-0 md:p-6 overflow-x-hidden transition-colors duration-200`}>
         {/* Mobile App Viewport Container */}
-        <main className={`w-full max-w-[420px] h-[100dvh] md:h-[840px] md:rounded-3xl md:shadow-2xl ${theme === 'light' ? 'bg-white border md:border-slate-200 text-slate-800' : 'bg-[#121626] border-0 md:border md:border-[#20263f] text-slate-100'} overflow-hidden flex flex-col relative transition-colors duration-200`}>
+        <main className={`w-full ${authUser?.role === 'admin' ? 'max-w-6xl' : 'max-w-[420px]'} h-[100dvh] md:h-[840px] md:rounded-3xl md:shadow-2xl ${theme === 'light' ? 'bg-white border md:border-slate-200 text-slate-800' : 'bg-[#121626] border-0 md:border md:border-[#20263f] text-slate-100'} overflow-hidden flex flex-col relative transition-colors duration-200`}>
+          {checkingSession && <div className="p-8 text-center">Verificando sessão segura...</div>}
           {/* Step 1: Language Screen */}
-          {activeScreen === 'language' && (
+          {!checkingSession && activeScreen === 'language' && (
             <LanguageScreen
               currentLanguage={language}
               onSelectLanguage={handleSelectLanguage}
@@ -145,7 +153,7 @@ export default function App() {
           )}
 
           {/* Step 2: Onboarding Screen with Slide to Start */}
-          {activeScreen === 'onboarding' && (
+          {!checkingSession && activeScreen === 'onboarding' && (
             <OnboardingPreviewScreen
               language={language}
               onBackToLanguage={() => setActiveScreen('language')}
@@ -154,7 +162,7 @@ export default function App() {
           )}
 
           {/* Step 3: Terminal Diagnostics Initialization */}
-          {activeScreen === 'terminal' && (
+          {!checkingSession && activeScreen === 'terminal' && (
             <TerminalInitScreen
               language={language}
               onEnterWorkspace={handleEnterWorkspace}
@@ -170,7 +178,7 @@ export default function App() {
           )}
 
           {/* Step 5: Congratulations Welcome Gift Modal */}
-          {showCongratulations && (
+          {false && showCongratulations && (
             <CongratulationsModal
               language={language}
               onProceed={handleProceedFromCongratulations}
@@ -178,14 +186,11 @@ export default function App() {
           )}
 
           {/* Step 6: Main App Workspace with Tabs (Home, Store, Reward, Wallet, Setting) */}
-          {activeScreen === 'workspace' && (
-            <MainAppWorkspace
-              language={language}
-              onNavigateToLanguage={() => setActiveScreen('language')}
-              onSelectLanguage={handleSelectLanguage}
-              onResetData={handleResetData}
-              onLogout={() => setActiveScreen('login')}
-            />
+          {!checkingSession && activeScreen === 'workspace' && authUser && (
+            authUser.role === 'admin'
+              ? <AdminWorkspace user={authUser} onLogout={() => {void backendLogout().finally(() => {setAuthUser(null);setActiveScreen('login');});}}/>
+              : <MemberWorkspace user={authUser} language={language}
+                onLogout={() => {void backendLogout().finally(() => {setAuthUser(null);setActiveScreen('login');});}}/>
           )}
         </main>
       </div>
