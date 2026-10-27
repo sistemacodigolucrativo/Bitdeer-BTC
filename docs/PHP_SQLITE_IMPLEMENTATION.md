@@ -37,9 +37,10 @@ Autenticação via cookie HttpOnly SameSite, token CSRF e verificação de papel
 no servidor. Só contas de membro podem acessar perfil e mineração.
 
 - register, login, session, logout, profile, profile.update
-- plans, orders.create, orders.mine, mining.start, mining.stop
+- plans, orders.create, orders.mine, mining.start, mining.stop,
+  rewards.claim, ledger
 - support (destinatário público)
-- admin.members, admin.status, admin.orders, admin.order.approve
+- admin.members, admin.status, admin.member.edit, admin.orders, admin.order.approve
 - admin.plan.save, admin.settings
 
 **Bloqueado:** admin.password.reset, até definir procedimento concreto para
@@ -53,8 +54,8 @@ pelo administrador, contratos VIP com snapshots e cálculo de recompensa por
 tempo decorrido e relógio do servidor, com transações SQLite.
 
 O saldo aqui representa **recompensas internas**, não comprovação de BTC
-efetivamente minerado nem saldo em blockchain. Os bônus USD e satoshis estão
-salvos no catálogo, mas ainda precisam ser conectados às rotinas de resgate.
+efetivamente minerado nem saldo em blockchain. Os bônus USD e satoshis têm registro de resgate diário na API e histórico
+consultável. A integração com o sistema antigo de resgates e sua UX permanece pendente.
 
 ## Pendências antes de publicar
 

@@ -81,6 +81,10 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       </>}
       {section==='plans' && <>
         <p className="text-xs text-slate-400">As alterações afetam apenas futuras contratações; contratos existentes mantêm os valores da contratação.</p>
+        <button className={btn} onClick={()=>setSelected({
+          id:'VIP_CUSTOM',name:'Novo Plano VIP',revision:0,priceUsd:'0.00',dailyUsd:'0.00',
+          bonusUsd:'0.00',bonusSatoshis:0,durationDays:30,hashrate:'',serverModel:'',available:false
+        })}>Criar novo plano</button>
         <div className="grid md:grid-cols-2 gap-3">{plans.map(p=><button key={p.id} onClick={()=>setSelected({...p})}
             className="text-left p-4 bg-[#1b2137] rounded-xl border border-[#2b3350]">
           <strong>{p.name}</strong><p className="text-sm">US$ {p.priceUsd} · US$ {p.dailyUsd}/dia · revisão {p.revision}</p></button>)}</div>
@@ -94,7 +98,11 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
             hashrate:selected.hashrate,serverModel:selected.serverModel,available:selected.available,
           });setSelected(null);
         }} className="rounded-xl p-4 bg-[#1b2137] space-y-3">
-          <strong>Editar {selected.id}</strong>
+          <strong>{selected.revision===0?'Cadastrar novo plano':'Editar '+selected.id}</strong>
+          {selected.revision===0 && <label className="block text-sm">ID estável do plano
+            <input required className="w-full bg-[#11182c] p-2 rounded-lg" value={selected.id}
+              onChange={e=>setSelected(p=>p?{...p,id:e.target.value.toUpperCase()}:p)}/>
+          </label>}
           {(['name','priceUsd','dailyUsd','bonusUsd','bonusSatoshis','durationDays','hashrate','serverModel'] as const).map(k=>
             <label key={k} className="block text-sm">{k}
               <input value={selected[k]} type={typeof selected[k]==='number'?'number':'text'}

@@ -2,15 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { AuthUser, MemberData, Plan, api } from '../services/api';
 import { CustomerSupportView } from './workspace/CustomerSupportView';
 import { LanguageCode } from '../types';
-import { Home, Store, User, Headphones, LogOut, RefreshCw } from 'lucide-react';
+import { Home, Store, User, Headphones, LogOut, RefreshCw, History } from 'lucide-react';
 
-type Page = 'home' | 'store' | 'profile' | 'support';
+type Page = 'home' | 'store' | 'profile' | 'support' | 'history';
 export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; onLogout: () => void}> =
 ({user, language, onLogout}) => {
   const [page, setPage] = useState<Page>('home');
   const [account, setAccount] = useState<MemberData | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [orders, setOrders] = useState<Array<{id:number;plan_id:string;status:string}>>([]);
+  const [ledger, setLedger] = useState<{
+    accruals: Array<{plan_id:string;start_ts:number;end_ts:number;earned_units:number}>;
+    bonuses: Array<{plan_id:string;claimed_at:number;bonus_usd_units:number;bonus_satoshis:number}>;
+  }>({accruals:[],bonuses:[]});
   const [profile, setProfile] = useState({displayName:'',email:'',phone:'',walletAddress:''});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -24,6 +28,7 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
     void reload();
     api<{plans: Plan[]}>('plans').then(x=>setPlans(x.plans)).catch(e=>setNotice(String(e)));
     api<{orders: typeof orders}>('orders.mine').then(x=>setOrders(x.orders)).catch(()=>{});
+    api<typeof ledger>('ledger').then(setLedger).catch(()=>{});
   }, []);
   async function act(action: string, body: Record<string, unknown> = {}) {
     setBusy(true); setNotice('');
@@ -31,6 +36,7 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
       await api(action,body);
       setNotice(action==='orders.create' ? 'Pedido registrado. O VIP só será ativado após confirmação manual do pagamento pelo administrador.' : 'Atualização salva.');
       await reload();
+      if (action==='rewards.claim' || action==='mining.stop') {api<typeof ledger>('ledger').then(setLedger).catch(()=>{});}
       if (action==='orders.create') {
         const x=await api<{orders: typeof orders}>('orders.mine'); setOrders(x.orders);
       }
@@ -84,6 +90,24 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
           {orders.length===0 ? <p className="text-xs text-slate-400">Nenhuma solicitação registrada.</p> :
             orders.map(o=><p className="text-sm" key={o.id}>#{o.id} · {o.plan_id} · {o.status}</p>)}
         </>}
+        {page==='history' && <>
+          <h2 className="font-bold text-lg">Histórico de recompensas</h2>
+          <button className="text-xs border border-slate-600 rounded-lg p-2" onClick={()=>
+            void api<typeof ledger>('ledger').then(setLedger).catch(e=>setNotice((e as Error).message))
+          }>Atualizar histórico</button>
+          <h3 className="text-sm font-semibold">Mineração por tempo decorrido</h3>
+          {ledger.accruals.length===0 && <p className="text-xs text-slate-400">Nenhum intervalo registrado.</p>}
+          {ledger.accruals.map((r,i)=><div key={i} className="p-3 bg-[#1b2137] rounded-xl text-xs">
+            {r.plan_id} · {new Date(r.start_ts*1000).toLocaleString('pt-BR')} — {new Date(r.end_ts*1000).toLocaleString('pt-BR')}
+            <p>Unidades creditadas: {r.earned_units}</p>
+          </div>)}
+          <h3 className="text-sm font-semibold">Bônus diários</h3>
+          {ledger.bonuses.length===0 && <p className="text-xs text-slate-400">Nenhum bônus resgatado.</p>}
+          {ledger.bonuses.map((r,i)=><div key={i} className="p-3 bg-[#1b2137] rounded-xl text-xs">
+            {r.plan_id} · {new Date(r.claimed_at*1000).toLocaleString('pt-BR')}
+            <p>{r.bonus_satoshis} satoshis internos · {r.bonus_usd_units} unidades USD</p>
+          </div>)}
+        </>}
         {page==='profile' && <form onSubmit={e=>{e.preventDefault();void act('profile.update',profile)}} className="space-y-3">
           <h2 className="text-lg font-bold">Meu perfil</h2>
           {(['displayName','email','phone','walletAddress'] as const).map(k=><label key={k} className="block text-sm text-slate-300">
@@ -96,7 +120,7 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
       </div>}
     <nav className="flex justify-around items-center p-3 h-16 border-t border-[#2b3350] bg-[#101322]">
       {tab('home','Início',Home)}{tab('store','Planos',Store)}
-      {tab('profile','Perfil',User)}{tab('support','Suporte',Headphones)}
+      {tab('profile','Perfil',User)}{tab('history','Histórico',History)}{tab('support','Suporte',Headphones)}
     </nav>
   </div>;
 };

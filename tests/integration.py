@@ -41,6 +41,7 @@ assert len(guest.call("plans")["plans"]) == 5
 assert guest.call("register",{"login":"alice","password":"longpassword123","displayName":"Alice"},201)["role"]=="member"
 guest.call("register",{"login":"alice","password":"longpassword123"},409)
 guest.call("login",{"login":"alice","password":"incorrect"},401)
+assert guest.call("register",{"login":"bob","password":"anotherpassword123","role":"admin"},201)["role"]=="member", "public registration must ignore requested role"
 
 alice=Client()
 alice_user=alice.call("login",{"login":"alice","password":"longpassword123"})["user"]
@@ -64,6 +65,8 @@ admin.call("admin.plan.save",{"id":"VIP_01","name":"VIP 01","priceCents":3000,
   "durationDays":30,"hashrate":"+ 275 Gh/s","serverModel":"Antminer S19 Pro",
   "available":True})
 assert alice.call("profile")["plan"]["dailyUsd"]=="3.00", "VIP contract terms cannot change"
+admin.call("admin.member.edit",{"userId":alice_user["id"],"displayName":"Alice Testada","email":"alice@example.org"})
+assert alice.call("profile")["profile"]["displayName"]=="Alice Testada"
 admin.call("admin.status",{"userId":alice_user["id"],"status":"suspended"})
 alice.call("profile",expected=401)
 admin.call("admin.status",{"userId":alice_user["id"],"status":"active"})
