@@ -27,6 +27,7 @@ class CryptoPriceService {
 
   private listeners: Array<(state: BtcPriceState) => void> = [];
   private fetchIntervalId: number | null = null;
+  private isFetching = false;
 
   constructor() {
     this.init();
@@ -39,7 +40,13 @@ class CryptoPriceService {
         const cached = localStorage.getItem('btc_usd_cached_price');
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (parsed.priceUsd && Date.now() - parsed.lastUpdated < 3600000) {
+          if (
+            typeof parsed?.priceUsd === 'number' &&
+            Number.isFinite(parsed.priceUsd) &&
+            parsed.priceUsd > 1000 &&
+            typeof parsed?.lastUpdated === 'number' &&
+            Date.now() - parsed.lastUpdated < 3600000
+          ) {
             this.state.priceUsd = parsed.priceUsd;
             this.state.lastUpdated = parsed.lastUpdated;
           }
@@ -55,58 +62,76 @@ class CryptoPriceService {
     // Refresh every 60 seconds
     if (typeof window !== 'undefined') {
       this.fetchIntervalId = window.setInterval(() => {
-        this.fetchPrice();
+        this.fetchPrice().catch(() => {
+          // ignore periodic network error
+        });
       }, 60000);
     }
   }
 
+  private async fetchWithTimeout(url: string, timeoutMs = 8000): Promise<Response> {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, {
+        headers: { Accept: 'application/json' },
+        cache: 'no-cache',
+        signal: controller.signal
+      });
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
   public async fetchPrice(): Promise<number> {
+    if (this.isFetching) {
+      return this.state.priceUsd;
+    }
+    this.isFetching = true;
     this.state.isLoading = true;
     this.notify();
 
-    // 1. Try Coinbase Spot API
     try {
-      const response = await fetch('https://api.coinbase.com/v2/prices/spot?currency=USD', {
-        headers: { Accept: 'application/json' },
-        cache: 'no-cache'
-      });
-      if (response.ok) {
-        const json = await response.json();
-        const amountStr = json?.data?.amount;
-        const parsed = parseFloat(amountStr);
-        if (!isNaN(parsed) && parsed > 1000) {
-          this.updatePrice(parsed, true);
-          return parsed;
+      // 1. Try Coinbase Spot API
+      try {
+        const response = await this.fetchWithTimeout('https://api.coinbase.com/v2/prices/spot?currency=USD');
+        if (response.ok) {
+          const json = await response.json();
+          const amountStr = json?.data?.amount;
+          const parsed = parseFloat(amountStr);
+          if (Number.isFinite(parsed) && parsed > 1000) {
+            this.updatePrice(parsed, true);
+            return parsed;
+          }
         }
+      } catch {
+        // fallback to next source
       }
-    } catch {
-      // fallback to next source
-    }
 
-    // 2. Try CoinGecko Public API
-    try {
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', {
-        headers: { Accept: 'application/json' },
-        cache: 'no-cache'
-      });
-      if (response.ok) {
-        const json = await response.json();
-        const parsed = json?.bitcoin?.usd;
-        if (typeof parsed === 'number' && parsed > 1000) {
-          this.updatePrice(parsed, true);
-          return parsed;
+      // 2. Try CoinGecko Public API
+      try {
+        const response = await this.fetchWithTimeout('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+        if (response.ok) {
+          const json = await response.json();
+          const parsed = json?.bitcoin?.usd;
+          if (typeof parsed === 'number' && Number.isFinite(parsed) && parsed > 1000) {
+            this.updatePrice(parsed, true);
+            return parsed;
+          }
         }
+      } catch {
+        // fallback to default
       }
-    } catch {
-      // fallback to default
-    }
 
-    // 3. Keep existing price or default fallback, flagging error/non-live status
-    this.state.isLoading = false;
-    this.state.isLive = false;
-    this.state.error = true;
-    this.notify();
-    return this.state.priceUsd;
+      // 3. Keep existing price or default fallback, flagging error/non-live status
+      this.state.isLoading = false;
+      this.state.isLive = false;
+      this.state.error = true;
+      this.notify();
+      return this.state.priceUsd;
+    } finally {
+      this.isFetching = false;
+    }
   }
 
   private updatePrice(price: number, isLive: boolean) {
@@ -138,14 +163,25 @@ class CryptoPriceService {
 
   public subscribe(listener: (state: BtcPriceState) => void): () => void {
     this.listeners.push(listener);
-    listener(this.getState());
+    try {
+      listener(this.getState());
+    } catch {
+      // ignore initial listener error
+    }
     return () => {
       this.listeners = this.listeners.filter(l => l !== listener);
     };
   }
 
   private notify() {
-    this.listeners.forEach(l => l(this.getState()));
+    const snapshot = this.getState();
+    this.listeners.forEach(l => {
+      try {
+        l(snapshot);
+      } catch {
+        // isolate listener error
+      }
+    });
   }
 
   /**

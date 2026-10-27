@@ -1,4 +1,4 @@
-import { MiningState, VipTier, RewardClaimResult, MiningSessionRecord, SubscriptionRecord } from '../types';
+import { MiningState, VipTier, RewardClaimResult, MiningSessionRecord, SubscriptionRecord, ReferralRecord } from '../types';
 import {
   UNITS_PER_USD,
   calculateAccumulatedUnits,
@@ -7,6 +7,12 @@ import {
   getDailyBonusSatoshis,
 } from '../config/dailyRewards';
 import { cryptoPriceService } from './cryptoPriceService';
+import {
+  OFFICIAL_INVITE_CODE,
+  INITIAL_REFERRAL_HISTORY,
+  INITIAL_REFERRAL_BTC_TOTAL,
+  buildReferralRecordOnSignup,
+} from './referralBackend';
 
 const MINING_STORAGE_KEY = 'btc_mining_state_v4';
 const DEFAULT_SESSION_SECONDS = 30 * 60; // 30 minutes in seconds
@@ -55,7 +61,8 @@ const INITIAL_MINING_STATE: MiningState = {
   baseHashrate: 5.30,
   bonusHashrate: 0,
   totalBtc: 0.000000005000,
-  referralBtc: 0.000000000000,
+  referralBtc: INITIAL_REFERRAL_BTC_TOTAL,
+  referralHistory: INITIAL_REFERRAL_HISTORY,
   activeMinersCount: 55161,
   sessionSecondsLeft: DEFAULT_SESSION_SECONDS,
   claimedBoosts: [],
@@ -72,6 +79,10 @@ const INITIAL_MINING_STATE: MiningState = {
   pendingUsdUnitsForBtc: 0,
   dailyYieldRuleActivatedAt: Date.now()
 };
+
+function safeNum(val: unknown, fallback: number): number {
+  return typeof val === 'number' && Number.isFinite(val) ? val : fallback;
+}
 
 export class MiningService {
   private state: MiningState = { ...INITIAL_MINING_STATE };
@@ -93,7 +104,9 @@ export class MiningService {
         if (stored) {
           const parsed = JSON.parse(stored);
           const now = Date.now();
-          const hasMigrationTimestamp = typeof parsed.dailyYieldRuleActivatedAt === 'number';
+          const hasMigrationTimestamp =
+            typeof parsed.dailyYieldRuleActivatedAt === 'number' &&
+            Number.isFinite(parsed.dailyYieldRuleActivatedAt);
 
           // Se o estado salvo tinha apenas a cortesia inicial antiga (TXN-8392104-BTC), ajusta para iniciar no Plano Gratuito
           const hadOnlyLegacyCourtesy =
@@ -101,39 +114,90 @@ export class MiningService {
             parsed.subscriptionsHistory.length === 1 &&
             parsed.subscriptionsHistory[0]?.transactionId === 'TXN-8392104-BTC';
 
-          const resolvedVipTier: VipTier = hadOnlyLegacyCourtesy
-            ? 'none'
-            : (parsed.userVipTier ?? 'none');
+          const validTiers: VipTier[] = ['none', 'vip01', 'vip02', 'vip03', 'vip04'];
+          const rawTier = hadOnlyLegacyCourtesy ? 'none' : parsed.userVipTier;
+          const resolvedVipTier: VipTier = validTiers.includes(rawTier) ? rawTier : 'none';
 
           const resolvedSubscriptions: SubscriptionRecord[] = hadOnlyLegacyCourtesy
             ? INITIAL_SUBSCRIPTIONS
-            : (parsed.subscriptionsHistory?.length ? parsed.subscriptionsHistory : INITIAL_SUBSCRIPTIONS);
+            : Array.isArray(parsed.subscriptionsHistory) && parsed.subscriptionsHistory.length > 0
+            ? parsed.subscriptionsHistory.slice(0, 50)
+            : INITIAL_SUBSCRIPTIONS;
+
+          const resolvedSessions: MiningSessionRecord[] =
+            Array.isArray(parsed.miningSessions) && parsed.miningSessions.length > 0
+              ? parsed.miningSessions.slice(0, 50)
+              : INITIAL_SESSIONS;
 
           // Se havia sessão ativa sem lastAccrualTimestamp (estado legado), infere o último instante salvo
-          let inferredLastAccrual = parsed.lastAccrualTimestamp;
+          let inferredLastAccrual =
+            typeof parsed.lastAccrualTimestamp === 'number' && Number.isFinite(parsed.lastAccrualTimestamp)
+              ? parsed.lastAccrualTimestamp
+              : undefined;
+
           if (
             parsed.isMining &&
             typeof parsed.sessionEndTime === 'number' &&
-            typeof inferredLastAccrual !== 'number'
+            Number.isFinite(parsed.sessionEndTime) &&
+            inferredLastAccrual === undefined
           ) {
-            const remSec = typeof parsed.sessionSecondsLeft === 'number' ? parsed.sessionSecondsLeft : 0;
-            inferredLastAccrual = parsed.sessionEndTime - (remSec * 1000);
+            const remSec = safeNum(parsed.sessionSecondsLeft, 0);
+            inferredLastAccrual = parsed.sessionEndTime - remSec * 1000;
           }
 
-          const accruedUsdUnits = typeof parsed.accruedUsdUnits === 'number' ? parsed.accruedUsdUnits : 0;
+          const accruedUsdUnits = safeNum(parsed.accruedUsdUnits, 0);
+
+          const resolvedReferrals: ReferralRecord[] =
+            Array.isArray(parsed.referralHistory) && parsed.referralHistory.length > 0
+              ? parsed.referralHistory
+                  .filter(
+                    (r: any) =>
+                      r &&
+                      typeof r.fullName === 'string' &&
+                      typeof r.maskedEmail === 'string' &&
+                      typeof r.amountBtc === 'number' &&
+                      Number.isFinite(r.amountBtc)
+                  )
+                  .slice(0, 50)
+              : INITIAL_REFERRAL_HISTORY;
+
+          const computedReferralBtc = Number(
+            resolvedReferrals.reduce((acc, item) => acc + safeNum(item.amountBtc, 0), 0).toFixed(12)
+          );
 
           this.state = {
             ...INITIAL_MINING_STATE,
             ...parsed,
+            isMining: Boolean(parsed.isMining),
+            baseHashrate: safeNum(parsed.baseHashrate, INITIAL_MINING_STATE.baseHashrate),
+            bonusHashrate: safeNum(parsed.bonusHashrate, 0),
+            totalBtc: safeNum(parsed.totalBtc, INITIAL_MINING_STATE.totalBtc),
+            referralBtc: computedReferralBtc > 0 ? computedReferralBtc : safeNum(parsed.referralBtc, INITIAL_REFERRAL_BTC_TOTAL),
+            referralHistory: resolvedReferrals,
+            activeMinersCount: safeNum(parsed.activeMinersCount, INITIAL_MINING_STATE.activeMinersCount),
+            sessionSecondsLeft: safeNum(parsed.sessionSecondsLeft, DEFAULT_SESSION_SECONDS),
+            sessionEndTime:
+              typeof parsed.sessionEndTime === 'number' && Number.isFinite(parsed.sessionEndTime)
+                ? parsed.sessionEndTime
+                : undefined,
+            claimedBoosts: Array.isArray(parsed.claimedBoosts) ? parsed.claimedBoosts : [],
             userVipTier: resolvedVipTier,
-            rewardCooldowns: parsed.rewardCooldowns || {},
-            miningSessions: parsed.miningSessions?.length ? parsed.miningSessions : INITIAL_SESSIONS,
+            rewardCooldowns:
+              parsed.rewardCooldowns && typeof parsed.rewardCooldowns === 'object'
+                ? parsed.rewardCooldowns
+                : {},
+            miningSessions: resolvedSessions,
+            currentSessionId:
+              typeof parsed.currentSessionId === 'string' && parsed.currentSessionId
+                ? parsed.currentSessionId
+                : 'sess-' + now,
+            currentSessionSatoshis: safeNum(parsed.currentSessionSatoshis, 0),
+            currentSessionDurationSeconds: safeNum(parsed.currentSessionDurationSeconds, 0),
             subscriptionsHistory: resolvedSubscriptions,
-            referralBtc: parsed.referralBtc ?? 0.000000000000,
             lastAccrualTimestamp: inferredLastAccrual,
             accruedUsdUnits,
             accruedMiningUsd: accruedUsdUnits / UNITS_PER_USD,
-            pendingUsdUnitsForBtc: typeof parsed.pendingUsdUnitsForBtc === 'number' ? parsed.pendingUsdUnitsForBtc : 0,
+            pendingUsdUnitsForBtc: safeNum(parsed.pendingUsdUnitsForBtc, 0),
             dailyYieldRuleActivatedAt: hasMigrationTimestamp ? parsed.dailyYieldRuleActivatedAt : now
           };
         }
@@ -189,22 +253,23 @@ export class MiningService {
     if (this.state.currentSessionSatoshis <= 0 && this.state.currentSessionDurationSeconds <= 5) {
       return;
     }
-    const sessionNum = this.state.miningSessions.length + 1;
+    const sessionNum = (this.state.miningSessions?.length || 0) + 1;
     const now = new Date();
     const dateFormatted = `${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
     
     const archived: MiningSessionRecord = {
       id: this.state.currentSessionId || ('sess-' + Date.now()),
       sessionNumber: sessionNum,
-      startTime: Date.now() - (this.state.currentSessionDurationSeconds * 1000),
+      startTime: Date.now() - (safeNum(this.state.currentSessionDurationSeconds, 0) * 1000),
       endTime: Date.now(),
-      durationSeconds: this.state.currentSessionDurationSeconds,
-      satoshisMined: Math.round(this.state.currentSessionSatoshis),
-      btcAmt: parseFloat((this.state.currentSessionSatoshis / 100_000_000).toFixed(8)),
+      durationSeconds: safeNum(this.state.currentSessionDurationSeconds, 0),
+      satoshisMined: Math.round(safeNum(this.state.currentSessionSatoshis, 0)),
+      btcAmt: parseFloat((safeNum(this.state.currentSessionSatoshis, 0) / 100_000_000).toFixed(8)),
       dateFormatted
     };
 
-    this.state.miningSessions = [archived, ...this.state.miningSessions];
+    const existingSessions = Array.isArray(this.state.miningSessions) ? this.state.miningSessions : [];
+    this.state.miningSessions = [archived, ...existingSessions].slice(0, 50);
     this.state.currentSessionId = 'sess-' + Date.now();
     this.state.currentSessionSatoshis = 0;
     this.state.currentSessionDurationSeconds = 0;
@@ -226,7 +291,7 @@ export class MiningService {
    * Converte unidades USD pendentes para BTC e Satoshis caso exista cotação válida no cryptoPriceService.
    */
   private flushPendingUsdToBtc(): boolean {
-    const pendingUnits = this.state.pendingUsdUnitsForBtc || 0;
+    const pendingUnits = safeNum(this.state.pendingUsdUnitsForBtc, 0);
     if (pendingUnits <= 0) return false;
 
     const priceState = cryptoPriceService.getState();
@@ -238,8 +303,8 @@ export class MiningService {
     const gainedBtc = cryptoPriceService.convertUsdToBtc(pendingUsd, priceState.priceUsd);
     const gainedSatoshis = cryptoPriceService.convertBtcToSatoshis(gainedBtc);
 
-    this.state.totalBtc = this.state.totalBtc + gainedBtc;
-    this.state.currentSessionSatoshis += gainedSatoshis;
+    this.state.totalBtc = safeNum(this.state.totalBtc, 0) + safeNum(gainedBtc, 0);
+    this.state.currentSessionSatoshis = safeNum(this.state.currentSessionSatoshis, 0) + safeNum(gainedSatoshis, 0);
     this.state.pendingUsdUnitsForBtc = 0;
     return true;
   }
@@ -263,7 +328,7 @@ export class MiningService {
     // ANOTAÇÃO Nº 02: Planos VIP (VIP 01, 02, 03 e 04) possuem mineração simulada contínua sem limite de 30 minutos
     if (this.hasVipAccess()) {
       const lastTimestamp =
-        typeof this.state.lastAccrualTimestamp === 'number'
+        typeof this.state.lastAccrualTimestamp === 'number' && Number.isFinite(this.state.lastAccrualTimestamp)
           ? this.state.lastAccrualTimestamp
           : now;
 
@@ -271,16 +336,16 @@ export class MiningService {
 
       if (elapsedSeconds > 0) {
         const gainedUnits = calculateAccumulatedUnits(elapsedSeconds, this.state.userVipTier);
-        this.state.accruedUsdUnits = (this.state.accruedUsdUnits || 0) + gainedUnits;
+        this.state.accruedUsdUnits = safeNum(this.state.accruedUsdUnits, 0) + gainedUnits;
         this.state.accruedMiningUsd = this.state.accruedUsdUnits / UNITS_PER_USD;
-        this.state.pendingUsdUnitsForBtc = (this.state.pendingUsdUnitsForBtc || 0) + gainedUnits;
+        this.state.pendingUsdUnitsForBtc = safeNum(this.state.pendingUsdUnitsForBtc, 0) + gainedUnits;
 
         this.flushPendingUsdToBtc();
 
-        this.state.currentSessionDurationSeconds += elapsedSeconds;
+        this.state.currentSessionDurationSeconds = safeNum(this.state.currentSessionDurationSeconds, 0) + elapsedSeconds;
         this.state.lastAccrualTimestamp = lastTimestamp + (elapsedSeconds * 1000);
         stateChanged = true;
-      } else if (typeof this.state.lastAccrualTimestamp !== 'number') {
+      } else if (typeof this.state.lastAccrualTimestamp !== 'number' || !Number.isFinite(this.state.lastAccrualTimestamp)) {
         this.state.lastAccrualTimestamp = lastTimestamp;
         stateChanged = true;
       }
@@ -294,10 +359,11 @@ export class MiningService {
     }
 
     // PLANO FREE: Preserva o limite de tempo (30 minutos padrão ou 2 horas de bônus)
-    if (!this.state.sessionEndTime) {
-      if (this.state.sessionSecondsLeft > 0) {
+    const safeSessionLeft = safeNum(this.state.sessionSecondsLeft, 0);
+    if (typeof this.state.sessionEndTime !== 'number' || !Number.isFinite(this.state.sessionEndTime)) {
+      if (safeSessionLeft > 0) {
         this.state.lastAccrualTimestamp = now;
-        this.state.sessionEndTime = now + (this.state.sessionSecondsLeft * 1000);
+        this.state.sessionEndTime = now + (safeSessionLeft * 1000);
         return true;
       } else {
         this.state.isMining = false;
@@ -307,30 +373,33 @@ export class MiningService {
     }
 
     const lastTimestamp =
-      typeof this.state.lastAccrualTimestamp === 'number'
+      typeof this.state.lastAccrualTimestamp === 'number' && Number.isFinite(this.state.lastAccrualTimestamp)
         ? this.state.lastAccrualTimestamp
-        : this.state.sessionEndTime - (this.state.sessionSecondsLeft * 1000);
+        : this.state.sessionEndTime - (safeSessionLeft * 1000);
 
     const effectiveEnd = Math.min(now, this.state.sessionEndTime);
     const elapsedSeconds = Math.max(0, Math.floor((effectiveEnd - lastTimestamp) / 1000));
 
     if (elapsedSeconds > 0) {
       const gainedUnits = calculateAccumulatedUnits(elapsedSeconds, this.state.userVipTier);
-      this.state.accruedUsdUnits = (this.state.accruedUsdUnits || 0) + gainedUnits;
+      this.state.accruedUsdUnits = safeNum(this.state.accruedUsdUnits, 0) + gainedUnits;
       this.state.accruedMiningUsd = this.state.accruedUsdUnits / UNITS_PER_USD;
-      this.state.pendingUsdUnitsForBtc = (this.state.pendingUsdUnitsForBtc || 0) + gainedUnits;
+      this.state.pendingUsdUnitsForBtc = safeNum(this.state.pendingUsdUnitsForBtc, 0) + gainedUnits;
 
       this.flushPendingUsdToBtc();
 
-      this.state.currentSessionDurationSeconds += elapsedSeconds;
+      this.state.currentSessionDurationSeconds = safeNum(this.state.currentSessionDurationSeconds, 0) + elapsedSeconds;
       this.state.lastAccrualTimestamp = lastTimestamp + (elapsedSeconds * 1000);
       stateChanged = true;
-    } else if (typeof this.state.lastAccrualTimestamp !== 'number') {
+    } else if (typeof this.state.lastAccrualTimestamp !== 'number' || !Number.isFinite(this.state.lastAccrualTimestamp)) {
       this.state.lastAccrualTimestamp = lastTimestamp;
       stateChanged = true;
     }
 
-    const refTimestamp = this.state.lastAccrualTimestamp ?? lastTimestamp;
+    const refTimestamp =
+      typeof this.state.lastAccrualTimestamp === 'number' && Number.isFinite(this.state.lastAccrualTimestamp)
+        ? this.state.lastAccrualTimestamp
+        : lastTimestamp;
     const secondsRemaining = Math.max(0, Math.floor((this.state.sessionEndTime - refTimestamp) / 1000));
 
     if (this.state.sessionSecondsLeft !== secondsRemaining) {
@@ -363,8 +432,12 @@ export class MiningService {
     if (this.intervalTimer) clearInterval(this.intervalTimer);
 
     this.intervalTimer = window.setInterval(() => {
-      if (this.reconcileMiningProgress(Date.now())) {
-        this.saveState();
+      try {
+        if (this.reconcileMiningProgress(Date.now())) {
+          this.saveState();
+        }
+      } catch {
+        // Prevent uncaught exceptions inside global interval
       }
     }, 1000);
   }
@@ -379,14 +452,25 @@ export class MiningService {
 
   public subscribe(listener: (state: MiningState) => void): () => void {
     this.listeners.push(listener);
-    listener(this.getState());
+    try {
+      listener(this.getState());
+    } catch {
+      // ignore initial listener error
+    }
     return () => {
       this.listeners = this.listeners.filter(l => l !== listener);
     };
   }
 
   private notify() {
-    this.listeners.forEach(l => l(this.getState()));
+    const snapshot = this.getState();
+    this.listeners.forEach(l => {
+      try {
+        l(snapshot);
+      } catch {
+        // isolate listener failure
+      }
+    });
   }
 
   public setVipTier(tier: VipTier, now: number = Date.now()) {
@@ -658,6 +742,95 @@ export class MiningService {
       ...this.state.subscriptionsHistory.map(s => ({ ...s, status: 'completed' as const }))
     ];
     this.setVipTier(plan.id as VipTier, nowTs);
+  }
+
+  /**
+   * Credita US$ 1,00 no Saldo de Indicação convertido para o equivalente em BTC
+   * pela cotação BTC/USD exata do momento do cadastro do indicado, aplicando
+   * a máscara de e-mail no backend (ex.: jo***@dominio.com) sem expor o e-mail completo.
+   */
+  public async registerReferralSignup(params: {
+    fullName: string;
+    email: string;
+    inviteCode: string;
+  }): Promise<{ success: boolean; message: string; record?: ReferralRecord }> {
+    const cleanName = String(params.fullName || '').trim();
+    const cleanEmail = String(params.email || '').trim();
+    const cleanCode = String(params.inviteCode || '').trim().toUpperCase();
+
+    if (cleanName.split(/\s+/).filter(Boolean).length < 2) {
+      return {
+        success: false,
+        message: 'Informe o nome e sobrenome do indicado.',
+      };
+    }
+
+    if (!cleanEmail || !cleanEmail.includes('@') || cleanEmail.startsWith('@') || cleanEmail.endsWith('@')) {
+      return {
+        success: false,
+        message: 'Informe um e-mail válido para o indicado.',
+      };
+    }
+
+    if (cleanCode !== OFFICIAL_INVITE_CODE) {
+      return {
+        success: false,
+        message: `Código de convite inválido. Utilize o código ${OFFICIAL_INVITE_CODE}.`,
+      };
+    }
+
+    // Obtém a cotação BTC/USD do momento do cadastro
+    const currentQuote = cryptoPriceService.getState().priceUsd;
+    let newRecord: ReferralRecord | null = null;
+
+    // 1. Tenta processar no endpoint de backend (/api/referrals/register) que aplica a máscara no servidor
+    try {
+      const response = await fetch('/api/referrals/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: cleanName,
+          email: cleanEmail,
+          inviteCode: cleanCode,
+          btcUsdRate: currentQuote,
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data?.record && typeof data.record.maskedEmail === 'string') {
+          newRecord = data.record as ReferralRecord;
+        }
+      }
+    } catch {
+      // Fallback para o processador de backend isolado caso em build estático
+    }
+
+    if (!newRecord) {
+      newRecord = buildReferralRecordOnSignup({
+        fullName: cleanName,
+        rawEmail: cleanEmail,
+        btcUsdRate: currentQuote,
+      });
+    }
+
+    const existingList = Array.isArray(this.state.referralHistory)
+      ? this.state.referralHistory
+      : INITIAL_REFERRAL_HISTORY;
+
+    const updatedHistory = [newRecord, ...existingList].slice(0, 50);
+    const updatedBtcTotal = Number(
+      updatedHistory.reduce((acc, item) => acc + safeNum(item.amountBtc, 0), 0).toFixed(12)
+    );
+
+    this.state.referralHistory = updatedHistory;
+    this.state.referralBtc = updatedBtcTotal;
+    this.saveState();
+
+    return {
+      success: true,
+      message: `+${newRecord.amountBtc.toFixed(8)} BTC (US$ 1,00 @ $${newRecord.btcUsdRateUsed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) creditados no Saldo de Indicação!`,
+      record: newRecord,
+    };
   }
 
   public resetAll() {

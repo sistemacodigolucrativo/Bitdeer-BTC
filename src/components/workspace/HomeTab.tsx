@@ -23,37 +23,55 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onStartMining,
   onStopMining
 }) => {
-  const t = translations[language].home;
+  const safeLang: LanguageCode = translations[language] ? language : 'pt';
+  const t = translations[safeLang].home;
   const [faqOpen, setFaqOpen] = useState(false);
   const [, setSecondTicker] = useState(0);
 
   // Re-render every second to smoothly update countdowns
   useEffect(() => {
     const ticker = setInterval(() => {
-      setSecondTicker(prev => prev + 1);
+      setSecondTicker(prev => (prev + 1) % 1000000);
     }, 1000);
     return () => clearInterval(ticker);
   }, []);
 
-  const totalHash = (miningState.baseHashrate + miningState.bonusHashrate).toFixed(2);
-  const formattedBtc = miningState.totalBtc.toFixed(12);
-  const activePlanId = mapTierToPlanId(miningState.userVipTier);
-  const activeDailyUsd = getDailyRewardUsd(miningState.userVipTier);
-  const dailyBonusUsd = getDailyBonusUsd(miningState.userVipTier);
+  const safeBaseHash =
+    typeof miningState?.baseHashrate === 'number' && Number.isFinite(miningState.baseHashrate)
+      ? miningState.baseHashrate
+      : 5.3;
+  const safeBonusHash =
+    typeof miningState?.bonusHashrate === 'number' && Number.isFinite(miningState.bonusHashrate)
+      ? miningState.bonusHashrate
+      : 0;
+  const safeTotalBtc =
+    typeof miningState?.totalBtc === 'number' && Number.isFinite(miningState.totalBtc)
+      ? miningState.totalBtc
+      : 0;
+  const safeSessionSeconds =
+    typeof miningState?.sessionSecondsLeft === 'number' && Number.isFinite(miningState.sessionSecondsLeft)
+      ? Math.max(0, Math.floor(miningState.sessionSecondsLeft))
+      : 1800;
+
+  const totalHash = (safeBaseHash + safeBonusHash).toFixed(2);
+  const formattedBtc = safeTotalBtc.toFixed(12);
+  const activePlanId = mapTierToPlanId(miningState?.userVipTier || 'none');
+  const activeDailyUsd = getDailyRewardUsd(miningState?.userVipTier || 'none');
+  const dailyBonusUsd = getDailyBonusUsd(miningState?.userVipTier || 'none');
   const formattedDailyBonusUsd = dailyBonusUsd.toFixed(2).replace('.', ',');
-  const dailyBonusSatoshis = getDailyBonusSatoshis(miningState.userVipTier);
+  const dailyBonusSatoshis = getDailyBonusSatoshis(miningState?.userVipTier || 'none');
   const formattedDailyBonusSatoshis = dailyBonusSatoshis.toLocaleString('pt-BR');
-  const isVipPlan = miningState.userVipTier !== 'none';
+  const isVipPlan = Boolean(miningState?.userVipTier && miningState.userVipTier !== 'none');
 
   // Format session countdown for FREE plan (Anotação 02)
-  const sessionMin = Math.floor(miningState.sessionSecondsLeft / 60);
-  const sessionSec = miningState.sessionSecondsLeft % 60;
+  const sessionMin = Math.floor(safeSessionSeconds / 60);
+  const sessionSec = safeSessionSeconds % 60;
   const sessionTimerFormatted = `${sessionMin.toString().padStart(2, '0')}:${sessionSec.toString().padStart(2, '0')}`;
 
   // Cooldown status for the 3 daily rewards
-  const cdReward1 = miningService.checkCooldown(miningState.reward1ClaimedAt);
-  const cdReward2 = miningService.checkCooldown(miningState.reward2ClaimedAt);
-  const cdReward3 = miningService.checkCooldown(miningState.reward3ClaimedAt);
+  const cdReward1 = miningService.checkCooldown(miningState?.reward1ClaimedAt);
+  const cdReward2 = miningService.checkCooldown(miningState?.reward2ClaimedAt);
+  const cdReward3 = miningService.checkCooldown(miningState?.reward3ClaimedAt);
 
   const [claimNotice, setClaimNotice] = useState<string | null>(null);
 
@@ -129,7 +147,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </div>
             <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>{miningState.activeMinersCount.toLocaleString()} {t.activeMiners}</span>
+              <span>{(miningState?.activeMinersCount ?? 55161).toLocaleString()} {t.activeMiners}</span>
             </div>
           </div>
 

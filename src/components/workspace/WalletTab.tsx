@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Lock, Copy, Check, Share2, RefreshCw, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Lock, Copy, Check, Share2, RefreshCw, AlertCircle, TrendingUp, TrendingDown, UserPlus, Users, Gift } from 'lucide-react';
 import { LanguageCode, MiningState } from '../../types';
 import { translations } from '../../i18n/translations';
 import { cryptoPriceService, BtcPriceState } from '../../services/cryptoPriceService';
+import { miningService } from '../../services/miningService';
+import { INITIAL_REFERRAL_HISTORY, INITIAL_REFERRAL_BTC_TOTAL } from '../../services/referralBackend';
 import { copyToClipboard } from '../../utils/clipboard';
 
 type ChartPeriodDays = 7 | 15 | 30;
@@ -18,7 +20,7 @@ const historyMemoryCache: Partial<Record<ChartPeriodDays, { points: PriceHistory
  * Gera curva aproximada realista de alta e queda do BTC caso as APIs públicas falhem
  */
 function buildApproximateBtcCurve(days: ChartPeriodDays, anchorPrice: number): PriceHistoryPoint[] {
-  const basePrice = anchorPrice > 1000 ? anchorPrice : 80285.58;
+  const basePrice = typeof anchorPrice === 'number' && Number.isFinite(anchorPrice) && anchorPrice > 1000 ? anchorPrice : 80285.58;
   const now = Date.now();
   const dayMs = 86_400_000;
 
@@ -47,7 +49,8 @@ export const WalletTab: React.FC<WalletTabProps> = ({
   miningState,
   onOpenProfile
 }) => {
-  const t = translations[language].wallet;
+  const safeLang: LanguageCode = translations[language] ? language : 'pt';
+  const t = translations[safeLang].wallet;
   const [subTab, setSubTab] = useState<'mining' | 'referral'>('mining');
   const [copied, setCopied] = useState(false);
   const [priceState, setPriceState] = useState<BtcPriceState>(cryptoPriceService.getState());
@@ -59,41 +62,75 @@ export const WalletTab: React.FC<WalletTabProps> = ({
   );
   const [isChartLoading, setIsChartLoading] = useState<boolean>(false);
   const [chartApiError, setChartApiError] = useState<string | null>(null);
+  const isMountedRef = useRef<boolean>(true);
 
   useEffect(() => {
-    const unsubscribe = cryptoPriceService.subscribe(setPriceState);
-    return () => unsubscribe();
+    isMountedRef.current = true;
+    const unsubscribe = cryptoPriceService.subscribe((next) => {
+      if (isMountedRef.current) {
+        setPriceState(next);
+      }
+    });
+    return () => {
+      isMountedRef.current = false;
+      unsubscribe();
+    };
   }, []);
 
   const fetchChartHistory = useCallback(
     async (days: ChartPeriodDays, forceRefresh = false) => {
       const cached = historyMemoryCache[days];
       if (!forceRefresh && cached && Date.now() - cached.fetchedAt < 120_000) {
-        setChartPoints(cached.points);
-        setChartApiError(null);
+        if (isMountedRef.current) {
+          setChartPoints(cached.points);
+          setChartApiError(null);
+        }
         return;
       }
 
-      setIsChartLoading(true);
-      setChartApiError(null);
+      if (isMountedRef.current) {
+        setIsChartLoading(true);
+        setChartApiError(null);
+      }
+
+      const fetchWithTimeout = async (url: string, timeoutMs = 7000) => {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          return await fetch(url, {
+            headers: { Accept: 'application/json' },
+            signal: controller.signal,
+          });
+        } finally {
+          window.clearTimeout(timer);
+        }
+      };
 
       // 1. Tenta CoinGecko market_chart (CORS habilitado)
       try {
-        const cgRes = await fetch(
-          `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=${days}&interval=daily`,
-          { headers: { Accept: 'application/json' } }
+        const cgRes = await fetchWithTimeout(
+          `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=${days}&interval=daily`
         );
         if (cgRes.ok) {
           const json = await cgRes.json();
-          if (Array.isArray(json?.prices) && json.prices.length >= 2) {
-            const parsed: PriceHistoryPoint[] = json.prices.map((item: [number, number]) => ({
-              timestamp: Number(item[0]),
-              price: Number(item[1]),
-            }));
-            historyMemoryCache[days] = { points: parsed, fetchedAt: Date.now() };
-            setChartPoints(parsed);
-            setIsChartLoading(false);
-            return;
+          if (Array.isArray(json?.prices)) {
+            const parsed: PriceHistoryPoint[] = json.prices
+              .map((item: any) => ({
+                timestamp: Number(item?.[0]),
+                price: Number(item?.[1]),
+              }))
+              .filter(
+                (pt: PriceHistoryPoint) =>
+                  Number.isFinite(pt.timestamp) && Number.isFinite(pt.price) && pt.price > 0
+              );
+            if (parsed.length >= 2) {
+              historyMemoryCache[days] = { points: parsed, fetchedAt: Date.now() };
+              if (isMountedRef.current) {
+                setChartPoints(parsed);
+                setIsChartLoading(false);
+              }
+              return;
+            }
           }
         }
       } catch {
@@ -102,21 +139,29 @@ export const WalletTab: React.FC<WalletTabProps> = ({
 
       // 2. Fallback: Binance Klines (BTCUSDT diário, público com CORS habilitado)
       try {
-        const binRes = await fetch(
-          `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=${days}`,
-          { headers: { Accept: 'application/json' } }
+        const binRes = await fetchWithTimeout(
+          `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=${days}`
         );
         if (binRes.ok) {
           const klines = await binRes.json();
-          if (Array.isArray(klines) && klines.length >= 2) {
-            const parsed: PriceHistoryPoint[] = klines.map((k: any[]) => ({
-              timestamp: Number(k[0]),
-              price: parseFloat(k[4]), // close price
-            }));
-            historyMemoryCache[days] = { points: parsed, fetchedAt: Date.now() };
-            setChartPoints(parsed);
-            setIsChartLoading(false);
-            return;
+          if (Array.isArray(klines)) {
+            const parsed: PriceHistoryPoint[] = klines
+              .map((k: any) => ({
+                timestamp: Number(k?.[0]),
+                price: parseFloat(k?.[4]), // close price
+              }))
+              .filter(
+                (pt: PriceHistoryPoint) =>
+                  Number.isFinite(pt.timestamp) && Number.isFinite(pt.price) && pt.price > 0
+              );
+            if (parsed.length >= 2) {
+              historyMemoryCache[days] = { points: parsed, fetchedAt: Date.now() };
+              if (isMountedRef.current) {
+                setChartPoints(parsed);
+                setIsChartLoading(false);
+              }
+              return;
+            }
           }
         }
       } catch {
@@ -125,11 +170,13 @@ export const WalletTab: React.FC<WalletTabProps> = ({
 
       // 3. Fallback local com mensagem de erro caso as APIs falhem
       const fallbackCurve = buildApproximateBtcCurve(days, cryptoPriceService.getState().priceUsd);
-      setChartPoints(fallbackCurve);
-      setChartApiError(
-        'Não foi possível obter o histórico da API no momento. Exibindo variação aproximada de referência.'
-      );
-      setIsChartLoading(false);
+      if (isMountedRef.current) {
+        setChartPoints(fallbackCurve);
+        setChartApiError(
+          'Não foi possível obter o histórico da API no momento. Exibindo variação aproximada de referência.'
+        );
+        setIsChartLoading(false);
+      }
     },
     []
   );
@@ -140,9 +187,14 @@ export const WalletTab: React.FC<WalletTabProps> = ({
 
   // Geometria SVG calculada para o gráfico de alta e queda do BTC
   const chartGeometry = useMemo(() => {
+    const validPoints = Array.isArray(chartPoints)
+      ? chartPoints.filter(
+          (p) => p && Number.isFinite(p.timestamp) && Number.isFinite(p.price) && p.price > 0
+        )
+      : [];
     const pts =
-      chartPoints.length >= 2
-        ? chartPoints
+      validPoints.length >= 2
+        ? validPoints
         : buildApproximateBtcCurve(chartPeriod, priceState.priceUsd);
 
     const prices = pts.map((p) => p.price);
@@ -176,6 +228,7 @@ export const WalletTab: React.FC<WalletTabProps> = ({
 
     const formatShortDate = (ts: number) => {
       const d = new Date(ts);
+      if (isNaN(d.getTime())) return '--/--';
       return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
     };
 
@@ -193,20 +246,76 @@ export const WalletTab: React.FC<WalletTabProps> = ({
     };
   }, [chartPoints, chartPeriod, priceState.priceUsd]);
 
-  const formattedBtc = miningState.totalBtc.toFixed(12);
-  const totalSatoshis = Math.floor(miningState.totalBtc * 100_000_000);
+  const safeTotalBtc =
+    typeof miningState?.totalBtc === 'number' && Number.isFinite(miningState.totalBtc)
+      ? miningState.totalBtc
+      : 0;
+  const formattedBtc = safeTotalBtc.toFixed(12);
+  const totalSatoshis = Math.floor(safeTotalBtc * 100_000_000);
   const hasQuote = cryptoPriceService.hasValidQuote(priceState.priceUsd);
   const balanceUsd = hasQuote
-    ? cryptoPriceService.convertBtcToUsd(miningState.totalBtc, priceState.priceUsd)
+    ? cryptoPriceService.convertBtcToUsd(safeTotalBtc, priceState.priceUsd)
     : 0;
   const formattedUsd = hasQuote ? cryptoPriceService.formatUsd(balanceUsd) : 'Indisponível';
   const formattedBtcPrice = cryptoPriceService.formatBtcPrice(priceState.priceUsd);
   const referralCode = '8ZPTC';
 
+  // Saldo de Indicação persistido em BTC (travado pela cotação do momento de cada cadastro)
+  const referralList =
+    Array.isArray(miningState?.referralHistory) && miningState.referralHistory.length > 0
+      ? miningState.referralHistory
+      : INITIAL_REFERRAL_HISTORY;
+  const safeReferralBtc =
+    typeof miningState?.referralBtc === 'number' && Number.isFinite(miningState.referralBtc) && miningState.referralBtc > 0
+      ? miningState.referralBtc
+      : INITIAL_REFERRAL_BTC_TOTAL;
+  const formattedReferralBtc = safeReferralBtc.toFixed(12);
+
+  // Estados para cadastro de novo indicado com código de convite
+  const [showSignupReferralForm, setShowSignupReferralForm] = useState(false);
+  const [referredName, setReferredName] = useState('');
+  const [referredEmail, setReferredEmail] = useState('');
+  const [referredCode, setReferredCode] = useState(referralCode);
+  const [referralFeedback, setReferralFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isSubmittingReferral, setIsSubmittingReferral] = useState(false);
+
   const handleCopy = async () => {
     await copyToClipboard(referralCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRegisterReferred = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setReferralFeedback(null);
+    setIsSubmittingReferral(true);
+
+    try {
+      const result = await miningService.registerReferralSignup({
+        fullName: referredName,
+        email: referredEmail,
+        inviteCode: referredCode,
+      });
+
+      if (result.success) {
+        setReferredName('');
+        setReferredEmail('');
+        setReferredCode(referralCode);
+        setReferralFeedback({ type: 'success', text: result.message });
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            setReferralFeedback(null);
+            setShowSignupReferralForm(false);
+          }
+        }, 3200);
+      } else {
+        setReferralFeedback({ type: 'error', text: result.message });
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsSubmittingReferral(false);
+      }
+    }
   };
 
   const handleRefreshPrice = () => {
@@ -463,6 +572,26 @@ export const WalletTab: React.FC<WalletTabProps> = ({
         </>
       ) : (
         <>
+          {/* 1. Card "Como ganhar recompensa" no topo da tela de indicações, imediatamente abaixo das abas */}
+          <div className="bg-[#191e32] border border-[#262e49] rounded-3xl p-4 shadow-md space-y-3">
+            <h4 className="text-xs font-extrabold text-white tracking-wide">{t.howToEarn}</h4>
+            <div className="space-y-2.5">
+              <div className="flex items-start gap-3 text-xs text-slate-300">
+                <div className="w-8 h-8 rounded-full bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 flex-shrink-0 mt-0.5">
+                  <Share2 className="w-4 h-4" />
+                </div>
+                <p className="leading-relaxed">{t.step1}</p>
+              </div>
+
+              <div className="flex items-start gap-3 text-xs text-slate-300">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0 mt-0.5">
+                  <Gift className="w-4 h-4" />
+                </div>
+                <p className="leading-relaxed">{t.step2}</p>
+              </div>
+            </div>
+          </div>
+
           {/* Referral Phones Graphic */}
           <div className="bg-[#191e32] border border-[#262e49] rounded-3xl p-4 flex items-center justify-center relative overflow-hidden">
             <div className="w-full h-36 flex items-center justify-center">
@@ -481,18 +610,29 @@ export const WalletTab: React.FC<WalletTabProps> = ({
             </div>
           </div>
 
-          {/* Referral Balance Card */}
-          <div className="bg-[#191e32] border border-[#262e49] rounded-3xl p-5 shadow-md">
-            <div className="text-xs font-bold text-slate-400 mb-2">
-              {t.referralBalance}
+          {/* 3. Card "Saldo de indicação" com valor convertido e persistido em BTC no momento de cada cadastro */}
+          <div className="bg-[#191e32] border border-[#262e49] rounded-3xl p-5 shadow-md space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400">
+                {t.referralBalance}
+              </span>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
+                US$ 1,00 / indicado (travado em BTC)
+              </span>
             </div>
+
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-base">
+              <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-base flex-shrink-0">
                 ₿
               </div>
-              <p className="font-mono text-base font-black text-white">
-                0.000000000000 <span className="font-sans text-xs text-amber-400">BTC</span>
-              </p>
+              <div>
+                <p className="font-mono text-base font-black text-white">
+                  {formattedReferralBtc} <span className="font-sans text-xs text-amber-400">BTC</span>
+                </p>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  Saldo em BTC fixado pela cotação do instante de cada cadastro ({referralList.length} indicados)
+                </p>
+              </div>
             </div>
           </div>
 
@@ -500,8 +640,9 @@ export const WalletTab: React.FC<WalletTabProps> = ({
             {t.referralDesc}
           </p>
 
-          {/* Share to Earn Button with Code */}
+          {/* 2. Botão "Compartilhar e ganhar" posicionado abaixo do saldo de indicação e do card "Como ganhar recompensa" */}
           <button
+            type="button"
             onClick={handleCopy}
             className="w-full py-4 px-4 rounded-2xl bg-[#f43f5e] hover:bg-[#e11d48] active:bg-[#be123c] text-white font-black text-sm shadow-lg shadow-rose-950/40 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
           >
@@ -510,14 +651,120 @@ export const WalletTab: React.FC<WalletTabProps> = ({
             <span>{copied ? 'Copiado!' : t.shareToEarn}</span>
           </button>
 
-          {/* How to Earn Rewards */}
-          <div className="bg-[#191e32] border border-[#262e49] rounded-3xl p-4">
-            <h4 className="text-xs font-bold text-white mb-3">{t.howToEarn}</h4>
-            <div className="flex items-center gap-3 text-xs text-slate-300">
-              <div className="w-9 h-9 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 flex-shrink-0">
-                <Share2 className="w-4 h-4" />
+          {/* 4. Lista de Indicados (abaixo do botão "Compartilhar e ganhar") */}
+          <div className="bg-[#191e32] border border-[#262e49] rounded-3xl p-4 shadow-md space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-extrabold text-white">{t.referredListTitle}</h4>
+                  <p className="text-[10px] text-slate-400">
+                    Cadastrados com o código <span className="font-mono text-amber-400 font-bold">{referralCode}</span>
+                  </p>
+                </div>
               </div>
-              <p>{t.step1}</p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setReferralFeedback(null);
+                  setShowSignupReferralForm((prev) => !prev);
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-[#222944] hover:bg-[#2c3556] text-[10px] font-bold text-indigo-300 flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>{showSignupReferralForm ? 'Fechar' : 'Novo Cadastro'}</span>
+              </button>
+            </div>
+
+            {/* Formulário de conclusão de cadastro de indicado com código de convite */}
+            {showSignupReferralForm && (
+              <form
+                onSubmit={handleRegisterReferred}
+                className="p-3 rounded-2xl bg-[#121626] border border-[#252d47] space-y-2.5 animate-in fade-in duration-150"
+              >
+                <div className="flex items-center justify-between text-[10px] text-slate-400">
+                  <span>Registrar indicado com código</span>
+                  <span className="font-mono text-emerald-400">
+                    US$ 1,00 ≈ {(1 / (priceState.priceUsd > 1000 ? priceState.priceUsd : 80285.58)).toFixed(8)} BTC
+                  </span>
+                </div>
+
+                <input
+                  type="text"
+                  value={referredName}
+                  onChange={(e) => setReferredName(e.target.value)}
+                  placeholder="Nome e sobrenome do indicado (ex.: João Silva)"
+                  className="w-full bg-[#191e32] border border-[#2b3353] rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                />
+
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    type="email"
+                    value={referredEmail}
+                    onChange={(e) => setReferredEmail(e.target.value)}
+                    placeholder="E-mail (ex.: joao@dominio.com)"
+                    className="col-span-2 bg-[#191e32] border border-[#2b3353] rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  />
+                  <input
+                    type="text"
+                    value={referredCode}
+                    onChange={(e) => setReferredCode(e.target.value.toUpperCase())}
+                    placeholder="Código"
+                    className="col-span-1 bg-[#191e32] border border-[#2b3353] rounded-xl px-2.5 py-2 text-xs font-mono text-amber-300 uppercase text-center focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                {referralFeedback && (
+                  <div
+                    className={`p-2 rounded-xl text-[11px] font-semibold ${
+                      referralFeedback.type === 'success'
+                        ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300'
+                        : 'bg-rose-500/15 border border-rose-500/30 text-rose-300'
+                    }`}
+                  >
+                    {referralFeedback.text}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingReferral}
+                  className="w-full py-2.5 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white font-bold text-xs transition-colors cursor-pointer"
+                >
+                  {isSubmittingReferral ? 'Processando cadastro...' : 'Concluir Cadastro e Creditar US$ 1 em BTC'}
+                </button>
+              </form>
+            )}
+
+            {/* Lista de Indicados: exibe apenas Nome e Sobrenome do indicado e E-mail mascarado pelo backend */}
+            <div className="divide-y divide-[#232a43]">
+              {referralList.map((item) => (
+                <div
+                  key={item.id}
+                  className="py-2.5 first:pt-1 last:pb-0 flex items-center justify-between gap-2"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-white truncate">
+                      {item.fullName}
+                    </p>
+                    <p className="text-[11px] font-mono text-slate-400 truncate">
+                      {item.maskedEmail}
+                    </p>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span className="inline-block font-mono text-[11px] font-bold text-emerald-400">
+                      +{item.amountBtc.toFixed(8)} BTC
+                    </span>
+                    <span className="block text-[9px] font-mono text-slate-500">
+                      {item.createdAtFormatted}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </>

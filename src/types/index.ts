@@ -59,12 +59,24 @@ export interface SubscriptionRecord {
   transactionId: string;
 }
 
+export interface ReferralRecord {
+  id: string;
+  fullName: string; // Nome e sobrenome do indicado (nunca inclui nome do indicador)
+  maskedEmail: string; // E-mail mascarado no backend (ex.: jo***@dominio.com)
+  rewardUsd: number; // US$ 1,00 fixo no ato do cadastro
+  amountBtc: number; // Valor em BTC convertido e travado pela cotação do momento do cadastro
+  btcUsdRateUsed: number; // Cotação BTC/USD utilizada no momento do cadastro
+  createdAt: number; // Timestamp (ms) do cadastro
+  createdAtFormatted: string; // Data e hora formatadas
+}
+
 export interface MiningState {
   isMining: boolean;
   baseHashrate: number; // in Gh/s
   bonusHashrate: number; // in Gh/s
   totalBtc: number; // balance
-  referralBtc: number; // Anotação 02: Ganhos por indicação (Referral BTC)
+  referralBtc: number; // Saldo de indicação acumulado em BTC (travado na cotação de cada cadastro)
+  referralHistory: ReferralRecord[]; // Lista de indicados com e-mail já mascarado pelo backend
   activeMinersCount: number;
   miningStartTime?: number;
   sessionEndTime?: number; // timestamp when active session expires
@@ -89,4 +101,5 @@ export interface MiningState {
   pendingUsdUnitsForBtc?: number;
   dailyYieldRuleActivatedAt?: number;
 }
+
 

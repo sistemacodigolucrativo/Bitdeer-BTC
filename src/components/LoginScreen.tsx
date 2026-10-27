@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { User, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, AlertCircle, Gift } from 'lucide-react';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
+import { miningService } from '../services/miningService';
 
 interface LoginScreenProps {
   language: LanguageCode;
@@ -15,6 +16,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const t = translations[language].login;
   const [loginInput, setLoginInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
+  const [inviteCodeInput, setInviteCodeInput] = useState('');
+  const [fullNameInput, setFullNameInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -40,6 +43,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
     const trimmedLogin = loginInput.trim();
     const trimmedPassword = passwordInput.trim();
+    const trimmedCode = inviteCodeInput.trim().toUpperCase();
+    const trimmedFullName = fullNameInput.trim();
 
     // Validation: ensure both fields are provided and password has minimum length
     if (!trimmedLogin || !trimmedPassword) {
@@ -52,6 +57,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       return;
     }
 
+    if (trimmedCode) {
+      const candidateName = trimmedFullName || (trimmedLogin.includes('@') ? '' : trimmedLogin);
+      if (candidateName.split(/\s+/).filter(Boolean).length < 2) {
+        setErrorMessage('Para usar código de convite, informe Nome e Sobrenome.');
+        return;
+      }
+      const candidateEmail = trimmedLogin.includes('@')
+        ? trimmedLogin
+        : `${trimmedLogin.toLowerCase().replace(/\s+/g, '.')}@gmail.com`;
+
+      const refResult = await miningService.registerReferralSignup({
+        fullName: candidateName,
+        email: candidateEmail,
+        inviteCode: trimmedCode,
+      });
+
+      if (!refResult.success) {
+        setErrorMessage(refResult.message);
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
@@ -61,7 +88,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       // Simulate quick secure validation
       setTimeout(() => {
         setIsLoading(false);
-        onLoginSuccess(trimmedLogin);
+        onLoginSuccess(trimmedFullName || trimmedLogin);
       }, 350);
     } catch {
       setIsLoading(false);
@@ -130,8 +157,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           {t.subtitle}
         </p>
 
-        {/* Conventional Authentication Form (Login + Password per Anotação 05) */}
-        <form onSubmit={handleFormSubmit} className="w-full space-y-4">
+        {/* Conventional Authentication Form (Login + Password + Optional Invite Code) */}
+        <form onSubmit={handleFormSubmit} className="w-full space-y-3.5">
           {/* Error Message if any */}
           {errorMessage && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs animate-in fade-in duration-200">
@@ -140,7 +167,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </div>
           )}
 
-          {/* Campo Login */}
+          {/* Campo Login / E-mail */}
           <div className="space-y-1.5 text-left">
             <label className="text-xs font-semibold text-slate-300 block">
               {t.loginLabel}
@@ -193,6 +220,55 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Código de Convite (Opcional) */}
+          <div className="space-y-1.5 text-left">
+            <label className="text-xs font-semibold text-slate-300 block">
+              {language === 'pt'
+                ? 'Código de Convite (Opcional)'
+                : language === 'es'
+                ? 'Código de Invitación (Opcional)'
+                : 'Invite Code (Optional)'}
+            </label>
+            <div className="relative flex items-center bg-[#181d33] border border-[#2b3353] rounded-2xl px-3.5 py-2.5 text-sm focus-within:border-indigo-500 transition-colors">
+              <Gift className="w-4 h-4 text-amber-400 mr-3 flex-shrink-0" />
+              <input
+                type="text"
+                value={inviteCodeInput}
+                onChange={(e) => {
+                  setInviteCodeInput(e.target.value.toUpperCase());
+                  if (errorMessage) setErrorMessage('');
+                }}
+                placeholder="Ex.: 8ZPTC"
+                className="bg-transparent border-none text-white text-sm font-mono uppercase placeholder:text-slate-500 placeholder:font-sans w-full outline-hidden"
+              />
+            </div>
+          </div>
+
+          {inviteCodeInput.trim().length > 0 && (
+            <div className="space-y-1.5 text-left animate-in fade-in duration-150">
+              <label className="text-xs font-semibold text-slate-300 block">
+                {language === 'pt'
+                  ? 'Nome e Sobrenome do Indicado'
+                  : language === 'es'
+                  ? 'Nombre y Apellido del Referido'
+                  : 'Referred Full Name'}
+              </label>
+              <div className="relative flex items-center bg-[#181d33] border border-[#2b3353] rounded-2xl px-3.5 py-2.5 text-sm focus-within:border-indigo-500 transition-colors">
+                <User className="w-4 h-4 text-emerald-400 mr-3 flex-shrink-0" />
+                <input
+                  type="text"
+                  value={fullNameInput}
+                  onChange={(e) => {
+                    setFullNameInput(e.target.value);
+                    if (errorMessage) setErrorMessage('');
+                  }}
+                  placeholder="Ex.: João Silva"
+                  className="bg-transparent border-none text-white text-sm placeholder:text-slate-500 w-full outline-hidden"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Botão de Acesso */}
           <div className="pt-2">

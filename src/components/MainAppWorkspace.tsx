@@ -27,13 +27,21 @@ export const MainAppWorkspace: React.FC<MainAppWorkspaceProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('home');
   const [showUnifiedProfile, setShowUnifiedProfile] = useState<boolean>(false);
+  const [tabResetKey, setTabResetKey] = useState<number>(0);
   const [miningState, setMiningState] = useState<MiningState>(miningService.getState());
-  const t = translations[language].tabs;
+  const safeLang: LanguageCode = translations[language] ? language : 'pt';
+  const t = translations[safeLang].tabs;
 
   useEffect(() => {
     const unsubscribe = miningService.subscribe(setMiningState);
     return () => unsubscribe();
   }, []);
+
+  const handleSelectTab = (tab: WorkspaceTab) => {
+    setShowUnifiedProfile(false);
+    setActiveTab(tab);
+    setTabResetKey((prev) => prev + 1);
+  };
 
   const handleStartMining = () => {
     miningService.startMining();
@@ -53,14 +61,14 @@ export const MainAppWorkspace: React.FC<MainAppWorkspaceProps> = ({
       <div className="flex-1 flex flex-col overflow-hidden pt-4">
         {showUnifiedProfile ? (
           <ProfileView
-            language={language}
+            language={safeLang}
             onBack={() => setShowUnifiedProfile(false)}
           />
         ) : (
           <>
             {activeTab === 'home' && (
               <HomeTab
-                language={language}
+                language={safeLang}
                 miningState={miningState}
                 onStartMining={handleStartMining}
                 onStopMining={handleStopMining}
@@ -69,21 +77,21 @@ export const MainAppWorkspace: React.FC<MainAppWorkspaceProps> = ({
 
             {activeTab === 'store' && (
               <StoreTab
-                language={language}
+                language={safeLang}
                 onUpgradeHashrate={(gh) => handleClaimBoost('store_upgrade', gh)}
               />
             )}
 
             {activeTab === 'reward' && (
               <RewardTab
-                language={language}
+                language={safeLang}
                 miningState={miningState}
               />
             )}
 
             {activeTab === 'wallet' && (
               <WalletTab
-                language={language}
+                language={safeLang}
                 miningState={miningState}
                 onOpenProfile={() => setShowUnifiedProfile(true)}
               />
@@ -91,7 +99,8 @@ export const MainAppWorkspace: React.FC<MainAppWorkspaceProps> = ({
 
             {activeTab === 'setting' && (
               <SettingTab
-                language={language}
+                key={tabResetKey}
+                language={safeLang}
                 onNavigateToLanguage={onNavigateToLanguage}
                 onSelectLanguage={onSelectLanguage}
                 onOpenProfile={() => setShowUnifiedProfile(true)}
@@ -107,56 +116,61 @@ export const MainAppWorkspace: React.FC<MainAppWorkspaceProps> = ({
       <div className="w-full h-16 bg-[#101322] border-t border-[#1f253d] flex items-center justify-around px-2 z-30 select-none">
         {/* Home */}
         <button
-          onClick={() => setActiveTab('home')}
+          type="button"
+          onClick={() => handleSelectTab('home')}
           className={`flex flex-col items-center justify-center w-14 py-1 transition-colors cursor-pointer ${
-            activeTab === 'home' ? 'text-white' : 'text-slate-500 hover:text-slate-300'
+            activeTab === 'home' && !showUnifiedProfile ? 'text-white' : 'text-slate-500 hover:text-slate-300'
           }`}
         >
-          <Home className={`w-5 h-5 ${activeTab === 'home' ? 'stroke-[2.5]' : 'stroke-2'}`} />
+          <Home className={`w-5 h-5 ${activeTab === 'home' && !showUnifiedProfile ? 'stroke-[2.5]' : 'stroke-2'}`} />
           <span className="text-[10px] mt-1 font-semibold">{t.home}</span>
         </button>
 
         {/* Store */}
         <button
-          onClick={() => setActiveTab('store')}
+          type="button"
+          onClick={() => handleSelectTab('store')}
           className={`flex flex-col items-center justify-center w-14 py-1 transition-colors cursor-pointer ${
-            activeTab === 'store' ? 'text-white' : 'text-slate-500 hover:text-slate-300'
+            activeTab === 'store' && !showUnifiedProfile ? 'text-white' : 'text-slate-500 hover:text-slate-300'
           }`}
         >
-          <Store className={`w-5 h-5 ${activeTab === 'store' ? 'stroke-[2.5]' : 'stroke-2'}`} />
+          <Store className={`w-5 h-5 ${activeTab === 'store' && !showUnifiedProfile ? 'stroke-[2.5]' : 'stroke-2'}`} />
           <span className="text-[10px] mt-1 font-semibold">{t.store}</span>
         </button>
 
         {/* Reward */}
         <button
-          onClick={() => setActiveTab('reward')}
+          type="button"
+          onClick={() => handleSelectTab('reward')}
           className={`flex flex-col items-center justify-center w-14 py-1 transition-colors cursor-pointer ${
-            activeTab === 'reward' ? 'text-white' : 'text-slate-500 hover:text-slate-300'
+            activeTab === 'reward' && !showUnifiedProfile ? 'text-white' : 'text-slate-500 hover:text-slate-300'
           }`}
         >
-          <Gift className={`w-5 h-5 ${activeTab === 'reward' ? 'stroke-[2.5]' : 'stroke-2'}`} />
+          <Gift className={`w-5 h-5 ${activeTab === 'reward' && !showUnifiedProfile ? 'stroke-[2.5]' : 'stroke-2'}`} />
           <span className="text-[10px] mt-1 font-semibold">{t.reward}</span>
         </button>
 
         {/* Wallet */}
         <button
-          onClick={() => setActiveTab('wallet')}
+          type="button"
+          onClick={() => handleSelectTab('wallet')}
           className={`flex flex-col items-center justify-center w-14 py-1 transition-colors cursor-pointer ${
-            activeTab === 'wallet' ? 'text-white' : 'text-slate-500 hover:text-slate-300'
+            activeTab === 'wallet' && !showUnifiedProfile ? 'text-white' : 'text-slate-500 hover:text-slate-300'
           }`}
         >
-          <Wallet className={`w-5 h-5 ${activeTab === 'wallet' ? 'stroke-[2.5]' : 'stroke-2'}`} />
+          <Wallet className={`w-5 h-5 ${activeTab === 'wallet' && !showUnifiedProfile ? 'stroke-[2.5]' : 'stroke-2'}`} />
           <span className="text-[10px] mt-1 font-semibold">{t.wallet}</span>
         </button>
 
         {/* Setting */}
         <button
-          onClick={() => setActiveTab('setting')}
+          type="button"
+          onClick={() => handleSelectTab('setting')}
           className={`flex flex-col items-center justify-center w-14 py-1 transition-colors cursor-pointer ${
-            activeTab === 'setting' ? 'text-white' : 'text-slate-500 hover:text-slate-300'
+            activeTab === 'setting' && !showUnifiedProfile ? 'text-white' : 'text-slate-500 hover:text-slate-300'
           }`}
         >
-          <SettingsIcon className={`w-5 h-5 ${activeTab === 'setting' ? 'stroke-[2.5]' : 'stroke-2'}`} />
+          <SettingsIcon className={`w-5 h-5 ${activeTab === 'setting' && !showUnifiedProfile ? 'stroke-[2.5]' : 'stroke-2'}`} />
           <span className="text-[10px] mt-1 font-semibold">{t.setting}</span>
         </button>
       </div>

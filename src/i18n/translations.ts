@@ -95,6 +95,8 @@ export interface Translations {
     shareToEarn: string;
     howToEarn: string;
     step1: string;
+    step2: string;
+    referredListTitle: string;
   };
   setting: {
     title: string;
@@ -201,8 +203,10 @@ export const translations: Record<LanguageCode, Translations> = {
       referralBalance: 'REFERRAL BALANCE',
       referralDesc: 'Grow your Referral balance every time someone joins using your referral code and earns BTC.',
       shareToEarn: 'Share to Earn',
-      howToEarn: 'How to Earn Rewards?',
-      step1: 'Step 1: Share your invite code with friends.'
+      howToEarn: 'How to Earn Rewards',
+      step1: 'Step 1: Share the invite code with friends.',
+      step2: 'Step 2: Your friend signs up for free and you earn US$ 1 per referral.',
+      referredListTitle: 'Referred Users'
     },
     setting: {
       title: 'Settings',
@@ -307,8 +311,10 @@ export const translations: Record<LanguageCode, Translations> = {
       referralBalance: 'SALDO DE INDICAÇÃO',
       referralDesc: 'Aumente seus ganhos de indicação sempre que alguém se cadastrar usando seu código.',
       shareToEarn: 'Compartilhar e Ganhar',
-      howToEarn: 'Como Ganhar Recompensas?',
-      step1: 'Passo 1: Compartilhe seu código de convite com amigos.'
+      howToEarn: 'Como ganhar recompensa',
+      step1: 'Passo 1: Compartilhar o código de convite com amigos.',
+      step2: 'Passo 2: O amigo se cadastra gratuitamente e o usuário ganha US$ 1 por indicado.',
+      referredListTitle: 'Lista de Indicados'
     },
     setting: {
       title: 'Configurações',
@@ -326,7 +332,7 @@ export const translations: Record<LanguageCode, Translations> = {
     languages: {
       en: { name: 'English (Inglés)', nativeName: 'Inglés', region: 'Global' },
       es: { name: 'Español', nativeName: 'Español', region: 'Global' },
-      pt: { name: 'Português', nativeName: 'Portugués', region: 'Global' }
+      pt: { name: 'Português', nativeName: 'Português', region: 'Global' }
     },
     onboardingPreview: {
       stepTitle: 'Mina Bitcoin al Instante, Sin Complicaciones',
@@ -413,8 +419,10 @@ export const translations: Record<LanguageCode, Translations> = {
       referralBalance: 'SALDO DE REFERIDOS',
       referralDesc: 'Aumenta tu saldo cada vez que alguien use tu código de referido.',
       shareToEarn: 'Compartir y Ganar',
-      howToEarn: '¿Cómo Ganar Recompensas?',
-      step1: 'Paso 1: Comparte tu código de invitación con amigos.'
+      howToEarn: 'Cómo ganar recompensa',
+      step1: 'Paso 1: Compartir el código de invitación con amigos.',
+      step2: 'Paso 2: El amigo se registra gratis y el usuario gana US$ 1 por referido.',
+      referredListTitle: 'Lista de Referidos'
     },
     setting: {
       title: 'Configuraciones',

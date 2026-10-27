@@ -61,6 +61,16 @@ export const BtcCheckoutModal: React.FC<BtcCheckoutModalProps> = ({
   const lockDeadlineRef = useRef<number>(
     Date.now() + CHECKOUT_CONFIG.QUOTE_LOCK_DURATION_SECONDS * 1000
   );
+  const isMountedRef = useRef<boolean>(true);
+  const orderRef = useRef<CheckoutOrder | null>(null);
+  orderRef.current = order;
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   /**
    * Busca cotação BTC/USD nas APIs públicas (com cache de 45s ou forçada)
@@ -68,11 +78,14 @@ export const BtcCheckoutModal: React.FC<BtcCheckoutModalProps> = ({
    */
   const loadQuoteAndBuildOrder = useCallback(
     async (plan: CheckoutPlanConfig, forceRefresh = false) => {
+      if (!isMountedRef.current) return;
       setIsLoadingQuote(true);
       setQuoteError(null);
 
       try {
         const fetchedQuote = await getBtcUsdQuote(forceRefresh);
+        if (!isMountedRef.current) return;
+
         const calc = calculateUsdToBtc(plan.priceUsd, fetchedQuote.rateUsd);
         const btcAddress = getConfiguredBtcAddress();
         const bip21Uri = buildBip21Uri(
@@ -98,17 +111,34 @@ export const BtcCheckoutModal: React.FC<BtcCheckoutModalProps> = ({
         setConversion(calc);
         setOrder(newOrder);
 
-        // Gera QR Code client-side a partir da URI BIP21
-        const qrUrl = await QRCode.toDataURL(bip21Uri, {
-          width: 220,
-          margin: 2,
-          color: {
-            dark: '#0f172a',
-            light: '#ffffff',
-          },
-        });
-        setQrDataUrl(qrUrl);
+        // Gera QR Code client-side a partir da URI BIP21 com fallback seguro CJS/ESM
+        try {
+          const qrModule: any = QRCode;
+          const toDataUrlFn =
+            typeof qrModule?.toDataURL === 'function'
+              ? qrModule.toDataURL.bind(qrModule)
+              : typeof qrModule?.default?.toDataURL === 'function'
+              ? qrModule.default.toDataURL.bind(qrModule.default)
+              : null;
+
+          if (toDataUrlFn) {
+            const qrUrl = await toDataUrlFn(bip21Uri, {
+              width: 220,
+              margin: 2,
+              color: {
+                dark: '#0f172a',
+                light: '#ffffff',
+              },
+            });
+            if (isMountedRef.current) {
+              setQrDataUrl(qrUrl);
+            }
+          }
+        } catch {
+          // Caso a renderização de canvas falhe no navegador, preserva o restante do checkout
+        }
       } catch (err) {
+        if (!isMountedRef.current) return;
         const msg =
           err instanceof Error
             ? err.message
@@ -117,7 +147,9 @@ export const BtcCheckoutModal: React.FC<BtcCheckoutModalProps> = ({
         setQuote(null);
         setConversion(null);
       } finally {
-        setIsLoadingQuote(false);
+        if (isMountedRef.current) {
+          setIsLoadingQuote(false);
+        }
       }
     },
     []
@@ -135,20 +167,21 @@ export const BtcCheckoutModal: React.FC<BtcCheckoutModalProps> = ({
     }
 
     const interval = window.setInterval(() => {
+      if (!isMountedRef.current) return;
       const now = Date.now();
       const diffSec = Math.max(0, Math.ceil((lockDeadlineRef.current - now) / 1000));
       setRemainingSeconds(diffSec);
 
-      if (diffSec <= 0) {
+      if (diffSec <= 0 && orderRef.current) {
         // Marca pedido anterior como EXPIRADO e rebusca cotação automaticamente
-        const expired = expireOrder(order);
+        const expired = expireOrder(orderRef.current);
         setOrder(expired);
         loadQuoteAndBuildOrder(selectedPlan, true);
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [order, isLoadingQuote, quoteError, selectedPlan, loadQuoteAndBuildOrder]);
+  }, [ Boolean(order), isLoadingQuote, quoteError, selectedPlan, loadQuoteAndBuildOrder]);
 
   // Copiar texto para a área de transferência
   const handleCopy = async (text: string, field: 'address' | 'btc' | 'bip21') => {
