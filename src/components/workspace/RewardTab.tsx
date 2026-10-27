@@ -95,17 +95,17 @@ export const RewardTab: React.FC<RewardTabProps> = ({
   return (
     <div className="w-full flex-1 overflow-y-auto px-4 py-4 space-y-3.5 select-none pb-20 relative">
       {/* Header Banner (Anotação Nº 04: Removida a cápsula "Grátis" do card Área de Recompensas) */}
-      <div className="bg-[#171b2d] border border-[#252c45] rounded-3xl p-4 flex items-center gap-3.5 shadow-md">
-        <div className="w-12 h-12 rounded-2xl bg-[#6366f1]/20 border border-[#6366f1]/30 flex items-center justify-center text-indigo-400 flex-shrink-0">
-          <Gift className="w-6 h-6" />
+      <div className="bg-[#171b2d] border border-[#252c45] rounded-3xl p-4 flex items-start gap-3.5 shadow-md">
+        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#6366f1]/20 border border-[#6366f1]/30 flex items-center justify-center text-indigo-400 flex-shrink-0 mt-0.5">
+          <Gift className="w-5 h-5 sm:w-6 sm:h-6" />
         </div>
-        <div className="flex-1">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-extrabold text-white leading-tight">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm sm:text-base font-extrabold text-white leading-tight truncate">
               {t.title}
             </h2>
             {hasVip && (
-              <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/20 border-emerald-500/40 text-emerald-300">
+              <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/20 border-emerald-500/40 text-emerald-300 flex-shrink-0">
                 <ShieldCheck className="w-3 h-3 text-emerald-400" />
                 {state.userVipTier === 'vip01'
                   ? 'VIP 01'
@@ -119,8 +119,15 @@ export const RewardTab: React.FC<RewardTabProps> = ({
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-400 leading-snug mt-1">
-            {t.subtitle}
+          <p className="text-[11px] sm:text-xs text-slate-400 leading-relaxed mt-1 text-pretty">
+            {language === 'pt' ? (
+              <>
+                <span className="block sm:inline">Complete tarefas simples, desbloqueie </span>
+                <span className="block sm:inline">recompensas e aproveite as vantagens diárias.</span>
+              </>
+            ) : (
+              t.subtitle
+            )}
           </p>
         </div>
       </div>

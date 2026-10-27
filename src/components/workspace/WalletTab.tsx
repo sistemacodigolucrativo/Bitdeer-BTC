@@ -1,9 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { Lock, Copy, Check, Share2, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Lock, Copy, Check, Share2, RefreshCw, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
 import { LanguageCode, MiningState } from '../../types';
 import { translations } from '../../i18n/translations';
 import { cryptoPriceService, BtcPriceState } from '../../services/cryptoPriceService';
 import { copyToClipboard } from '../../utils/clipboard';
+
+type ChartPeriodDays = 7 | 15 | 30;
+
+interface PriceHistoryPoint {
+  timestamp: number;
+  price: number;
+}
+
+const historyMemoryCache: Partial<Record<ChartPeriodDays, { points: PriceHistoryPoint[]; fetchedAt: number }>> = {};
+
+/**
+ * Gera curva aproximada realista de alta e queda do BTC caso as APIs públicas falhem
+ */
+function buildApproximateBtcCurve(days: ChartPeriodDays, anchorPrice: number): PriceHistoryPoint[] {
+  const basePrice = anchorPrice > 1000 ? anchorPrice : 80285.58;
+  const now = Date.now();
+  const dayMs = 86_400_000;
+
+  // Variações percentuais diárias realistas para 30 dias (altas e quedas do BTC)
+  const offsets30 = [
+    -0.068, -0.059, -0.064, -0.048, -0.035, -0.042, -0.028, -0.015, -0.024, -0.038,
+    -0.031, -0.018, -0.006, 0.008, -0.004, -0.019, -0.011, 0.005, 0.018, 0.011,
+    0.026, 0.014, -0.003, 0.009, 0.022, 0.015, -0.005, 0.007, -0.004, 0,
+  ];
+
+  const slice = offsets30.slice(offsets30.length - days);
+  return slice.map((pct, idx) => ({
+    timestamp: now - (days - 1 - idx) * dayMs,
+    price: Number((basePrice * (1 + pct)).toFixed(2)),
+  }));
+}
 
 interface WalletTabProps {
   language: LanguageCode;
@@ -21,10 +52,146 @@ export const WalletTab: React.FC<WalletTabProps> = ({
   const [copied, setCopied] = useState(false);
   const [priceState, setPriceState] = useState<BtcPriceState>(cryptoPriceService.getState());
 
+  // Estados do gráfico Live Hash (7d, 15d, 30d)
+  const [chartPeriod, setChartPeriod] = useState<ChartPeriodDays>(7);
+  const [chartPoints, setChartPoints] = useState<PriceHistoryPoint[]>(() =>
+    buildApproximateBtcCurve(7, cryptoPriceService.getState().priceUsd)
+  );
+  const [isChartLoading, setIsChartLoading] = useState<boolean>(false);
+  const [chartApiError, setChartApiError] = useState<string | null>(null);
+
   useEffect(() => {
     const unsubscribe = cryptoPriceService.subscribe(setPriceState);
     return () => unsubscribe();
   }, []);
+
+  const fetchChartHistory = useCallback(
+    async (days: ChartPeriodDays, forceRefresh = false) => {
+      const cached = historyMemoryCache[days];
+      if (!forceRefresh && cached && Date.now() - cached.fetchedAt < 120_000) {
+        setChartPoints(cached.points);
+        setChartApiError(null);
+        return;
+      }
+
+      setIsChartLoading(true);
+      setChartApiError(null);
+
+      // 1. Tenta CoinGecko market_chart (CORS habilitado)
+      try {
+        const cgRes = await fetch(
+          `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=${days}&interval=daily`,
+          { headers: { Accept: 'application/json' } }
+        );
+        if (cgRes.ok) {
+          const json = await cgRes.json();
+          if (Array.isArray(json?.prices) && json.prices.length >= 2) {
+            const parsed: PriceHistoryPoint[] = json.prices.map((item: [number, number]) => ({
+              timestamp: Number(item[0]),
+              price: Number(item[1]),
+            }));
+            historyMemoryCache[days] = { points: parsed, fetchedAt: Date.now() };
+            setChartPoints(parsed);
+            setIsChartLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // Tenta fallback secundário
+      }
+
+      // 2. Fallback: Binance Klines (BTCUSDT diário, público com CORS habilitado)
+      try {
+        const binRes = await fetch(
+          `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=${days}`,
+          { headers: { Accept: 'application/json' } }
+        );
+        if (binRes.ok) {
+          const klines = await binRes.json();
+          if (Array.isArray(klines) && klines.length >= 2) {
+            const parsed: PriceHistoryPoint[] = klines.map((k: any[]) => ({
+              timestamp: Number(k[0]),
+              price: parseFloat(k[4]), // close price
+            }));
+            historyMemoryCache[days] = { points: parsed, fetchedAt: Date.now() };
+            setChartPoints(parsed);
+            setIsChartLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // Usa curva aproximada de fallback e exibe aviso de erro
+      }
+
+      // 3. Fallback local com mensagem de erro caso as APIs falhem
+      const fallbackCurve = buildApproximateBtcCurve(days, cryptoPriceService.getState().priceUsd);
+      setChartPoints(fallbackCurve);
+      setChartApiError(
+        'Não foi possível obter o histórico da API no momento. Exibindo variação aproximada de referência.'
+      );
+      setIsChartLoading(false);
+    },
+    []
+  );
+
+  useEffect(() => {
+    fetchChartHistory(chartPeriod, false);
+  }, [chartPeriod, fetchChartHistory]);
+
+  // Geometria SVG calculada para o gráfico de alta e queda do BTC
+  const chartGeometry = useMemo(() => {
+    const pts =
+      chartPoints.length >= 2
+        ? chartPoints
+        : buildApproximateBtcCurve(chartPeriod, priceState.priceUsd);
+
+    const prices = pts.map((p) => p.price);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    const priceRange = Math.max(maxPrice - minPrice, 1);
+
+    const width = 300;
+    const height = 76;
+    const padX = 10;
+    const padY = 10;
+    const usableW = width - padX * 2;
+    const usableH = height - padY * 2;
+
+    const coords = pts.map((pt, index) => {
+      const x = padX + (index / Math.max(pts.length - 1, 1)) * usableW;
+      const normalizedY = (pt.price - minPrice) / priceRange;
+      const y = padY + usableH - normalizedY * usableH;
+      return { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)), price: pt.price, timestamp: pt.timestamp };
+    });
+
+    const linePath = coords
+      .map((c, idx) => `${idx === 0 ? 'M' : 'L'} ${c.x} ${c.y}`)
+      .join(' ');
+
+    const first = coords[0];
+    const last = coords[coords.length - 1];
+    const areaPath = `${linePath} L ${last.x} ${height} L ${first.x} ${height} Z`;
+
+    const changePct = first.price > 0 ? ((last.price - first.price) / first.price) * 100 : 0;
+
+    const formatShortDate = (ts: number) => {
+      const d = new Date(ts);
+      return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+    };
+
+    return {
+      coords,
+      linePath,
+      areaPath,
+      first,
+      last,
+      minPrice,
+      maxPrice,
+      changePct,
+      startDateLabel: formatShortDate(first.timestamp),
+      endDateLabel: formatShortDate(last.timestamp),
+    };
+  }, [chartPoints, chartPeriod, priceState.priceUsd]);
 
   const formattedBtc = miningState.totalBtc.toFixed(12);
   const totalSatoshis = Math.floor(miningState.totalBtc * 100_000_000);
@@ -44,6 +211,7 @@ export const WalletTab: React.FC<WalletTabProps> = ({
 
   const handleRefreshPrice = () => {
     cryptoPriceService.fetchPrice();
+    fetchChartHistory(chartPeriod, true);
   };
 
   return (
@@ -133,27 +301,131 @@ export const WalletTab: React.FC<WalletTabProps> = ({
             </div>
           </div>
 
-          {/* Mining Historical Chart Card */}
-          <div className="bg-[#191e32] border border-[#262e49] rounded-3xl p-5 shadow-md">
+          {/* Mining Historical Chart Card ("LIVE HASH" — Variação BTC/USD 7d, 15d, 30d) */}
+          <div className="bg-[#191e32] border border-[#262e49] rounded-3xl p-4 shadow-md space-y-3">
+            {/* Top Bar: Seletor de Período (7 dias, 15 dias, 30 dias) + Variação */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1 bg-[#121626] border border-[#232a43] rounded-xl p-1">
+                {([7, 15, 30] as ChartPeriodDays[]).map((period) => {
+                  const active = chartPeriod === period;
+                  return (
+                    <button
+                      key={period}
+                      type="button"
+                      onClick={() => setChartPeriod(period)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
+                        active
+                          ? 'bg-[#f43f5e] text-white shadow'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {period} dias
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-1.5 text-[11px] font-mono">
+                {chartGeometry.changePct >= 0 ? (
+                  <span className="inline-flex items-center gap-1 text-emerald-400 font-bold">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    +{chartGeometry.changePct.toFixed(2)}%
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-rose-400 font-bold">
+                    <TrendingDown className="w-3.5 h-3.5" />
+                    {chartGeometry.changePct.toFixed(2)}%
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Min / Max Referência do Período */}
+            <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 px-0.5">
+              <span>
+                Mín ({chartPeriod}d):{' '}
+                <strong className="text-slate-200">
+                  {cryptoPriceService.formatBtcPrice(chartGeometry.minPrice)}
+                </strong>
+              </span>
+              <span>
+                Máx ({chartPeriod}d):{' '}
+                <strong className="text-slate-200">
+                  {cryptoPriceService.formatBtcPrice(chartGeometry.maxPrice)}
+                </strong>
+              </span>
+            </div>
+
+            {/* Aviso de Erro com Fallback caso a API falhe */}
+            {chartApiError && (
+              <div className="px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2 text-[10px] text-amber-300">
+                <div className="flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                  <span>{chartApiError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => fetchChartHistory(chartPeriod, true)}
+                  className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-bold shrink-0 cursor-pointer"
+                >
+                  Tentar
+                </button>
+              </div>
+            )}
+
+            {/* SVG Gráfico de Alta e Queda do BTC */}
             <div className="h-28 w-full flex flex-col justify-between relative">
-              {/* Pink Data point and baseline */}
               <div className="flex-1 flex items-center relative">
-                <svg viewBox="0 0 300 70" className="w-full h-full overflow-visible">
+                {isChartLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[#191e32]/60 z-10 rounded-xl">
+                    <RefreshCw className="w-4 h-4 text-rose-400 animate-spin" />
+                  </div>
+                )}
+                <svg viewBox="0 0 300 76" className="w-full h-full overflow-visible">
+                  <defs>
+                    <linearGradient id="btcLiveHashGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.32" />
+                      <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.0" />
+                    </linearGradient>
+                  </defs>
+
+                  {/* Área preenchida sob a curva */}
+                  <path d={chartGeometry.areaPath} fill="url(#btcLiveHashGrad)" />
+
+                  {/* Linha de alta e queda do preço do Bitcoin */}
                   <path
-                    d="M 10 50 Q 80 48, 150 40 T 290 25"
+                    d={chartGeometry.linePath}
                     fill="none"
                     stroke="#f43f5e"
-                    strokeWidth="2.5"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
-                  <circle cx="20" cy="50" r="4.5" fill="#f43f5e" />
-                  <circle cx="290" cy="25" r="4.5" fill="#f43f5e" />
+
+                  {/* Ponto inicial e final */}
+                  <circle
+                    cx={chartGeometry.first.x}
+                    cy={chartGeometry.first.y}
+                    r="4"
+                    fill="#f43f5e"
+                  />
+                  <circle
+                    cx={chartGeometry.last.x}
+                    cy={chartGeometry.last.y}
+                    r="4.5"
+                    fill="#f43f5e"
+                    stroke="#fff"
+                    strokeWidth="1.2"
+                  />
                 </svg>
               </div>
 
               {/* Bottom timeline axis */}
-              <div className="pt-2 border-t border-[#232a43] flex items-center justify-between text-[11px] font-mono text-slate-500">
-                <span>26/10</span>
-                <span>LIVE HASH</span>
+              <div className="pt-2 border-t border-[#232a43] flex items-center justify-between text-[11px] font-mono text-slate-400">
+                <span>
+                  {chartGeometry.startDateLabel} — {chartGeometry.endDateLabel}
+                </span>
+                <span className="font-bold text-slate-300 tracking-wider">LIVE HASH</span>
               </div>
             </div>
           </div>

@@ -285,7 +285,7 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     reward: {
       title: 'Área de Recompensas',
-      subtitle: 'Complete tarefas simples, desbloqueie recompensas e aproveite vantagens diárias.',
+      subtitle: 'Complete tarefas simples, desbloqueie recompensas e aproveite as vantagens diárias.',
       speedBooster: 'Acelerador de Velocidade',
       speedBoosterSub: '15 TH/s • 10 min',
       proBooster: 'Acelerador Pro',
