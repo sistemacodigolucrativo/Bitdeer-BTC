@@ -1,0 +1,39 @@
+name: Bitdeer PHP SQLite validation
+on:
+  push:
+    branches: [implementation/php-sqlite-backend]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, sqlite3, mbstring
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: PHP syntax
+        run: find api server install bin -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Frontend lint and build
+        run: |
+          npm install --no-audit --no-fund --package-lock=false
+          npm run lint
+          npm run build
+      - name: Provision test SQLite database
+        env:
+          BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
+          BITDEER_ALLOW_CLI_PROVISION: '1'
+        run: php bin/provision.php adminci 'StrongCIpassword123!' support@example.org
+      - name: API integration regression
+        env:
+          BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
+        run: |
+          php -S 127.0.0.1:8765 -t . >/tmp/bitdeer-php.log 2>&1 &
+          echo $! >/tmp/bitdeer-php.pid
+          trap 'kill $(cat /tmp/bitdeer-php.pid); cat /tmp/bitdeer-php.log' EXIT
+          python3 tests/integration.py
