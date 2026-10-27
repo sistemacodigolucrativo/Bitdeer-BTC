@@ -53,6 +53,8 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
             <p className="text-slate-400 text-sm">Saldo interno de recompensas</p>
             <p className="text-3xl font-bold">US$ {account?.mining.balanceUsd || '0.00000000'}</p>
             <p className="text-xs text-slate-400">Plano: {account?.plan.id || 'FREE'} · US$ {account?.plan.dailyUsd || '1.00'}/dia</p>
+            <p className="text-xs text-slate-400">Satoshis de bônus internos: {account?.mining.bonusSatoshisBalance || 0}</p>
+            <p className="text-xs text-slate-400">Bônus diário disponível: US$ {account?.plan.bonusUsd || '0.00'} + {account?.plan.bonusSatoshis || 0} satoshis</p>
             {account?.plan.expiresAt && <p className="text-xs">VIP até: {new Date(account.plan.expiresAt*1000).toLocaleString('pt-BR')}</p>}
           </div>
           <p className="text-xs text-slate-400">Os valores são registros do sistema calculados pelo servidor; não constituem prova de Bitcoin minerado ou de saldo de carteira externa.</p>
@@ -61,6 +63,11 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
             <button disabled={busy || !account?.mining.running} onClick={()=>void act('mining.stop')} className="flex-1 rounded-xl bg-rose-600 p-3 disabled:opacity-40">Parar</button>
             <button disabled={busy} onClick={()=>void reload()} className="p-3 rounded-xl border border-slate-600"><RefreshCw size={18}/></button>
           </div>
+          <button disabled={busy || !!(account?.mining.lastBonusAt && Date.now()/1000 < account.mining.lastBonusAt+86400)}
+            onClick={()=>void act('rewards.claim')}
+            className="w-full p-3 bg-indigo-600 rounded-xl disabled:opacity-40">
+            Resgatar bônus diário
+          </button>
           {account?.mining.sessionEndsAt && <p className="text-xs text-slate-400">Fim da sessão: {new Date(account.mining.sessionEndsAt*1000).toLocaleString('pt-BR')}</p>}
           {account?.mining.cooldownUntil && <p className="text-xs text-slate-400">Nova sessão a partir de: {new Date(account.mining.cooldownUntil*1000).toLocaleString('pt-BR')}</p>}
         </>}

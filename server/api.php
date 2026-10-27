@@ -77,7 +77,9 @@ function member_snapshot(PDO $db, int $userId): array {
          'balanceUnits'=>(int)$mining['balance_units'],
          'balanceUsd'=>units_usd((int)$mining['balance_units']),
          'sessionEndsAt'=>$mining['session_ends_at'] === null ? null : (int)$mining['session_ends_at'],
-         'cooldownUntil'=>$mining['cooldown_until'] === null ? null : (int)$mining['cooldown_until']],
+         'cooldownUntil'=>$mining['cooldown_until'] === null ? null : (int)$mining['cooldown_until'],
+         'bonusSatoshisBalance'=>(int)$mining['bonus_satoshis_balance'],
+         'lastBonusAt'=>$mining['last_bonus_at'] === null ? null : (int)$mining['last_bonus_at']],
        'plan'=>['id'=>$plan['id'],'revision'=>(int)$plan['snapshot']['revision'],
          'dailyUsd'=>number_format($plan['daily_cents']/100,2,'.',''),
          'bonusUsd'=>number_format((int)$plan['snapshot']['bonus_usd_cents']/100,2,'.',''),
@@ -220,6 +222,42 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         });
         json_out($result);
     }
+    if ($action === 'rewards.claim' && $method === 'POST') {
+        $actor=require_post_csrf($db);
+        if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
+        $result=atomic($db, static function () use ($db,$actor): array {
+            $userId=(int)$actor['id'];$time=now();
+            settle($db,$userId,$time);
+            $state=query_one($db,'SELECT last_bonus_at FROM mining_state WHERE user_id=?',[$userId]);
+            if ($state === null) fail(404,'Estado de mineração não encontrado');
+            if ($state['last_bonus_at'] !== null && $time-(int)$state['last_bonus_at']<86400) {
+                fail(409,'Bônus diário disponível apenas 24 horas após o último resgate');
+            }
+            $plan=plan_at($db,$userId,$time);
+            $cents=(int)$plan['snapshot']['bonus_usd_cents'];
+            $sats=(int)$plan['snapshot']['bonus_satoshis'];
+            $units=$cents*8640000;
+            execute_sql($db,'UPDATE mining_state
+              SET balance_units=balance_units+?,
+                bonus_satoshis_balance=bonus_satoshis_balance+?,
+                last_bonus_at=?,updated_at=? WHERE user_id=?',
+              [$units,$sats,$time,$time,$userId]);
+            execute_sql($db,'INSERT INTO bonus_claims(user_id,plan_id,claimed_at,bonus_usd_units,bonus_satoshis)
+              VALUES (?,?,?,?,?)',[$userId,$plan['id'],$time,$units,$sats]);
+            return member_snapshot($db,$userId);
+        });
+        json_out($result);
+    }
+    if ($action === 'ledger' && $method === 'GET') {
+        $actor=auth_user($db);
+        if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
+        json_out([
+          'accruals'=>query_all($db,'SELECT plan_id,start_ts,end_ts,earned_units FROM reward_ledger
+            WHERE user_id=? ORDER BY id DESC LIMIT 100',[$actor['id']]),
+          'bonuses'=>query_all($db,'SELECT plan_id,claimed_at,bonus_usd_units,bonus_satoshis FROM bonus_claims
+            WHERE user_id=? ORDER BY id DESC LIMIT 100',[$actor['id']]),
+        ]);
+    }
     if ($action === 'orders.create' && $method === 'POST') {
         $actor=require_post_csrf($db);
         if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
@@ -255,6 +293,23 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $list=query_all($db,'SELECT o.id,o.user_id,u.login,o.plan_id,o.status,o.created_at,o.expires_at
             FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.id DESC LIMIT 100');
         json_out(['orders'=>$list]);
+    }
+    if ($action === 'admin.member.edit' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);$body=request_body();
+        $id=param_id($body,'userId');
+        $name=string_field($body,'displayName',120);
+        $email=string_field($body,'email',254);
+        $phone=string_field($body,'phone',30);
+        $wallet=string_field($body,'walletAddress',150);
+        if ($name==='' || !is_email_or_empty($email)) fail(422,'Nome/e-mail inválido');
+        atomic($db, static function() use ($db,$actor,$id,$name,$email,$phone,$wallet): void {
+            $row=query_one($db,'SELECT id FROM users WHERE id=? AND role="member"',[$id]);
+            if (!$row) fail(404,'Membro inexistente');
+            execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=?,wallet_address=?,updated_at=? WHERE id=?',
+              [$name,$email,$phone,$wallet,now(),$id]);
+            audit($db,(int)$actor['id'],'member.edit',$id,['fields'=>['display_name','email','phone','wallet_address']]);
+        });
+        json_out(['ok'=>true]);
     }
     if ($action === 'admin.status' && $method === 'POST') {
         $actor=require_post_csrf($db,true);$body=request_body();

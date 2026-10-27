@@ -46,6 +46,10 @@ alice=Client()
 alice_user=alice.call("login",{"login":"alice","password":"longpassword123"})["user"]
 assert alice_user["role"]=="member"
 assert alice.call("profile")["plan"]["id"]=="FREE"
+bonus=alice.call("rewards.claim",{})
+assert bonus["mining"]["bonusSatoshisBalance"]==10000
+alice.call("rewards.claim",{},409)
+assert len(alice.call("ledger")["bonuses"])==1
 alice.call("admin.members",expected=403)
 order=alice.call("orders.create",{"planId":"VIP_01"},201)
 assert alice.call("profile")["plan"]["id"]=="FREE"

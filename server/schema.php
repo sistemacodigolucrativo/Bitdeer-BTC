@@ -67,6 +67,8 @@ CREATE TABLE IF NOT EXISTS mining_state (
   running INTEGER NOT NULL DEFAULT 0, last_accrual_at INTEGER,
   session_ends_at INTEGER, cooldown_until INTEGER,
   balance_units INTEGER NOT NULL DEFAULT 0,
+  bonus_satoshis_balance INTEGER NOT NULL DEFAULT 0,
+  last_bonus_at INTEGER,
   updated_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS reward_ledger (
@@ -76,6 +78,14 @@ CREATE TABLE IF NOT EXISTS reward_ledger (
   created_at INTEGER NOT NULL,
   UNIQUE(user_id, start_ts, end_ts, plan_id)
 );
+CREATE TABLE IF NOT EXISTS bonus_claims (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  plan_id TEXT NOT NULL, claimed_at INTEGER NOT NULL,
+  bonus_usd_units INTEGER NOT NULL, bonus_satoshis INTEGER NOT NULL,
+  UNIQUE(user_id, claimed_at)
+);
+CREATE INDEX IF NOT EXISTS idx_bonus_claims_user ON bonus_claims(user_id, claimed_at);
 CREATE TABLE IF NOT EXISTS admin_audit (
   id INTEGER PRIMARY KEY AUTOINCREMENT, admin_id INTEGER NOT NULL REFERENCES users(id),
   action TEXT NOT NULL, target_user_id INTEGER REFERENCES users(id),

@@ -13,6 +13,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   const [email,setEmail]=useState('');
   const [selected,setSelected]=useState<Plan|null>(null);
   const [notice,setNotice]=useState('');
+  const [editingMember,setEditingMember]=useState<Member|null>(null);
   const [busy,setBusy]=useState(false);
   async function refresh() {
     try {
@@ -52,6 +53,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
           <article key={m.id} className="rounded-xl p-4 bg-[#1b2137] border border-[#2b3350] flex flex-wrap gap-4 items-center justify-between">
             <div><strong>#{m.id} {m.login}</strong><p className="text-xs text-slate-400">{m.display_name} · {m.status}</p></div>
             <div className="flex flex-wrap gap-2">
+              <button disabled={busy} className={btn} onClick={()=>setEditingMember({...m})}>Editar</button>
               {m.status==='active' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'suspended'})}>Suspender</button>}
               {m.status==='suspended' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'active'})}>Reativar</button>}
               {m.status!=='archived' && <button disabled={busy} className={btn} onClick={()=>{
@@ -60,6 +62,21 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
               {m.status==='archived' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'active'})}>Restaurar</button>}
             </div>
           </article>)}</div>
+        {editingMember && <form className="rounded-xl bg-[#1b2137] p-4 space-y-3"
+          onSubmit={e=>{e.preventDefault();void change('admin.member.edit',{
+            userId:editingMember.id,displayName:editingMember.display_name,
+            email:editingMember.email,phone:'',walletAddress:'',
+          });setEditingMember(null);}}>
+          <strong>Editar perfil de {editingMember.login}</strong>
+          {(['display_name','email'] as const).map(k=><label key={k} className="block text-sm">
+            {k==='display_name'?'Nome':'E-mail'}
+            <input className="w-full bg-[#11182c] p-3 rounded-lg mt-1" value={editingMember[k]}
+              onChange={e=>setEditingMember(m=>m?{...m,[k]:e.target.value}:m)}/>
+          </label>)}
+          <p className="text-xs text-slate-400">Campos de telefone e carteira não serão recuperados neste formulário até a implantação dos detalhes completos de membro.</p>
+          <button className={btn} disabled={busy}>Salvar perfil</button>
+          <button type="button" className="ml-2 text-sm" onClick={()=>setEditingMember(null)}>Cancelar</button>
+        </form>}
         <p className="text-xs text-slate-400">Redefinição de senha bloqueada até aprovação do procedimento de verificação de identidade.</p>
       </>}
       {section==='plans' && <>
