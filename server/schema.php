@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE TABLE IF NOT EXISTS mining_state (
   user_id INTEGER PRIMARY KEY REFERENCES users(id),
   running INTEGER NOT NULL DEFAULT 0, last_accrual_at INTEGER,
+  session_ends_at INTEGER, cooldown_until INTEGER,
   balance_units INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL
 );
