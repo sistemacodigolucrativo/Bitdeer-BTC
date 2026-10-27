@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AuthUser, Plan, api } from '../services/api';
+import { AuthUser, Plan, api } from '../../services/api';
 import { LogOut, RefreshCw, Users, CreditCard, Settings } from 'lucide-react';
 
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number};
