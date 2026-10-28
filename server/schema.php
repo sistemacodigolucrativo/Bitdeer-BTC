@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS plans (
   bonus_usd_cents INTEGER NOT NULL CHECK(bonus_usd_cents>=0),
   bonus_satoshis INTEGER NOT NULL CHECK(bonus_satoshis>=0),
   duration_days INTEGER NOT NULL CHECK(duration_days>=0),
+  session_seconds INTEGER NOT NULL DEFAULT 0 CHECK(session_seconds>=0),
+  restart_cooldown_seconds INTEGER NOT NULL DEFAULT 0 CHECK(restart_cooldown_seconds>=0),
   hashrate TEXT NOT NULL, server_model TEXT NOT NULL,
   available INTEGER NOT NULL DEFAULT 1, revision INTEGER NOT NULL DEFAULT 1,
   updated_at INTEGER NOT NULL
@@ -107,14 +109,14 @@ SQL);
         $time = now();
         // Values preserved from dailyRewards.ts and checkout/config.ts at 0d39b528.
         $plans = [
-          ['FREE','FREE',0,100,50,10000,0,'5.30 Gh/s','Antminer S19 (Plano Gratuito)'],
-          ['VIP_01','VIP 01',2000,300,100,20000,30,'+ 275 Gh/s','Antminer S19 Pro (VIP 01)'],
-          ['VIP_02','VIP 02',4000,600,150,20000,30,'+ 575 Gh/s','Antminer S19 XP (VIP 02)'],
-          ['VIP_03','VIP 03',6000,1200,200,20000,30,'+ 975 Gh/s','WhatsMiner M50S+ (VIP 03)'],
-          ['VIP_04','VIP 04',8000,2800,250,20000,30,'+ 5.4 Th/s','Bitmain Hydro Cluster (VIP 04 • 5.4 Th/s)'],
+          ['FREE','FREE',0,100,50,10000,0,7200,7200,'5.30 Gh/s','Antminer S19 (Plano Gratuito)'],
+          ['VIP_01','VIP 01',2000,300,100,20000,30,0,0,'+ 275 Gh/s','Antminer S19 Pro (VIP 01)'],
+          ['VIP_02','VIP 02',4000,600,150,20000,30,0,0,'+ 575 Gh/s','Antminer S19 XP (VIP 02)'],
+          ['VIP_03','VIP 03',6000,1200,200,20000,30,0,0,'+ 975 Gh/s','WhatsMiner M50S+ (VIP 03)'],
+          ['VIP_04','VIP 04',8000,2800,250,20000,30,0,0,'+ 5.4 Th/s','Bitmain Hydro Cluster (VIP 04 • 5.4 Th/s)'],
         ];
         foreach ($plans as $p) {
-            execute_sql($db, 'INSERT INTO plans(id,name,price_cents,daily_cents,bonus_usd_cents,bonus_satoshis,duration_days,hashrate,server_model,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)', [...$p,$time]);
+            execute_sql($db, 'INSERT INTO plans(id,name,price_cents,daily_cents,bonus_usd_cents,bonus_satoshis,duration_days,session_seconds,restart_cooldown_seconds,hashrate,server_model,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', [...$p,$time]);
         }
         execute_sql($db, 'INSERT INTO users (login,password_hash,role,status,display_name,created_at,updated_at) VALUES (?,?,"admin","active",?,?,?)',
           [$login,secure_password($password),'Administrador',$time,$time]);

@@ -31,7 +31,13 @@ function settle(PDO $db, int $userId, int $at): void {
     $user = query_one($db, 'SELECT status FROM users WHERE id=?', [$userId]);
     if ($user === null || $user['status'] !== 'active') return;
     $start = (int) ($state['last_accrual_at'] ?? $at);
-    $limit = min($at, (int) ($state['session_ends_at'] ?? $at));
+    // NULL means continuous mining, used for VIP. A finite session is server-limited.
+    $finiteEnd = $state['session_ends_at'] === null ? null : (int)$state['session_ends_at'];
+    $limit = $finiteEnd === null ? $at : min($at, $finiteEnd);
+    $startPlan = plan_at($db, $userId, $start);
+    // A continuous VIP session must not turn into unlimited FREE mining after expiration.
+    $contractEnd = $startPlan['expires'] === null ? null : (int)$startPlan['expires'];
+    if ($contractEnd !== null) $limit = min($limit, $contractEnd);
     $limit = max($start, $limit);
     $earnedTotal = 0;
     $cursor = $start;
@@ -58,9 +64,14 @@ function settle(PDO $db, int $userId, int $at): void {
     // cannot credit the same interval. INSERT OR IGNORE is an extra safety net.
     execute_sql($db, 'UPDATE mining_state SET last_accrual_at=?, balance_units=balance_units+?,
         updated_at=? WHERE user_id=?', [$limit,$earnedTotal,$at,$userId]);
-    if ($at >= (int) $state['session_ends_at']) {
-        execute_sql($db, 'UPDATE mining_state SET running=0, cooldown_until=MAX(COALESCE(cooldown_until,0),?),updated_at=? WHERE user_id=?',
-            [(int)$state['session_ends_at'] + 86400,$at,$userId]);
+    if (($finiteEnd !== null && $at >= $finiteEnd) ||
+        ($contractEnd !== null && $at >= $contractEnd)) {
+        $ended = $finiteEnd !== null && ($contractEnd === null || $finiteEnd <= $contractEnd);
+        $cooldown = $ended ? (int)($startPlan['snapshot']['restart_cooldown_seconds'] ?? 0) : 0;
+        $endTime = $ended ? $finiteEnd : $contractEnd;
+        execute_sql($db, 'UPDATE mining_state SET running=0,
+             cooldown_until=MAX(COALESCE(cooldown_until,0),?), updated_at=? WHERE user_id=?',
+            [$endTime + $cooldown, $at, $userId]);
     }
 }
 
@@ -84,6 +95,8 @@ function member_snapshot(PDO $db, int $userId): array {
          'dailyUsd'=>number_format($plan['daily_cents']/100,2,'.',''),
          'bonusUsd'=>number_format((int)$plan['snapshot']['bonus_usd_cents']/100,2,'.',''),
          'bonusSatoshis'=>(int)$plan['snapshot']['bonus_satoshis'],
+         'sessionSeconds'=>(int)($plan['snapshot']['session_seconds'] ?? 0),
+         'restartCooldownSeconds'=>(int)($plan['snapshot']['restart_cooldown_seconds'] ?? 0),
          'expiresAt'=>$plan['expires']],
     ];
 }
@@ -96,6 +109,8 @@ function canonical_plan(array $p): array {
       'bonusUsd'=>number_format((int)$p['bonus_usd_cents']/100,2,'.',''),
       'bonusSatoshis'=>(int)$p['bonus_satoshis'],
       'durationDays'=>(int)$p['duration_days'],
+      'sessionSeconds'=>(int)$p['session_seconds'],
+      'restartCooldownSeconds'=>(int)$p['restart_cooldown_seconds'],
       'hashrate'=>$p['hashrate'],'serverModel'=>$p['server_model'],
       'available'=>(bool)$p['available'],
     ];
@@ -205,8 +220,15 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             $row=query_one($db,'SELECT * FROM mining_state WHERE user_id=?',[$userId]);
             if ((int)$row['running']===1) fail(409,'Mineração já iniciada');
             if ((int)($row['cooldown_until'] ?? 0)>$time) fail(409,'Aguarde o intervalo entre sessões');
+            $plan = plan_at($db,$userId,$time);
+            $seconds = (int)($plan['snapshot']['session_seconds'] ?? 0);
+            // If VIP expires first, stop at that boundary even for continuous plans.
+            $expires = $plan['expires'];
+            $sessionEnd = $seconds > 0 ? $time + $seconds : null;
+            if ($expires !== null) $sessionEnd = $sessionEnd === null
+                ? $expires : min($sessionEnd, $expires);
             execute_sql($db,'UPDATE mining_state SET running=1,last_accrual_at=?,session_ends_at=?,updated_at=? WHERE user_id=?',
-              [$time,$time+1800,$time,$userId]);
+              [$time,$sessionEnd,$time,$userId]);
             return member_snapshot($db,$userId);
         });
         json_out($result);
@@ -216,8 +238,11 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
         $result=atomic($db, static function () use ($db,$actor): array {
             $userId=(int)$actor['id'];$time=now();settle($db,$userId,$time);
-            execute_sql($db,'UPDATE mining_state SET running=0,cooldown_until=?,updated_at=? WHERE user_id=?',
-              [$time+86400,$time,$userId]);
+            $plan = plan_at($db,$userId,$time);
+            $cooldown = (int)($plan['snapshot']['restart_cooldown_seconds'] ?? 0);
+            execute_sql($db,'UPDATE mining_state SET running=0,last_accrual_at=NULL,
+                  session_ends_at=NULL,cooldown_until=?,updated_at=? WHERE user_id=?',
+              [$time+$cooldown,$time,$userId]);
             return member_snapshot($db,$userId);
         });
         json_out($result);
@@ -336,22 +361,22 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $actor=require_post_csrf($db,true);$body=request_body();
         $id=string_field($body,'id',60);$name=string_field($body,'name',120);
         if (!preg_match('/^[A-Z][A-Z0-9_]{2,59}$/D',$id) || $name==='') fail(422,'Identificador/nome inválido');
-        $fields=['priceCents','dailyCents','bonusUsdCents','bonusSatoshis','durationDays'];
+        $fields=['priceCents','dailyCents','bonusUsdCents','bonusSatoshis','durationDays','sessionSeconds','restartCooldownSeconds'];
         foreach ($fields as $f) {
             if (!isset($body[$f]) || !is_int($body[$f]) || $body[$f]<0 || $body[$f]>100000000) fail(422,'Campo numérico inválido: '.$f);
         }
         $hashrate=string_field($body,'hashrate',100);$serverModel=string_field($body,'serverModel',150);
         $available=($body['available'] ?? true) === true ? 1 : 0;
-        if ($id==='FREE' && ($body['priceCents']!==0 || $body['durationDays']!==0 || $available!==1)) fail(422,'Plano gratuito deve permanecer gratuito e ativo');
+        if ($id==='FREE' && ($body['priceCents']!==0 || $body['durationDays']!==0 || $available!==1 || $body['sessionSeconds']===0)) fail(422,'Plano gratuito deve permanecer gratuito e ativo');
         $exists=query_one($db,'SELECT id FROM plans WHERE id=?',[$id]);
         atomic($db, static function () use ($db,$actor,$body,$id,$name,$hashrate,$serverModel,$available,$exists): void {
             if ($exists) {
-                execute_sql($db,'UPDATE plans SET name=?,price_cents=?,daily_cents=?,bonus_usd_cents=?,bonus_satoshis=?,duration_days=?,hashrate=?,server_model=?,available=?,revision=revision+1,updated_at=? WHERE id=?',
-                  [$name,$body['priceCents'],$body['dailyCents'],$body['bonusUsdCents'],$body['bonusSatoshis'],$body['durationDays'],$hashrate,$serverModel,$available,now(),$id]);
+                execute_sql($db,'UPDATE plans SET name=?,price_cents=?,daily_cents=?,bonus_usd_cents=?,bonus_satoshis=?,duration_days=?,session_seconds=?,restart_cooldown_seconds=?,hashrate=?,server_model=?,available=?,revision=revision+1,updated_at=? WHERE id=?',
+                  [$name,$body['priceCents'],$body['dailyCents'],$body['bonusUsdCents'],$body['bonusSatoshis'],$body['durationDays'],$body['sessionSeconds'],$body['restartCooldownSeconds'],$hashrate,$serverModel,$available,now(),$id]);
             } else {
-                execute_sql($db,'INSERT INTO plans (id,name,price_cents,daily_cents,bonus_usd_cents,bonus_satoshis,duration_days,hashrate,server_model,available,updated_at)
-                  VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-                  [$id,$name,$body['priceCents'],$body['dailyCents'],$body['bonusUsdCents'],$body['bonusSatoshis'],$body['durationDays'],$hashrate,$serverModel,$available,now()]);
+                execute_sql($db,'INSERT INTO plans (id,name,price_cents,daily_cents,bonus_usd_cents,bonus_satoshis,duration_days,session_seconds,restart_cooldown_seconds,hashrate,server_model,available,updated_at)
+                  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                  [$id,$name,$body['priceCents'],$body['dailyCents'],$body['bonusUsdCents'],$body['bonusSatoshis'],$body['durationDays'],$body['sessionSeconds'],$body['restartCooldownSeconds'],$hashrate,$serverModel,$available,now()]);
             }
             audit($db,(int)$actor['id'],'plan.save',null,['planId'=>$id,'revisionChange'=>true]);
         });
