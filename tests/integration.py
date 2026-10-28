@@ -5,6 +5,8 @@ import time
 import urllib.error
 import urllib.request
 import http.cookiejar
+import sqlite3
+import os
 
 BASE = "http://127.0.0.1:8765/api/index.php?action="
 
@@ -113,4 +115,44 @@ admin.call("admin.password.reset",{"userId":alice_user["id"],
 newsession=Client()
 newsession.call("login",{"login":"alice","password":"longpassword123"},401)
 assert newsession.call("login",{"login":"alice","password":"NewStrongPassword456!"})["user"]["id"]==alice_user["id"]
-print("PASS: registration, login, RBAC, immutable VIP, manual approval, mining accrual, suspension, archive, sessions")
+# Explicitly exercise the intentionally disabled public installer.
+try:
+    urllib.request.urlopen("http://127.0.0.1:8765/install/index.php",timeout=2)
+    raise AssertionError("Public installer must stay inaccessible while decision 13 is unresolved")
+except urllib.error.HTTPError as e:
+    assert e.code == 423, ("installer",e.code)
+
+# Free plan has a bounded server-side session and cooldown; no client timing can bypass it.
+bob=Client()
+bob.call("login",{"login":"bob","password":"anotherpassword123"})
+original_csrf=bob.csrf
+bob.csrf=""
+bob.call("mining.start",{},403)
+bob.csrf=original_csrf
+free=bob.call("mining.start",{})
+assert free["plan"]["sessionSeconds"]==7200
+assert 7150 <= free["mining"]["sessionEndsAt"]-int(time.time()) <= 7200
+bob.call("mining.stop",{})
+bob.call("mining.start",{},409)
+bob2=Client()
+bob2.call("login",{"login":"bob","password":"anotherpassword123"})
+admin.call("admin.status",{"userId":3,"status":"suspended"})
+bob.call("profile",expected=401)
+bob2.call("profile",expected=401)
+admin.call("admin.status",{"userId":3,"status":"active"})
+bob.call("profile",expected=401)
+
+# Simulate a VIP expiry around the server clock; accrual must stop at the contract boundary.
+db=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
+try:
+    moment=int(time.time())
+    db.execute("UPDATE contracts SET expires_at=? WHERE user_id=?", (moment-1,alice_user["id"]))
+    db.execute("UPDATE mining_state SET running=1,last_accrual_at=?,session_ends_at=NULL WHERE user_id=?",
+               (moment-2,alice_user["id"]))
+    db.commit()
+finally:
+    db.close()
+just_expired=newsession.call("profile")
+assert just_expired["plan"]["id"]=="FREE"
+assert not just_expired["mining"]["running"], "VIP mining must stop at expiry"
+print("PASS: registration, RBAC, checkout quote, admin reset, session revocation, free cooldown, VIP expiry")
