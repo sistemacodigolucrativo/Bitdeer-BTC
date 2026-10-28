@@ -28,6 +28,15 @@ try {
   await page.getByText('Bitdeer BTC').first().waitFor({timeout:15000});
   await page.locator('nav button').first().waitFor({timeout:15000});
   if(await page.locator('nav button').count()!==5)throw Error('Member navigation must have five tabs');
+  const bonus=page.getByTestId('daily-bonus-card');
+  await bonus.waitFor({timeout:10000});
+  if(await bonus.locator('button').count()!==1)throw Error('Daily bonus must have one redeem button');
+  if(await bonus.getByText('USD').count()!==1||await bonus.getByText('Satoshis').count()!==1)
+    throw Error('Daily bonus card must present both reward types');
+  await bonus.locator('button').click();
+  await page.getByRole('button',{name:/Resgatar ambos os bônus diários|Claim both daily bonuses|Reclamar ambos bonos diarios/i})
+    .waitFor({timeout:10000});
+  await page.locator('nav button').first().click();
   for(let i=0;i<5;i++){
     await page.locator('nav button').nth(i).click();
     await page.waitForTimeout(200);
