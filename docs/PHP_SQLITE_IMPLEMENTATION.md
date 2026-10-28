@@ -150,3 +150,13 @@ aceita pelo transporte não significa entrega comprovada.
 Os novos vínculos de indicação e os respectivos históricos são registrados no SQLite com código individual de membro. O benefício legado de US$ 1 por cadastro válido é crédito interno, não uma transferência BTC. As tabelas também são criadas em instalações anteriores quando o fluxo é acessado, sem excluir dados existentes. O código antigo 8ZPTC e a lista fictícia inicial não foram atribuídos a membros reais; eventual recuperação histórica depende de dados de origem verificável.
 
 TXIDs são normalizados e rejeitados quando já associados a outro pedido, independentemente de letras maiúsculas ou minúsculas. O painel permite registrar rejeições com motivo e trilha de auditoria. Os endereços BTC SegWit mainnet são verificados por checksum BIP-173/BIP-350; a confirmação da posse e da transação permanece operação humana externa.
+
+## Aprovações finais do proprietário — 28/10/2026
+
+- Preservar integralmente os valores originais de FREE/VIP; sem alteração comercial.
+- Instalação limpa com administrador e membro fundador criados no momento do setup; código antigo 8ZPTC e quaisquer históricos do mockup não são importados.
+- Carteira BTC inicialmente vazia, cadastrada pelo administrador depois da instalação.
+- URL de aplicação configurada em /install, com domínio ou IP, HTTP ou HTTPS e seleção de VPS/hospedagem convencional; a detecção do ambiente é limitada.
+- Instalação remota de administrador requer HTTPS por confidencialidade; HTTP sem SSL continua compatível com a aplicação, mas a inicialização segura nessa situação exige canal local privado.
+- Mineração permanece SIMULADA e registrada no SQLite; sem integração com mineração real.
+- Merge na main e publicação somente após homologação real satisfatória e acesso ao ambiente.

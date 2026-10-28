@@ -6,44 +6,48 @@ O pacote ZIP tem public_html com os arquivos do frontend React, api/index.php,
 install/index.php e .htaccess, e private/server com os arquivos PHP do backend.
 private/data é a pasta destinada ao banco SQLite e NÃO deve ser pública.
 
-## Instalação
+## Instalação compatível com VPS ou hospedagem PHP
 
-1. Hospedagem com PHP >=8.2, PDO SQLite, mbstring, HTTPS, Apache rewrite
-   (ou configuração equivalente do Nginx/PHP-FPM).
-2. Descompacte o ZIP e aponte a raiz pública do domínio EXCLUSIVAMENTE para
-   public_html. A pasta private deve estar fora do alcance do navegador.
-3. Mantendo a estrutura do ZIP, o PHP encontra private/server e private/data
-   automaticamente. Não há MySQL nem edição manual do banco.
-   BITDEER_SERVER_DIR e BITDEER_DB_PATH são opcionais apenas quando a
-   estrutura de diretórios for alterada.
-4. Acesse https://SEU_DOMINIO/install na hospedagem com o domínio virtual
-   configurado como host canônico (HTTP_HOST deve coincidir com SERVER_NAME).
-   Sem chave pré-configurada, o instalador mostrará um desafio DNS:
-   criar TXT _bitdeer-install.SEUDOMINIO com o valor único exibido na página.
-   Publique esse TXT no provedor DNS do domínio e prossiga no mesmo navegador.
-   O código aleatório expira em 30 minutos, só vale naquela sessão e
-   a instalação é bloqueada após criar o SQLite e o administrador.
-   A verificação exige dns_get_record (DNS TXT habilitado no PHP).
-5. A alternativa local/loopback precisa de habilitação explícita do servidor
-   (BITDEER_INSTALL_ALLOW_LOCAL=1) e acesso efetivamente local. Não habilite
-   em uma interface pública atrás de proxy. Para o uso normal, utilize o DNS TXT.
-   Se o servidor não identificar um host canônico confiável, o instalador
-   NÃO liberará cadastro remoto de administrador; corrija o virtual host.
-6. Formulário: login do primeiro administrador, senha e e-mail de suporte.
-   O provisionamento inicial cria as tabelas e os cinco planos.
-7. Acessos públicos à rota não comprovam domínio: só o TXT publicado
-   pelo operador DNS autoriza a primeira conta administrativa.
-   Evite reutilizar desafios entre tentativas ou manter o TXT expirado.
-   Após instalar, o /install recusa outra instalação.
+1. Requer PHP >=8.2, PDO SQLite e mbstring; Apache com rewrite (ou
+   PHP-FPM/Nginx equivalente). Aponte a raiz pública para `public_html`
+   e mantenha `private` fora da pasta servida por HTTP. Os caminhos
+   do backend e SQLite são detectados automaticamente no ZIP.
+2. Abra `/install` pelo **domínio** ou pelo **IP** que está acessando.
+   O instalador detecta esse endereço e permite configurar sua URL pública
+   (HTTP ou HTTPS) e selecionar VPS, hospedagem convencional ou automático.
+   A detecção automática do tipo de hospedagem é limitada; não se pode
+   diferenciar com segurança VPS e hospedagem compartilhada apenas pelo PHP.
+3. Para domínio em HTTPS: prove controle criando o registro TXT
+   `_bitdeer-install.SEU-DOMINIO` com o valor temporário exibido.
+   Não exige chave privada pré-configurada.
+4. Para endereço IP em HTTPS: envie pelo gerenciador de arquivos/SFTP
+   o arquivo TXT com nome e conteúdo exibidos em `/install` para a pasta
+   `.well-known` dentro de `public_html`. O instalador NÃO cria esse
+   arquivo automaticamente. Somente quem pode publicar arquivos no servidor
+   consegue satisfazer a verificação. A comprovação vence em 30 minutos.
+5. O aplicativo pode utilizar URL HTTP sem SSL, mas **credenciais não
+   podem ser enviadas com segurança por HTTP público**. Por isso, a
+   configuração inicial de administrador pela internet exige HTTPS.
+   Para VPS operando exclusivamente com IP/HTTP, a alternativa é uma
+   conexão local protegida (por exemplo, encaminhamento SSH), com
+   `BITDEER_INSTALL_ALLOW_LOCAL=1` e Host e IP de loopback. Nunca
+   exponha esse modo local a um proxy público. Não é necessário domínio.
+6. Informe login/senha do administrador e e-mail de suporte. A instalação
+   cria automaticamente o SQLite, catálogo de cinco planos e **um novo
+   membro fundador** com senha aleatória e código de indicação individual.
+   As credenciais do fundador são mostradas uma única vez, depois da prova
+   de controle. Guarde-as. Nenhum usuário, código ou histórico do mockup
+   (inclusive 8ZPTC) é importado.
+7. O recebimento BTC começa **sem endereço configurado**: o administrador
+   cadastra/alterará a carteira no painel após a instalação, reautenticando
+   com sua senha. Até confirmação, o backend bloqueia pedidos novos.
+8. A instalação é recusada após a criação do banco SQLite. Preserve backup
+   de `private/data` e nunca publique os arquivos da pasta privada.
 
-### Requisitos importantes
-- Raiz pública apontada somente a public_html; private permanece fora dela.
-- Conexão HTTPS válida pelo domínio do site.
-- PHP 8.2+, pdo_sqlite, mbstring, dns_get_record e acesso DNS TXT.
-- Pastas privadas graváveis e permissões restritas.
-- O assistente protege contra reinstalação, mas não substitui
-  backups e configuração do servidor.
-
+**Limites:** a configuração da URL informa o endereço usado pelo aplicativo,
+mas não cria domínio DNS, certificado TLS, regra de proxy, vhost ou
+permissões da hospedagem. HTTPS deve estar configurado no servidor antes de
+transmitir credenciais remotamente.
 
 ## Carteira BTC e suporte
 

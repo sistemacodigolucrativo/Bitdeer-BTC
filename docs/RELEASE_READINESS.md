@@ -18,8 +18,8 @@
 ## Requisitos que dependem da operação real
 
 1. **Hospedagem:** apontar DocumentRoot para public_html, manter private fora do acesso público e confirmar HTTPS, PHP >= 8.2, PDO SQLite e permissões. Não há servidor de hospedagem conectado a esta automação.
-2. **Primeira instalação:** para usar o domínio, publique o TXT temporário _bitdeer-install e comprove controle do DNS; o modo local exige BITDEER_INSTALL_ALLOW_LOCAL=1. A reinstalação permanece bloqueada.
-3. **Recebimento BTC:** o responsável deve controlar e confirmar independentemente o endereço pelo painel administrativo. Até isso ocorrer, novos pedidos permanecem bloqueados. O código não executa verificação na blockchain.
+2. **Primeira instalação:** domínio em HTTPS com TXT DNS, IP em HTTPS com comprovante de arquivo enviado pelo operador, ou SSH/loopback local opt-in quando só houver HTTP. Ambos os tipos de endereço são aceitos sem chave extra. O instalador pede a URL pública e cria um membro fundador novo.
+3. **Recebimento BTC:** a instalação começa sem endereço BTC; o responsável define, controla e confirma independentemente o endereço pelo painel administrativo. Até isso ocorrer, novos pedidos permanecem bloqueados. O código não executa verificação na blockchain.
 4. **Suporte:** configure e verifique o transporte de e-mail no ambiente real. Tickets são persistidos mesmo sem entrega de mensagens. A opção mail() não confirma entrega final.
 5. **Identidade:** aplique o procedimento manual em IDENTITY_AND_PASSWORD_RESETS.md. A confirmação registrada depende da verificação humana.
 6. **Comercial e legal:** não apresentar créditos internos como BTC minerado ou disponível para saque. Confirmar serviço real prestado e conformidade aplicável antes de aceitar contratações pagas.
@@ -35,6 +35,6 @@
 
 ## Pendências específicas de históricos e pagamentos
 
-O código antigo 8ZPTC não tem proprietário vinculado à base de membros. Os registros estáticos do frontend não foram importados como cadastros reais. Um histórico anterior comprovado só poderá ser associado mediante identificação do titular e origem dos dados.
+A decisão do proprietário exige banco inicial limpo. O código 8ZPTC, usuários e históricos antigos NÃO serão importados, mesmo se aparecerem em arquivos do mockup. A rede nasce do novo membro fundador criado no instalador.
 
 No checkout, a aprovação continua manual e exige conferência externa de TXID. O servidor normaliza e impede reaproveitamento de TXID e permite rejeição com auditoria. Um TXID bem formatado não constitui prova de pagamento.

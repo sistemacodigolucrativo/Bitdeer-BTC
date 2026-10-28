@@ -25,3 +25,5 @@ e não listas estáticas do navegador, é a fonte vigente depois do install.
 
 A apresentação pública de planos pagos requer validação independente
 de capacidade operacional, custos, regras contratuais e obrigações legais.
+
+A instalação cria apenas um novo administrador e um novo membro fundador, cada qual com senha forte; a conta fundadora inicia a rede com código de convite novo e nenhum histórico prévio. A conta administrativa e o usuário fundador não importam contas do mockup. A carteira de recebimento fica vazia até cadastro pelo administrador.
