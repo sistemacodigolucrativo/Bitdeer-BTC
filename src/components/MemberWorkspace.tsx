@@ -2,19 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { AuthUser, MemberData, Plan, api } from '../services/api';
 import { CustomerSupportView } from './workspace/CustomerSupportView';
 import { LanguageCode } from '../types';
-import { Home, Store, User, Headphones, LogOut, RefreshCw, History, Wallet, Gift, Settings, Trophy, ScrollText, Users } from 'lucide-react';
+import { Home, Store, User, Headphones, LogOut, RefreshCw, History, Wallet, Gift, Settings, Trophy, ScrollText, Users, ArrowLeft } from 'lucide-react';
 import { translations } from '../i18n/translations';
 import QRCode from 'qrcode';
 import { ServerHomeView } from './ServerHomeView';
 import { ServerStoreView } from './ServerStoreView';
 import { ServerWalletView } from './ServerWalletView';
+import { formatBrazilianPhone, validBrazilianPhone } from '../utils/phone';
 import { ServerRewardView } from './ServerRewardView';
 import { TopMinersView } from './workspace/TopMinersView';
 import { ReferralHistoryView } from './workspace/ReferralHistoryView';
 import { SubscriptionHistoryView } from './workspace/SubscriptionHistoryView';
 import { memberTexts } from '../i18n/memberTexts';
 
-type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'referrals';
+type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'referrals' | 'withdraw';
 type PurchaseOrder = {
   orderId: number; status: string; priceUsd: string; quoteRateUsd: string;
   quoteSource: string; btcAddress: string; btcSatoshis: number;
@@ -64,7 +65,7 @@ export const MemberWorkspace: React.FC<{
   async function reload() {
     try {
       const data = await api<MemberData>('profile');
-      setAccount(data); setProfile(data.profile);
+      setAccount(data); setProfile({...data.profile,phone:formatBrazilianPhone(data.profile.phone)});
     } catch(e) { setNotice((e as Error).message); }
   }
   useEffect(() => {
@@ -84,6 +85,7 @@ export const MemberWorkspace: React.FC<{
       await api('profile.update',{...profile,walletAddress:walletDraft});
       await reload();
       setWalletStep('none');
+      setPage('wallet');
       setNotice(words.saved);
     }catch(e){setNotice((e as Error).message);}
     finally{setBusy(false);}
@@ -95,7 +97,7 @@ export const MemberWorkspace: React.FC<{
       await reload();
       const history=await api<{requests:WithdrawRequest[]}>('withdraw.mine');
       setWithdrawHistory(history.requests);
-      setWalletStep('none');setWithdrawAmount('');
+      setWalletStep('none');setWithdrawAmount('');setPage('wallet');
       setNotice(result.message);
     }catch(e){setNotice((e as Error).message);}
     finally{setBusy(false);}
@@ -118,6 +120,9 @@ export const MemberWorkspace: React.FC<{
   async function act(action: string, body: Record<string, unknown> = {}) {
     setBusy(true); setNotice('');
     try {
+      if(action==='profile.update' && typeof body.phone==='string' && !validBrazilianPhone(body.phone)) {
+        throw new Error('Informe um telefone brasileiro válido com DDD (10 ou 11 dígitos).');
+      }
       const result = await api<PurchaseOrder | {ok:boolean}>(action,body);
       if (action==='orders.create') setCheckout(result as PurchaseOrder);
       setNotice(action==='orders.create'
@@ -138,26 +143,11 @@ export const MemberWorkspace: React.FC<{
       <div><strong>Bitdeer BTC</strong><p className="text-xs text-slate-400">{account?.user.login ?? user.login} · {account?.plan.id || '...'}</p></div>
       <button onClick={onLogout} title={words.signOutTitle} aria-label={words.signOutTitle}><LogOut size={20}/></button>
     </div>
-    {page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('settings')}/> :
-      page==='topMiners' ? <TopMinersView language={language} onBack={()=>setPage('settings')}/> :
-      page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
-      page==='referrals' ? <ReferralHistoryView language={language} onBack={()=>setPage('settings')}/> :
-      <div className="flex-1 overflow-auto p-5 space-y-4">
-        {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
-        {page==='home' && <ServerHomeView account={account} language={language} btcUsd={btcUsd} busy={busy}
-          onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
-          onRefresh={()=>void reload()} onRewards={()=>setPage('reward')}
-          onHistory={()=>setPage('history')}/>}
-        {page==='reward' && <ServerRewardView account={account} language={language} busy={busy}
-          onClaim={()=>void act('rewards.claim')} onHistory={()=>setPage('history')}/>}
-        {page==='wallet' && <>
-          <ServerWalletView account={account} language={language} btcUsd={btcUsd}
-            accruals={ledger.accruals} onEdit={()=>setPage('profile')} onHistory={()=>setPage('history')}
-            onWithdraw={()=>{
-              setWalletDraft(account?.profile.walletAddress??'');
-              setWalletStep(account?.profile.walletAddress?'amount':'register');
-              setWithdrawAmount('');
-            }}/>
+    {page==='withdraw' ? <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
+      <button type="button" className="inline-flex gap-2 items-center text-sm text-indigo-200"
+        onClick={()=>{setWalletStep('none');setPage('wallet');}}><ArrowLeft size={18}/> Voltar à carteira</button>
+      <h2 className="text-xl font-bold">Solicitação de Saque</h2>
+      {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-amber-300 text-xs">{notice}</p>}
           {walletStep!=='none' && <section className="bg-[#1b2137] border border-indigo-500 rounded-2xl p-4 space-y-3">
             <div className="flex justify-between items-center">
               <h3 className="font-bold">{walletStep==='register'?'Cadastrar carteira Bitcoin':'Solicitar saque interno'}</h3>
@@ -189,6 +179,28 @@ export const MemberWorkspace: React.FC<{
               <button disabled={busy || !btcUsd} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">Registrar solicitação</button>
             </form>}
           </section>}
+    </div> :
+      page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('settings')}/> :
+      page==='topMiners' ? <TopMinersView language={language} onBack={()=>setPage('settings')}/> :
+      page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
+      page==='referrals' ? <ReferralHistoryView language={language} onBack={()=>setPage('settings')}/> :
+      <div className="flex-1 overflow-auto p-5 space-y-4">
+        {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
+        {page==='home' && <ServerHomeView account={account} language={language} btcUsd={btcUsd} busy={busy}
+          onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
+          onRefresh={()=>void reload()} onRewards={()=>setPage('reward')}
+          onHistory={()=>setPage('history')}/>}
+        {page==='reward' && <ServerRewardView account={account} language={language} busy={busy}
+          onClaim={()=>void act('rewards.claim')} onHistory={()=>setPage('history')}/>}
+        {page==='wallet' && <>
+          <ServerWalletView account={account} language={language} btcUsd={btcUsd}
+            accruals={ledger.accruals} onEdit={()=>setPage('profile')} onHistory={()=>setPage('history')}
+            onWithdraw={()=>{
+              setWalletDraft(account?.profile.walletAddress??'');
+              setWalletStep(account?.profile.walletAddress?'amount':'register');
+              setWithdrawAmount('');
+              setPage('withdraw');
+            }}/>
           {withdrawHistory.length>0 && <section className="bg-[#171b2d] rounded-2xl p-4 space-y-2">
             <h3 className="font-bold text-sm">Solicitações de saque</h3>
             {withdrawHistory.map(x=><p key={x.id} className="text-xs border-b border-[#2b3350] pb-2">
@@ -267,18 +279,21 @@ export const MemberWorkspace: React.FC<{
           {(['displayName','email','phone','walletAddress'] as const).map(k=><label key={k} className="block text-sm text-slate-300">
             {({displayName:words.name,email:words.optionalEmail,phone:words.phone,walletAddress:words.btcWallet} as const)[k]}
             <input type={k==='email'?'email':k==='phone'?'tel':'text'} autoComplete={k==='email'?'email':k==='phone'?'tel':'off'}
-              value={profile[k]} onChange={e=>setProfile(p=>({...p,[k]:e.target.value}))}
+              value={profile[k]}
+              maxLength={k==='phone'?15:undefined} inputMode={k==='phone'?'tel':undefined}
+              placeholder={k==='phone'?'(31) 99999-9999':undefined}
+              onChange={e=>setProfile(p=>({...p,[k]:k==='phone'?formatBrazilianPhone(e.target.value):e.target.value}))}
               className="mt-1 w-full bg-[#1b2137] border border-[#2b3350] p-3 rounded-xl text-white"/>
           </label>)}
           <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3">{words.update}</button>
         </form>}
       </div>}
-    <nav className="w-full h-16 bg-[#101322] border-t border-[#1f253d] flex items-center justify-around px-2 z-30 select-none">
+    {page!=='withdraw' && <nav className="w-full h-16 bg-[#101322] border-t border-[#1f253d] flex items-center justify-around px-2 z-30 select-none">
       {tab('home',tabNames.home,Home)}
       {tab('store',tabNames.store,Store)}
       {tab('reward',tabNames.reward,Gift)}
       {tab('wallet',tabNames.wallet,Wallet)}
       {tab('settings',tabNames.setting,Settings)}
-    </nav>
+    </nav>}
   </div>;
 };
