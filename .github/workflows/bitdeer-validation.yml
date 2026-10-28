@@ -48,6 +48,8 @@ jobs:
         run: python3 tests/installer_smoke.py
       - name: Local first-install browser smoke
         run: python3 tests/local_installer_smoke.py
+      - name: IP ownership proof and VPS installer smoke
+        run: python3 tests/ip_installer_smoke.py
       - name: Create deployable ZIP (no publishing)
         run: bash scripts/package-release.sh
       - name: Verify deployable ZIP structure and PHP paths
