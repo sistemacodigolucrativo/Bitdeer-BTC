@@ -151,7 +151,7 @@ export const MemberWorkspace: React.FC<{
           {walletStep!=='none' && <section className="bg-[#1b2137] border border-indigo-500 rounded-2xl p-4 space-y-3">
             <div className="flex justify-between items-center">
               <h3 className="font-bold">{walletStep==='register'?'Cadastrar carteira Bitcoin':'Solicitar saque interno'}</h3>
-              <button onClick={()=>setWalletStep('none')} className="text-xs underline">Fechar</button>
+              <button onClick={()=>{setWalletStep('none');setPage('wallet');}} className="text-xs underline">Fechar</button>
             </div>
             {walletStep==='register' ? <form className="space-y-3" onSubmit={e=>{e.preventDefault();void saveWalletForWithdrawal();}}>
               <label className="block text-sm">Endereço de recebimento BTC

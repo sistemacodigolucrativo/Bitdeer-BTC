@@ -215,7 +215,14 @@ function ensure_member_features(PDO $db): void {
     $db->exec('CREATE INDEX IF NOT EXISTS idx_withdraw_user ON withdraw_requests(user_id,created_at)');
 }
 function is_valid_member_phone(string $value): bool {
-    return $value==='' || (bool)preg_match('/^\\+?[0-9 ()-]{8,25}$/D',$value);
+    if ($value==='') return true;
+    if (!preg_match('/^\\+?[0-9 ()-]{10,25}$/D',$value)) return false;
+    $digits=preg_replace('/\\D/','',$value);
+    if (!is_string($digits)) return false;
+    if (str_starts_with($digits,'55') && in_array(strlen($digits),[12,13],true))
+        $digits=substr($digits,2);
+    return in_array(strlen($digits),[10,11],true) &&
+        preg_match('/^[1-9][0-9]/D',$digits)===1;
 }
 function api_dispatch(PDO $db, string $action, string $method): never {
     ensure_member_features($db);
