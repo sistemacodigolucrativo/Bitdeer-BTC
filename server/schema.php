@@ -155,6 +155,8 @@ CREATE TABLE IF NOT EXISTS withdraw_requests (
   quote_source TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK(status IN ('pending','approved','rejected')),
+  vip_state TEXT NOT NULL DEFAULT 'eligible'
+    CHECK(vip_state IN ('eligible','awaiting_vip')),
   created_at INTEGER NOT NULL, processed_at INTEGER,
   processed_by INTEGER REFERENCES users(id), reference TEXT NOT NULL DEFAULT ''
 );

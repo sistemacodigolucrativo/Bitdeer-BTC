@@ -209,10 +209,23 @@ function ensure_member_features(PDO $db): void {
       quote_usd_cents INTEGER NOT NULL, quote_source TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending'
         CHECK(status IN ('pending','approved','rejected')),
+      vip_state TEXT NOT NULL DEFAULT 'eligible'
+        CHECK(vip_state IN ('eligible','awaiting_vip')),
       created_at INTEGER NOT NULL, processed_at INTEGER,
       processed_by INTEGER REFERENCES users(id),reference TEXT NOT NULL DEFAULT ''
     )");
+    $wcols=array_column(query_all($db,'PRAGMA table_info(withdraw_requests)'),'name');
+    if(!in_array('vip_state',$wcols,true))
+        $db->exec("ALTER TABLE withdraw_requests ADD COLUMN vip_state TEXT NOT NULL DEFAULT 'eligible'
+            CHECK(vip_state IN ('eligible','awaiting_vip'))");
     $db->exec('CREATE INDEX IF NOT EXISTS idx_withdraw_user ON withdraw_requests(user_id,created_at)');
+}
+/** Only the original four VIP tiers unlock review of an internal payout request. */
+function vip_eligible_at(PDO $db,int $memberId,int $at): bool {
+    $contract=query_one($db,'SELECT id FROM contracts WHERE user_id=?
+      AND started_at<=? AND expires_at>? AND plan_id IN ("VIP_01","VIP_02","VIP_03","VIP_04")
+      ORDER BY id DESC LIMIT 1',[$memberId,$at,$at]);
+    return $contract!==null;
 }
 function is_valid_member_phone(string $value): bool {
     if ($value==='') return true;
@@ -581,9 +594,16 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     if ($action === 'withdraw.mine' && $method === 'GET') {
         $actor=auth_user($db);
         if ($actor['role']!=='member') fail(403,'Acesso restrito ao membro');
-        $items=query_all($db,'SELECT id,plan_id,btc_address,usd_cents,btc_satoshis,
-          quote_usd_cents,quote_source,status,created_at,processed_at
-          FROM withdraw_requests WHERE user_id=? ORDER BY id DESC LIMIT 100',[$actor['id']]);
+        $at=now();
+        $items=query_all($db,'SELECT w.id,w.plan_id,w.btc_address,w.usd_cents,w.btc_satoshis,
+          w.quote_usd_cents,w.quote_source,w.vip_state,w.created_at,w.processed_at,
+          CASE WHEN w.status="pending" AND NOT EXISTS(
+            SELECT 1 FROM contracts c WHERE c.user_id=w.user_id
+            AND c.started_at<=? AND c.expires_at>?
+            AND c.plan_id IN ("VIP_01","VIP_02","VIP_03","VIP_04"))
+          THEN "awaiting_vip" ELSE w.status END AS status
+          FROM withdraw_requests w WHERE w.user_id=?
+          ORDER BY w.id DESC LIMIT 100',[$at,$at,$actor['id']]);
         json_out(['requests'=>$items,'simulation'=>true]);
     }
     if ($action === 'withdraw.request' && $method === 'POST') {
@@ -609,7 +629,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             $cents=btc_satoshis_to_usd_cents($sats,$quote['usd']);
             if ($sats<1 || $cents<1 || $cents>100000000) fail(422,'Valor fora dos limites');
         }
-        $request=atomic($db,static function() use($db,$actor,$quote,$cents,$sats): int {
+        $request=atomic($db,static function() use($db,$actor,$quote,$cents,$sats): array {
             $uid=(int)$actor['id'];
             $at=now();
             settle($db,$uid,$at);
@@ -638,17 +658,22 @@ function api_dispatch(PDO $db, string $action, string $method): never {
                 fail(409,'Saldo interno insuficiente');
             execute_sql($db,'UPDATE mining_state SET balance_units=balance_units-?,updated_at=? WHERE user_id=?',
                 [$units,$at,$uid]);
+            $vip=vip_eligible_at($db,$uid,$at);
+            $vipState=$vip?'eligible':'awaiting_vip';
             execute_sql($db,'INSERT INTO withdraw_requests
-              (user_id,plan_id,btc_address,usd_cents,btc_satoshis,quote_usd_cents,quote_source,status,created_at)
-              VALUES (?,?,?,?,?,?,?,"pending",?)',
+              (user_id,plan_id,btc_address,usd_cents,btc_satoshis,quote_usd_cents,quote_source,status,vip_state,created_at)
+              VALUES (?,?,?,?,?,?,?,"pending",?,?)',
               [$uid,$plan['id'],$wallet,$cents,$sats,
-                (int)round($quote['usd']*100),$quote['source'],$at]);
-            return (int)$db->lastInsertId();
+                (int)round($quote['usd']*100),$quote['source'],$vipState,$at]);
+            return ['id'=>(int)$db->lastInsertId(),'status'=>$vip?'pending':'awaiting_vip'];
         });
-        json_out(['id'=>$request,'status'=>'pending',
+        json_out(['id'=>$request['id'],'status'=>$request['status'],
           'usdAmount'=>number_format($cents/100,2,'.',''),
           'btcAmount'=>number_format($sats/100000000,8,'.',''),
-          'simulation'=>true,'message'=>'Solicitação interna registrada. Nenhum BTC foi transferido.'],201);
+          'simulation'=>true,
+          'message'=>$request['status']==='awaiting_vip'
+            ? 'Solicitação registrada: aguardando assinatura VIP ativa. São créditos internos; nenhum BTC foi enviado.'
+            : 'Solicitação interna registrada para conferência administrativa. Nenhum BTC foi enviado.'],201);
     }
     if ($action === 'orders.mine' && $method === 'GET') {
         $actor=auth_user($db);
@@ -833,17 +858,28 @@ function api_dispatch(PDO $db, string $action, string $method): never {
               [$order['user_id'],$order['plan_id'],$order['snapshot_json'],$id,$time,$time+$days*86400,$actor['id']]);
             execute_sql($db,'UPDATE orders SET status="approved",approved_by=?,approved_at=?,payment_ref=? WHERE id=?',
               [$actor['id'],$time,$paymentRef,$id]);
+            if(in_array($order['plan_id'],['VIP_01','VIP_02','VIP_03','VIP_04'],true)) {
+                execute_sql($db,'UPDATE withdraw_requests SET vip_state="eligible"
+                   WHERE user_id=? AND status="pending" AND vip_state="awaiting_vip"',
+                   [$order['user_id']]);
+            }
             audit($db,(int)$actor['id'],'order.approve',(int)$order['user_id'],['orderId'=>$id,'planId'=>$order['plan_id'],'paymentTxid'=>$paymentRef]);
         });
         json_out(['ok'=>true]);
     }
     if ($action === 'admin.withdrawals' && $method === 'GET') {
         auth_user($db,true);
+        $at=now();
         json_out(['requests'=>query_all($db,'SELECT r.id,r.user_id,u.login,r.plan_id,
-           r.btc_address,r.usd_cents,r.btc_satoshis,r.quote_usd_cents,r.status,
+           r.btc_address,r.usd_cents,r.btc_satoshis,r.quote_usd_cents,r.vip_state,
+           CASE WHEN r.status="pending" AND NOT EXISTS(
+             SELECT 1 FROM contracts c WHERE c.user_id=r.user_id
+               AND c.started_at<=? AND c.expires_at>?
+               AND c.plan_id IN ("VIP_01","VIP_02","VIP_03","VIP_04"))
+             THEN "awaiting_vip" ELSE r.status END AS status,
            r.created_at,r.processed_at,r.reference
            FROM withdraw_requests r JOIN users u ON u.id=r.user_id
-           ORDER BY r.id DESC LIMIT 100')]);
+           ORDER BY r.id DESC LIMIT 100',[$at,$at])]);
     }
     if ($action === 'admin.withdraw.process' && $method === 'POST') {
         $actor=require_post_csrf($db,true);
@@ -859,6 +895,23 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             $request=query_one($db,'SELECT * FROM withdraw_requests WHERE id=?',[$id]);
             if (!$request || $request['status']!=='pending')
                 fail(409,'Solicitação inexistente ou já processada');
+            if ($status==='approved') {
+                $u=query_one($db,'SELECT status FROM users WHERE id=?',[$request['user_id']]);
+                if(!$u || $u['status']!=='active' ||
+                   !vip_eligible_at($db,(int)$request['user_id'],now())) {
+                    fail(409,'Aguardando assinatura VIP 01, 02, 03 ou 04 ativa');
+                }
+                $currentPlan=plan_at($db,(int)$request['user_id'],now());
+                $min=(int)($currentPlan['snapshot']['withdraw_min_cents']??0);
+                $waiting=(int)($currentPlan['snapshot']['withdraw_after_days']??0);
+                $contract=query_one($db,'SELECT started_at FROM contracts WHERE user_id=?
+                  AND started_at<=? AND expires_at>? ORDER BY id DESC LIMIT 1',
+                  [$request['user_id'],now(),now()]);
+                if((int)$request['usd_cents']<$min ||
+                   ($contract && now()<(int)$contract['started_at']+$waiting*86400)) {
+                    fail(409,'Saque não atende às condições do plano VIP vigente');
+                }
+            }
             if ($status==='rejected') {
                 execute_sql($db,'UPDATE mining_state SET balance_units=balance_units+?,updated_at=? WHERE user_id=?',
                   [(int)$request['usd_cents']*8640000,now(),$request['user_id']]);
