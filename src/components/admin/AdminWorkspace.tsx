@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AuthUser, Plan, api } from '../../services/api';
-import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headphones } from 'lucide-react';
+import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headphones, Menu, ChevronDown, ChevronUp } from 'lucide-react';
 
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
 type MemberDetails = {member: Member & {phone: string;wallet_address:string}; contracts:Array<{id:number;plan_id:string;started_at:number;expires_at:number}>;orders:Array<{id:number;plan_id:string;status:string}>;balanceUsd:string;bonusSatoshis:number};
@@ -9,6 +9,7 @@ type Ticket = {id:number;user_id:number;login:string;subject:string;message:stri
   status:'open'|'resolved';notification_status:'pending'|'accepted'|'failed';created_at:number};
 export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({user,onLogout}) => {
   const [section,setSection]=useState<'overview'|'members'|'plans'|'orders'|'settings'|'audit'|'tickets'>('overview');
+  const [menuOpen,setMenuOpen]=useState(false);
   const [overview,setOverview]=useState({members:0,active:0,suspended:0,archived:0,activeVip:0,pendingOrders:0,approvedOrders:0});
   const [audit,setAudit]=useState<Array<{id:number;admin_id:number;action:string;target_user_id:number|null;created_at:number}>>([]);
   const [members,setMembers]=useState<Member[]>([]);
@@ -29,11 +30,9 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   const [selected,setSelected]=useState<Plan|null>(null);
   const [notice,setNotice]=useState('');
   const [editingMember,setEditingMember]=useState<Member|null>(null);
-  const [verificationMethod,setVerificationMethod]=useState('known_contact');
+  const [verificationMethod,setVerificationMethod]=useState('approved');
   const [verificationReference,setVerificationReference]=useState('');
-  const [adminPassword,setAdminPassword]=useState('');
   const [newMemberPassword,setNewMemberPassword]=useState('');
-  const [identityConfirmed,setIdentityConfirmed]=useState(false);
   const [verificationId,setVerificationId]=useState<number|null>(null);
   const [busy,setBusy]=useState(false);
   async function refresh() {
@@ -62,13 +61,24 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
     finally{setBusy(false);}
   }
   const btn='rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 px-3 py-2 text-xs font-bold';
-  return <div className="h-full w-full bg-[#121526] text-white flex flex-col md:flex-row overflow-hidden">
-    <aside className="md:w-52 bg-[#171b2d] border-r border-[#2b3350] p-4 flex md:flex-col gap-2 flex-wrap">
-      <div className="hidden md:block font-bold text-xl pb-6">Bitdeer BTC <span className="block text-xs text-slate-400">Administrador {user.login}</span></div>
-      {([['overview','Visão geral',LayoutDashboard],['members','Membros',Users],['plans','Planos VIP',CreditCard],['orders','Pedidos',CreditCard],['settings','Configurações',Settings],['audit','Auditoria',Users],['tickets','Suporte',Headphones]] as const).map(([k,label,Icon])=>
-        <button key={k} onClick={()=>setSection(k)} className={'flex items-center gap-2 rounded-xl px-3 py-2 text-sm '+(section===k?'bg-indigo-600':'hover:bg-slate-800')}><Icon size={16}/>{label}</button>)}
-      <button className="flex items-center gap-2 rounded-xl p-2 text-sm" onClick={onLogout}><LogOut size={16}/> Sair</button>
-    </aside>
+  return <div className="h-full w-full bg-[#121526] text-white flex flex-col overflow-hidden">
+    <header className="relative px-4 py-3 bg-[#171b2d] border-b border-[#2b3350] flex justify-between items-center z-40">
+      <strong>Bitdeer BTC <span className="text-xs text-slate-400">· Administração</span></strong>
+      <button type="button" aria-label="Abrir menu administrativo" aria-expanded={menuOpen}
+        onClick={()=>setMenuOpen(x=>!x)} className="flex gap-2 items-center bg-[#262d49] rounded-lg px-3 py-2 text-sm">
+        <Menu size={20}/>{menuOpen?'Fechar':'Menu'}<ChevronDown size={14}/>
+      </button>
+      {menuOpen&&<nav aria-label="Navegação administrativa"
+        className="absolute top-full right-3 left-3 md:left-auto md:w-64 border border-[#2b3350] rounded-xl bg-[#1b2137] p-2 shadow-xl flex flex-col gap-1">
+        {([['overview','Visão geral',LayoutDashboard],['members','Membros',Users],['plans','Planos VIP',CreditCard],
+          ['orders','Pedidos',CreditCard],['settings','Configurações',Settings],['audit','Auditoria',Users],
+          ['tickets','Suporte',Headphones]] as const).map(([key,label,Icon])=><button key={key}
+            type="button" onClick={()=>{setSection(key);setMenuOpen(false);}}
+            className={'flex items-center gap-3 rounded-lg p-3 text-sm text-left '+(section===key?'bg-indigo-600':'hover:bg-slate-700')}>
+            <Icon size={17}/>{label}</button>)}
+        <button type="button" onClick={onLogout} className="flex gap-3 items-center p-3 text-sm"><LogOut size={17}/>Sair</button>
+      </nav>}
+    </header>
     <main className="flex-1 overflow-auto p-4 md:p-7 space-y-4">
       <div className="flex justify-between items-center"><h1 className="text-xl font-bold">
         {section==='overview'?'Visão geral':section==='members'?'Gerenciamento de membros':section==='plans'?'Catálogo VIP':section==='orders'?'Pedidos pendentes':section==='audit'?'Auditoria administrativa':section==='tickets'?'Tickets de suporte':'Configurações'}
@@ -109,7 +119,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
               <button disabled={busy} className={btn} onClick={()=>
                 void api<MemberDetails>('admin.member.details',undefined,{id:m.id})
                   .then(d=>{setDetails(d);setEditingMember({...d.member});setVerificationId(null);
-                    setIdentityConfirmed(false);setNewMemberPassword('');setAdminPassword('');setVerificationReference('');})
+                    setNewMemberPassword('');setVerificationReference('');})
                   .catch(e=>setNotice((e as Error).message))}>Detalhes / Editar</button>
               {m.status==='active' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'suspended'})}>Suspender</button>}
               {m.status==='suspended' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'active'})}>Reativar</button>}
@@ -147,16 +157,18 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         </div>}
         {editingMember && <form className="rounded-xl bg-[#1b2137] p-4 space-y-3"
           onSubmit={e=>{e.preventDefault();void change('admin.member.edit',{
-            userId:editingMember.id,displayName:editingMember.display_name,
+            userId:editingMember.id,login:editingMember.login,displayName:editingMember.display_name,
             email:editingMember.email,phone:editingMember.phone ?? '',walletAddress:editingMember.wallet_address ?? '',
           });}}>
           <strong>Editar perfil de {editingMember.login}</strong>
-          {(['display_name','email','phone','wallet_address'] as const).map(k=><label key={k} className="block text-sm">
-            {({display_name:'Nome',email:'E-mail',phone:'Telefone',wallet_address:'Endereço BTC'} as const)[k]}
-            <input className="w-full bg-[#11182c] p-3 rounded-lg mt-1" value={editingMember[k] ?? ''}
+          {(['login','display_name','email','phone','wallet_address'] as const).map(k=><label key={k} className="block text-sm">
+            {({login:'Nome de usuário (login)',display_name:'Nome',email:'E-mail',phone:'Telefone',wallet_address:'Endereço BTC'} as const)[k]}
+            <input type={k==='email'?'email':k==='phone'?'tel':'text'}
+               autoComplete={k==='email'?'email':k==='phone'?'tel':'off'}
+               className="w-full bg-[#11182c] p-3 rounded-lg mt-1" value={editingMember[k] ?? ''}
               onChange={e=>setEditingMember(m=>m?{...m,[k]:e.target.value}:m)}/>
           </label>)}
-          <p className="text-xs text-slate-400">As credenciais e permissões administrativas não podem ser editadas por este formulário.</p>
+          <p className="text-xs text-slate-400">A alteração do login preserva os dados e históricos. Permissões administrativas não podem ser editadas por este formulário.</p>
           <button className={btn} disabled={busy}>Salvar perfil</button>
           <button type="button" className="ml-2 text-sm" onClick={()=>setEditingMember(null)}>Cancelar</button>
         </form>}
@@ -165,26 +177,23 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
           <p className="text-xs text-amber-300">Verifique a identidade do membro por meio independente antes de emitir a autorização. Não registre documentos, senhas ou dados sensíveis no campo de referência.</p>
           <select value={verificationMethod} onChange={e=>setVerificationMethod(e.target.value)}
             className="bg-[#11182c] w-full p-3 rounded-lg text-sm">
-            <option value="known_contact">Contato já conhecido e confirmado</option>
+            <option value="approved">APROVADO</option>
             <option value="in_person">Verificação presencial</option>
             <option value="other_offline">Outro método independente</option>
           </select>
-          <input value={verificationReference} onChange={e=>setVerificationReference(e.target.value)}
-            placeholder="Referência da verificação realizada (mín. 6 caracteres)"
-            className="w-full bg-[#11182c] p-3 rounded-lg text-sm"/>
-          <input type="password" autoComplete="current-password"
-            value={adminPassword} onChange={e=>setAdminPassword(e.target.value)}
-            placeholder="Confirme sua senha de administrador" className="w-full bg-[#11182c] p-3 rounded-lg text-sm"/>
-          <label className="text-xs flex gap-2 items-start"><input type="checkbox" checked={identityConfirmed}
-            onChange={e=>setIdentityConfirmed(e.target.checked)}/>
-            Confirmo ter verificado pessoalmente a identidade do membro por canal independente.</label>
-          <button disabled={busy || !identityConfirmed} className={btn} onClick={()=>{
+          <label className="block text-xs text-slate-300">
+            Referência da verificação realizada
+            <input value={verificationReference} onChange={e=>setVerificationReference(e.target.value)}
+              placeholder="Ex.: protocolo SUP-12345 ou número do atendimento"
+              className="mt-2 w-full bg-[#11182c] p-3 rounded-lg text-sm"/>
+            <span className="mt-1 block text-slate-400">Informe um protocolo, número de atendimento ou identificação interna do registro. Não informe senhas ou documentos pessoais.</span>
+          </label>
+          <button type="button" disabled={busy || verificationReference.trim().length<6} className={btn} onClick={()=>{
             if(!editingMember)return;
             setBusy(true);setNotice('');
             void api<{verificationId:number}>('admin.identity.verify',{
-              userId:editingMember.id,verificationMethod,verificationReference,
-              adminPassword,identityConfirmed
-            }).then(result=>{setVerificationId(result.verificationId);setAdminPassword('');
+              userId:editingMember.id,verificationMethod,verificationReference
+            }).then(result=>{setVerificationId(result.verificationId);
               setNotice('Verificação registrada. Autorização válida por 10 minutos.');})
               .catch(e=>setNotice((e as Error).message)).finally(()=>setBusy(false));
           }}>Registrar verificação de identidade</button>
