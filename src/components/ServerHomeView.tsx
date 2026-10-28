@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Coins, Gift, Info, Lock, RefreshCw, Clock, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { Coins, Gift, Info, RefreshCw, Clock, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import { MemberData } from '../services/api';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
@@ -71,7 +71,7 @@ export const ServerHomeView: React.FC<Props> = ({
       </div>
       <div className="bg-[#11182b] border border-[#303b59] rounded-2xl px-4 py-3 mb-4">
         <p className="text-[11px] text-slate-400">
-          {language==='en'?'Simulated Bitcoin counter':language==='es'?'Contador Bitcoin simulado':'Contador de Bitcoin simulado'}
+          {language==='en'?'Bitcoin counter - BTC':language==='es'?'Contador de Bitcoin - BTC':'Contador de Bitcoin - BTC'}
         </p>
         <strong className="text-2xl font-bold font-mono text-amber-300">{estimatedBtc} BTC</strong>
         <p className="text-xs text-slate-300 mt-1">
@@ -113,18 +113,6 @@ export const ServerHomeView: React.FC<Props> = ({
       {ends!==null && ends!==undefined && <p className="mt-3 flex items-center gap-2 text-xs text-slate-400"><Clock size={14}/>{d.session}: {stamp(ends)}</p>}
       {inCooldown && <p className="mt-2 text-xs text-amber-300">{d.cooldown}: {stamp(account!.mining.cooldownUntil!)}</p>}
       {isVip && account?.plan.expiresAt && <p className="mt-2 text-xs text-slate-400">{d.vip}: {stamp(account.plan.expiresAt)}</p>}
-    </section>
-    <section className="bg-[#171b2d] border border-[#232a43] rounded-3xl p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex justify-center items-center font-bold">＄</div>
-          <div><p className="text-[11px] text-slate-400">{d.balance}</p>
-            <p className="text-lg font-mono font-extrabold">US$ {account?.mining.balanceUsd ?? '0.00000000'}</p></div>
-        </div>
-        <Lock size={16} className="text-slate-400"/>
-      </div>
-      <p className="text-[10px] text-slate-400 mt-3">{d.notice}</p>
-      <button onClick={onHistory} className="text-xs text-indigo-300 mt-3 underline">{d.history}</button>
     </section>
     <div className="grid grid-cols-2 gap-3">
       <div className="bg-[#171b2d] border border-[#232a43] rounded-2xl p-3 space-y-3">

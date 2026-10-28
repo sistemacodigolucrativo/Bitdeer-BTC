@@ -10,16 +10,16 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
   const t=language==='en'
     ?{title:'Wallet',balance:'Internal rewards',sats:'Internal satoshi bonuses',
       address:'BTC address registered',empty:'No address registered',edit:'Edit wallet',
-      history:'View reward history',chart:'Earned USD — last 7 days',withdraw:'Withdraw',btc:'BTC equivalent (simulated)',
+      history:'View reward history',chart:'Earned USD — last 7 days',withdraw:'Withdraw',btc:'BTC equivalent',
       caution:'These are internal records, not mined BTC or confirmed blockchain transfers.'}
     :language==='es'
     ?{title:'Billetera',balance:'Recompensas internas',sats:'Bonos internos en satoshis',
       address:'Dirección BTC registrada',empty:'Ninguna dirección registrada',edit:'Editar billetera',
-      history:'Ver historial',chart:'USD acreditados — últimos 7 días',withdraw:'Retirar',btc:'Equivalente BTC (simulado)',
+      history:'Ver historial',chart:'USD acreditados — últimos 7 días',withdraw:'Retirar',btc:'Equivalente em BTC',
       caution:'Son registros internos, no BTC minados ni transferencias confirmadas.'}
     :{title:'Carteira',balance:'Recompensas internas',sats:'Bônus internos em satoshis',
       address:'Endereço BTC cadastrado',empty:'Nenhum endereço cadastrado',edit:'Editar carteira',
-      history:'Ver histórico de recompensas',chart:'USD creditados — últimos 7 dias',withdraw:'Sacar',btc:'Equivalente BTC (simulado)',
+      history:'Ver histórico de recompensas',chart:'USD creditados — últimos 7 dias',withdraw:'Sacar',btc:'Equivalente em BTC',
       caution:'São registros internos, não BTC minerados ou transferências confirmadas.'};
   const days=useMemo(()=>{
     const today=new Date();today.setHours(0,0,0,0);
@@ -65,11 +65,11 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
         </div>)}
       </div>
     </div>
-    <div className="bg-[#171b2d] border border-[#262e49] rounded-2xl p-4">
+    {!account?.profile.walletAddress && <div className="bg-[#171b2d] border border-[#262e49] rounded-2xl p-4">
       <h3 className="text-sm font-bold">{t.address}</h3>
-      <p className="font-mono text-xs text-slate-400 break-all mt-2">{account?.profile.walletAddress||t.empty}</p>
+      <p className="font-mono text-xs text-slate-400 break-all mt-2">{t.empty}</p>
       <button onClick={onEdit} className="w-full bg-indigo-600 p-3 rounded-xl mt-4 text-xs font-bold">{t.edit}</button>
-    </div>
+    </div>}
     <button onClick={onHistory} className="w-full flex justify-between items-center p-4 bg-[#171b2d] border border-[#262e49] rounded-2xl text-sm">
       {t.history}<ArrowRight size={18}/>
     </button>
