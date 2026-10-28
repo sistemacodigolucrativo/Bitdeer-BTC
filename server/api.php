@@ -362,6 +362,30 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         });
         json_out($result);
     }
+    if ($action === 'leaderboard' && $method === 'GET') {
+        $actor=auth_user($db);
+        if ($actor['role'] !== 'member') fail(403,'Apenas membros');
+        // No invented BTC amounts or member names; internal reward ledger only.
+        $ranked=query_all($db,'SELECT SUM(earned_units) AS units,COUNT(*) AS intervals
+            FROM reward_ledger JOIN users u ON u.id=reward_ledger.user_id
+            WHERE u.role="member" AND u.status="active"
+            GROUP BY reward_ledger.user_id HAVING SUM(earned_units)>0
+            ORDER BY units DESC, reward_ledger.user_id ASC LIMIT 20');
+        $results=[];
+        foreach ($ranked as $idx=>$record) {
+            $results[]=['rank'=>$idx+1,'alias'=>'Minerador '.str_pad((string)($idx+1),2,'0',STR_PAD_LEFT),
+                'balanceUsd'=>units_usd((int)$record['units']),
+                'intervals'=>(int)$record['intervals']];
+        }
+        json_out(['miners'=>$results,'unit'=>'internal_usd','source'=>'reward_ledger']);
+    }
+    if ($action === 'contracts.mine' && $method === 'GET') {
+        $actor=auth_user($db);
+        if ($actor['role'] !== 'member') fail(403,'Apenas membros');
+        $rows=query_all($db,'SELECT id,plan_id,started_at,expires_at,created_by
+            FROM contracts WHERE user_id=? ORDER BY id DESC LIMIT 100',[$actor['id']]);
+        json_out(['contracts'=>$rows]);
+    }
     if ($action === 'ledger' && $method === 'GET') {
         $actor=auth_user($db);
         if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
