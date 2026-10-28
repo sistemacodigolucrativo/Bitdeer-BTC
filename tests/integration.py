@@ -91,6 +91,9 @@ assert admin.call("admin.member.details",expected=422)["error"]
 assert admin.call("admin.member.details&id="+str(alice_user["id"]))["member"]["login"]=="alice"
 admin.call("admin.order.approve",{"orderId":order["orderId"],"paymentConfirmed":False,"paymentReference":"a"*64},422)
 admin.call("admin.order.approve",{"orderId":order["orderId"],"paymentConfirmed":True,"paymentReference":"a"*64})
+mycontracts=alice.call("contracts.mine")["contracts"]
+assert len(mycontracts)==1
+assert mycontracts[0]["plan_id"]=="VIP_01"
 assert alice.call("profile")["plan"]["dailyUsd"]=="3.00"
 assert alice.call("profile")["plan"]["sessionSeconds"]==0
 admin.call("admin.plan.save",{"id":"VIP_01","name":"VIP 01","priceCents":3000,
@@ -123,6 +126,11 @@ before_accrual=float(alice2.call("profile")["mining"]["balanceUsd"])
 assert alice2.call("mining.start",{})["mining"]["running"]
 time.sleep(2)
 assert float(alice2.call("profile")["mining"]["balanceUsd"])>before_accrual
+ranks=alice2.call("leaderboard")
+assert ranks["unit"]=="internal_usd"
+assert ranks["source"]=="reward_ledger"
+assert all("btc" not in str(m).lower() for m in ranks["miners"])
+assert all("login" not in m and "user_id" not in m for m in ranks["miners"])
 admin.call("admin.status",{"userId":alice_user["id"],"status":"suspended"})
 alice2.call("profile",expected=401)
 admin.call("admin.status",{"userId":alice_user["id"],"status":"active"})
