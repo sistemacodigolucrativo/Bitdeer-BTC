@@ -55,10 +55,14 @@ $localSetup=$policy==='' && getenv('BITDEER_INSTALL_ALLOW_LOCAL')==='1' &&
     in_array($host,['localhost','127.0.0.1','::1'],true);
 $dnsDomain=($policy==='' && !$localSetup) ? install_domain() : null;
 $dnsSetup=$dnsDomain!==null;
+$ipHost=($policy==='' && !$localSetup && !$dnsSetup) ? install_ip_host() : null;
+$ipSetup=$ipHost!==null;
+$proofSetup=$dnsSetup || $ipSetup;
+
 $hash=(string)(getenv('BITDEER_INSTALL_KEY_HASH') ?: '');
-if (!$localSetup && !$dnsSetup && (!in_array($policy,['A','B','C'],true) || $hash==='' || !password_get_info($hash)['algo'])) {
+if (!$localSetup && !$proofSetup && (!in_array($policy,['A','B','C'],true) || $hash==='' || !password_get_info($hash)['algo'])) {
     installer_page('Instalador bloqueado',
-        'A decisão técnica 13 ainda não foi ativada no servidor. A instalação inicial permanece desabilitada.',423);
+        'Não foi possível comprovar controle do domínio ou IP. Verifique o endereço utilizado para acessar o servidor.',423);
 }
 if ($policy==='C') {
     $ips=preg_split('/[,;\s]+/',(string)(getenv('BITDEER_INSTALL_ALLOWED_IPS') ?: ''),-1,PREG_SPLIT_NO_EMPTY);
@@ -80,7 +84,7 @@ if (!isset($_SESSION['csrf']) || !is_string($_SESSION['csrf'])) {
     $_SESSION['csrf']=bin2hex(random_bytes(32));
 }
 if (!isset($_SESSION['attempts'])) $_SESSION['attempts']=0;
-if ($dnsSetup && (!isset($_SESSION['setup_nonce']) || !is_string($_SESSION['setup_nonce']))) {
+if ($proofSetup && (!isset($_SESSION['setup_nonce']) || !is_string($_SESSION['setup_nonce']))) {
     $_SESSION['setup_nonce']=bin2hex(random_bytes(32));
     $_SESSION['setup_issued']=time();
 }
@@ -99,15 +103,17 @@ if (($_SERVER['REQUEST_METHOD']??'GET')==='POST') {
     $pass=$_POST['admin_password']??null;
     $email=$_POST['support_email']??null;
     $accepted=($_POST['confirmation']??null)==='yes';
-    if (!$accepted || (!$localSetup && !$dnsSetup && (!is_string($secret) || strlen($secret)<24 ||
+    if (!$accepted || (!$localSetup && !$proofSetup && (!is_string($secret) || strlen($secret)<24 ||
         !password_verify($secret,$hash))) ||
         !is_string($login) || !is_string($pass) || !is_string($email)) {
         $error='Credenciais de instalação ou confirmação inválidas.';
-    } elseif ($dnsSetup && (
+    } elseif ($proofSetup && (
         time()-(int)($_SESSION['setup_issued']??0)>1800 ||
-        !install_dns_verified($dnsDomain,(string)$_SESSION['setup_nonce'])
+        !($dnsSetup
+            ? install_dns_verified($dnsDomain,(string)$_SESSION['setup_nonce'])
+            : install_ip_file_verified((string)$_SESSION['setup_nonce']))
     )) {
-        $error='Prova de controle do domínio ausente, incorreta ou expirada. Publique o TXT abaixo e tente novamente.';
+        $error='Prova de controle do domínio/IP ausente, incorreta ou expirada. Confira as instruções abaixo.';
     } else {
         try {
             provision($login,$pass,$email);
@@ -141,17 +147,23 @@ small{color:#94a3b8}
 </style></head><body><main>
 <h1>Bitdeer BTC — Instalação inicial</h1>
 <p>PHP + SQLite, sem banco MySQL. A instalação é única e não importa dados antigos do navegador.</p>
-<small><?= $localSetup ? 'Instalação local — sem chave adicional' : ($dnsSetup ? 'Instalação pelo domínio com verificação DNS' : 'Política de proteção: '.htmlspecialchars($policy,ENT_QUOTES,'UTF-8')) ?></small>
+<small><?= $localSetup ? 'Instalação local — sem chave adicional' : ($dnsSetup ? 'Instalação com verificação de domínio DNS' : ($ipSetup ? 'Instalação por IP com comprovação de arquivos na hospedagem' : 'Política de proteção: '.htmlspecialchars($policy,ENT_QUOTES,'UTF-8'))) ?></small>
 <?php if ($dnsSetup): ?>
 <p>Para provar que você controla <?=htmlspecialchars($dnsDomain,ENT_QUOTES,'UTF-8')?>, crie um registro DNS do tipo TXT na zona do seu domínio:</p>
 <p><strong>Nome:</strong> <code>_bitdeer-install</code></p>
 <p><strong>Valor TXT:</strong> <code style="overflow-wrap:anywhere"><?=htmlspecialchars('bitdeer-install='.$_SESSION['setup_nonce'],ENT_QUOTES,'UTF-8')?></code></p>
 <p><small>A confirmação é verificada pelo servidor. O código expira após 30 minutos; se expirar, inicie uma nova sessão. Ter acesso à página não autoriza criar o administrador.</small></p>
 <?php endif; ?>
+<?php if ($ipSetup): ?>
+<p>Para comprovar o controle da hospedagem em <?=htmlspecialchars($ipHost,ENT_QUOTES,'UTF-8')?>, envie pelo gerenciador de arquivos/SFTP um arquivo de texto para a raiz pública:</p>
+<p><strong>Nome:</strong> <code style="overflow-wrap:anywhere">.well-known/bitdeer-install-<?=htmlspecialchars($_SESSION['setup_nonce'],ENT_QUOTES,'UTF-8')?>.txt</code></p>
+<p><strong>Conteúdo:</strong> <code style="overflow-wrap:anywhere"><?=htmlspecialchars('bitdeer-install='.$_SESSION['setup_nonce'],ENT_QUOTES,'UTF-8')?></code></p>
+<p><small>O instalador não gera nem permite enviar este arquivo. Somente quem controla os arquivos da hospedagem pode comprovar a autorização. O desafio expira em 30 minutos.</small></p>
+<?php endif; ?>
 <?=$errorHtml?>
 <form method="post" autocomplete="off">
 <input type="hidden" name="csrf" value="<?=$csrf?>">
-<?php if (!$localSetup && !$dnsSetup): ?>
+<?php if (!$localSetup && !$proofSetup): ?>
 <label>Chave privada de instalação
 <input type="password" name="setup_key" required minlength="24" autocomplete="off"></label>
 <?php endif; ?>
