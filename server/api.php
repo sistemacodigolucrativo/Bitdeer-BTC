@@ -533,7 +533,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             fail(409,'Recebimento BTC desativado. O administrador precisa confirmar o endereço de recebimento.');
         }
         // Do not trust a browser exchange rate or payment address.
-        $quote=verified_btc_quote();
+        $quote=verified_btc_quote($db);
         $sats=satoshi_payment((int)$plan['price_cents'], $quote['usd']);
         $addressRow=query_one($db,'SELECT value FROM app_settings WHERE name="btc_address"');
         $address=(string)($addressRow['value'] ?? '');
@@ -572,9 +572,10 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     if ($action === 'withdraw.quote' && $method === 'GET') {
         $actor=auth_user($db);
         if ($actor['role']!=='member') fail(403,'Acesso restrito ao membro');
-        $quote=verified_btc_quote();
+        $quote=verified_btc_quote($db);
         json_out(['btcUsd'=>number_format($quote['usd'],2,'.',''),
           'source'=>$quote['source'],'quotedAt'=>$quote['quoted_at'],
+          'validForSeconds'=>max(0,60-(time()-$quote['quoted_at'])),
           'simulation'=>true]);
     }
     if ($action === 'withdraw.mine' && $method === 'GET') {
@@ -596,7 +597,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             fail(422,'Valor USD inválido, use até duas casas decimais');
         if ($mode==='BTC' && !preg_match('/^(?:0|[1-9][0-9]{0,3})(?:\\.[0-9]{1,8})?$/D',$amount))
             fail(422,'Valor BTC inválido, use até oito casas decimais');
-        $quote=verified_btc_quote();
+        $quote=verified_btc_quote($db);
         if ($mode==='USD') {
             $parts=explode('.',$amount);
             $cents=((int)$parts[0])*100 + (int)str_pad($parts[1]??'0',2,'0');
@@ -605,7 +606,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         } else {
             $parts=explode('.',$amount);
             $sats=((int)$parts[0])*100000000 + (int)str_pad($parts[1]??'0',8,'0');
-            $cents=(int)round($sats*$quote['usd']/1000000);
+            $cents=btc_satoshis_to_usd_cents($sats,$quote['usd']);
             if ($sats<1 || $cents<1 || $cents>100000000) fail(422,'Valor fora dos limites');
         }
         $request=atomic($db,static function() use($db,$actor,$quote,$cents,$sats): int {
@@ -897,7 +898,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             'dbWritable'=>is_writable(data_file()),
             'https'=>$https,'mailConfigured'=>$mailReady,
             'btcAddressConfirmed'=>($btc['value'] ?? '0')==='1',
-            'quoteProviders'=>'Coinbase / CoinGecko (validar rede no domínio)']);
+            'quoteProviders'=>'Coinbase / Kraken / CoinGecko Demo opcional (validar rede no domínio)']);
     }
     if ($action === 'admin.payment.settings' && $method === 'GET') {
         auth_user($db,true);
