@@ -8,6 +8,7 @@ import QRCode from 'qrcode';
 import { ServerHomeView } from './ServerHomeView';
 import { ServerStoreView } from './ServerStoreView';
 import { ServerWalletView } from './ServerWalletView';
+import { ServerRewardView } from './ServerRewardView';
 import { memberTexts } from '../i18n/memberTexts';
 
 type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history';
@@ -99,24 +100,8 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
           onRefresh={()=>void reload()} onRewards={()=>setPage('reward')}
           onHistory={()=>setPage('history')}/>}
-        {page==='reward' && <section className="space-y-4">
-          <h2 className="text-lg font-bold">{words.rewards}</h2>
-          <div className="bg-[#1b2137] rounded-2xl p-5 border border-[#2b3350] space-y-2">
-            <p className="text-xs text-slate-400">{words.bonus24}</p>
-            <p className="text-2xl font-bold">US$ {account?.plan.bonusUsd ?? '0.00'}</p>
-            <p className="text-sm">+ {account?.plan.bonusSatoshis ?? 0} {words.internalSats}</p>
-            <p className="text-xs text-slate-400">{words.currentPlan}: {account?.plan.id || 'FREE'}</p>
-            {account?.mining.lastBonusAt &&
-              <p className="text-xs text-slate-400">{words.lastClaim}: {new Date(account.mining.lastBonusAt * 1000).toLocaleString(dateLocale)}</p>}
-            <button disabled={busy || !!(account?.mining.lastBonusAt && Date.now()/1000 < account.mining.lastBonusAt+86400)}
-              onClick={()=>void act('rewards.claim')}
-              className="w-full p-3 mt-2 bg-indigo-600 rounded-xl disabled:opacity-40">
-              {words.claim}
-            </button>
-          </div>
-          <p className="text-xs text-slate-400">{words.bonusNotice}</p>
-          <button className="text-sm underline text-indigo-300" onClick={()=>setPage('history')}>{words.rewardHistory}</button>
-        </section>}
+        {page==='reward' && <ServerRewardView account={account} language={language} busy={busy}
+          onClaim={()=>void act('rewards.claim')} onHistory={()=>setPage('history')}/>}
         {page==='wallet' && <ServerWalletView account={account} language={language}
           accruals={ledger.accruals} onEdit={()=>setPage('profile')} onHistory={()=>setPage('history')}/>}
         {page==='settings' && <section className="space-y-3">
