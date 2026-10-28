@@ -4,6 +4,17 @@ const base = 'http://127.0.0.1:8777';
 const browser = await chromium.launch({headless:true});
 const problems=[];
 try {
+  // First sign-in must lead to language, mining now, system ready, then workspace.
+  const first=await browser.newContext({viewport:{width:390,height:844},baseURL:base,locale:'pt-BR'});
+  const firstPage=await first.newPage();
+  firstPage.on('pageerror',error=>problems.push(error.message));
+  await firstPage.goto('/');
+  await firstPage.locator('input[autocomplete="username"]').waitFor({timeout:15000});
+  await firstPage.locator('input[autocomplete="username"]').fill('browseradmin');
+  await firstPage.locator('input[autocomplete="current-password"]').fill('BrowserAdminPassword2026');
+  await firstPage.locator('button[type="submit"]').click();
+  await firstPage.getByText('Visão geral').first().waitFor({timeout:15000});
+  await first.close();
   const ctx=await browser.newContext({viewport:{width:390,height:844},baseURL:base});
   const registration=await ctx.request.post('/api/index.php?action=register',{
     data:{login:'browsermember',password:'BrowserMemberPassword2026',displayName:'Browser Test'}});
@@ -35,6 +46,9 @@ try {
   await page.getByText(/Histórico de assinaturas|Subscription history|Historial de suscripciones/).first()
     .waitFor({timeout:10000});
   await page.locator('nav button').nth(4).click();
+  await page.locator('nav button').nth(3).click();
+  await page.getByRole('button',{name:'Sacar'}).click();
+  await page.getByText('Cadastrar carteira Bitcoin').waitFor({timeout:10000});
   await page.screenshot({path:'release-build/member-mobile.png',fullPage:true});
   await page.setViewportSize({width:1280,height:800});
   await page.locator('nav button').first().click();
@@ -52,6 +66,10 @@ try {
   adminPage.on('pageerror',e=>problems.push(e.message));
   await adminPage.goto('/');
   await adminPage.getByText('Visão geral').first().waitFor({timeout:15000});
+  await adminPage.getByRole('button',{name:'Abrir menu administrativo'}).click();
+  await adminPage.getByRole('button',{name:/Planos VIP/}).click();
+  await adminPage.getByRole('button',{name:/FREE/}).click();
+  await adminPage.getByText('Valor mínimo de saque (USD)').waitFor({timeout:10000});
   await adminPage.screenshot({path:'release-build/admin-desktop.png',fullPage:true});
   if(await adminPage.getByText('Sincronizando interface...').count())throw Error('Admin React error boundary shown');
   await admin.close();
