@@ -5,10 +5,11 @@ import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headph
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
 type MemberDetails = {member: Member & {phone: string;wallet_address:string}; contracts:Array<{id:number;plan_id:string;started_at:number;expires_at:number}>;orders:Array<{id:number;plan_id:string;status:string}>;balanceUsd:string;bonusSatoshis:number};
 type Order = {id:number; user_id:number; login:string; plan_id:string; status:string; created_at:number;btc_sats:number;quote_source:string;payment_ref?:string|null};
+type Withdraw = {id:number;user_id:number;login:string;plan_id:string;btc_address:string;usd_cents:number;btc_satoshis:number;status:string;created_at:number;reference:string};
 type Ticket = {id:number;user_id:number;login:string;subject:string;message:string;
   status:'open'|'resolved';notification_status:'pending'|'accepted'|'failed';created_at:number};
 export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({user,onLogout}) => {
-  const [section,setSection]=useState<'overview'|'members'|'plans'|'orders'|'settings'|'audit'|'tickets'>('overview');
+  const [section,setSection]=useState<'overview'|'members'|'plans'|'orders'|'settings'|'audit'|'tickets'|'withdrawals'>('overview');
   const [menuOpen,setMenuOpen]=useState(false);
   const [overview,setOverview]=useState({members:0,active:0,suspended:0,archived:0,activeVip:0,pendingOrders:0,approvedOrders:0});
   const [audit,setAudit]=useState<Array<{id:number;admin_id:number;action:string;target_user_id:number|null;created_at:number}>>([]);
@@ -16,6 +17,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   const [plans,setPlans]=useState<Plan[]>([]);
   const [orders,setOrders]=useState<Order[]>([]);
   const [tickets,setTickets]=useState<Ticket[]>([]);
+  const [withdrawals,setWithdrawals]=useState<Withdraw[]>([]);
   const [filter,setFilter]=useState('');
   const [statusFilter,setStatusFilter]=useState('');
   const [offset,setOffset]=useState(0);
@@ -48,6 +50,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       api<typeof overview>('admin.overview').then(setOverview).catch(()=>{});
       api<{tickets:Ticket[]}>('admin.support.tickets').then(x=>setTickets(x.tickets)).catch(()=>{});
       api<typeof diagnostics>('admin.diagnostics').then(setDiagnostics).catch(()=>{});
+      api<{requests:Withdraw[]}>('admin.withdrawals').then(x=>setWithdrawals(x.requests)).catch(()=>{});
       api<{btcAddress:string;confirmed:boolean}>('admin.payment.settings')
         .then(x=>{setBtcAddress(x.btcAddress);setBtcConfirmed(x.confirmed);})
         .catch(()=>{});
@@ -119,7 +122,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       {menuOpen&&<nav aria-label="Navegação administrativa"
         className="absolute top-full right-3 left-3 md:left-auto md:w-64 border border-[#2b3350] rounded-xl bg-[#1b2137] p-2 shadow-xl flex flex-col gap-1">
         {([['overview','Visão geral',LayoutDashboard],['members','Membros',Users],['plans','Planos VIP',CreditCard],
-          ['orders','Pedidos',CreditCard],['settings','Configurações',Settings],['audit','Auditoria',Users],
+          ['orders','Pedidos',CreditCard],['withdrawals','Solicitações de saque',CreditCard],['settings','Configurações',Settings],['audit','Auditoria',Users],
           ['tickets','Suporte',Headphones]] as const).map(([key,label,Icon])=><button key={key}
             type="button" onClick={()=>{setSection(key);setMenuOpen(false);}}
             className={'flex items-center gap-3 rounded-lg p-3 text-sm text-left '+(section===key?'bg-indigo-600':'hover:bg-slate-700')}>
@@ -129,7 +132,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
     </header>
     <main className="flex-1 overflow-auto p-4 md:p-7 space-y-4">
       <div className="flex justify-between items-center"><h1 className="text-xl font-bold">
-        {section==='overview'?'Visão geral':section==='members'?'Gerenciamento de membros':section==='plans'?'Catálogo VIP':section==='orders'?'Pedidos pendentes':section==='audit'?'Auditoria administrativa':section==='tickets'?'Tickets de suporte':'Configurações'}
+        {section==='overview'?'Visão geral':section==='members'?'Gerenciamento de membros':section==='plans'?'Catálogo VIP':section==='orders'?'Pedidos pendentes':section==='withdrawals'?'Solicitações de saque':section==='audit'?'Auditoria administrativa':section==='tickets'?'Tickets de suporte':'Configurações'}
       </h1><button aria-label="Atualizar" onClick={()=>void refresh()}><RefreshCw size={18}/></button></div>
       {notice && <p role="status" className="bg-[#292a40] p-3 rounded-lg text-amber-300 text-sm">{notice}</p>}
       {section==='overview' && <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -286,6 +289,29 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
           {renderPlanEditor()}
         </div>}
       </>}
+      {section==='withdrawals' && <section className="space-y-3">
+        <p className="text-xs text-amber-300">Solicitações de saldo interno simulado. Nenhum BTC é enviado automaticamente.</p>
+        {withdrawals.length===0&&<p className="text-xs text-slate-400">Nenhum saque registrado.</p>}
+        {withdrawals.map(w=><article key={w.id} className="bg-[#1b2137] rounded-xl border border-[#2b3350] p-4 space-y-2">
+          <strong>Solicitação #{w.id} · {w.login}</strong>
+          <p className="text-xs text-slate-300">Plano: {w.plan_id} · Estado: {w.status==='pending'?'Pendente':w.status==='approved'?'Conferida':'Rejeitada'}</p>
+          <p className="text-sm">US$ {(w.usd_cents/100).toFixed(2)} · {(w.btc_satoshis/1e8).toFixed(8)} BTC simulado</p>
+          <p className="text-xs text-slate-400 break-all">{w.btc_address}</p>
+          {w.status==='pending'&&<div className="flex flex-wrap gap-2">
+            <button disabled={busy} className={btn} onClick={()=>{
+              const reference=window.prompt('Referência da conferência externa (mínimo 6 caracteres):');
+              if(!reference||reference.trim().length<6)return;
+              if(window.confirm('Registrar conferência? Esta ação NÃO transmite BTC.'))
+                void change('admin.withdraw.process',{requestId:w.id,status:'approved',reference:reference.trim(),manualReviewConfirmed:true});
+            }}>Registrar conferência manual</button>
+            <button disabled={busy} className={btn} onClick={()=>{
+              const reference=window.prompt('Motivo da rejeição (mínimo 6 caracteres):');
+              if(reference&&reference.trim().length>=6)
+                void change('admin.withdraw.process',{requestId:w.id,status:'rejected',reference:reference.trim()});
+            }}>Rejeitar e devolver saldo</button>
+          </div>}
+        </article>)}
+      </section>}
       {section==='orders' && <div className="space-y-3">
         {orders.map(o=><article key={o.id} className="p-4 rounded-xl bg-[#1b2137] border border-[#2b3350] flex gap-4 flex-wrap justify-between">
           <div><strong>Pedido #{o.id} · {o.plan_id}</strong>
