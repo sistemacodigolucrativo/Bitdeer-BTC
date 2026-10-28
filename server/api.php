@@ -54,11 +54,11 @@ function settle(PDO $db, int $userId, int $at): void {
         if ($next !== null && $next['boundary'] !== null) $end = min($end, (int)$next['boundary']);
         if ($end <= $cursor) throw new RuntimeException('Invalid accrual boundary');
         $units = ($end-$cursor) * $plan['daily_cents'] * 100;
-        execute_sql($db, 'INSERT OR IGNORE INTO reward_ledger
+        $inserted=execute_sql($db, 'INSERT OR IGNORE INTO reward_ledger
            (user_id,plan_id,start_ts,end_ts,rate_daily_cents,earned_units,created_at)
            VALUES (?,?,?,?,?,?,?)',
            [$userId,$plan['id'],$cursor,$end,$plan['daily_cents'],$units,$at]);
-        $earnedTotal += $units;
+        $earnedTotal += $inserted * $units;
         $cursor = $end;
     }
     // Since last_accrual_at advances in the same transaction, duplicate requests
@@ -395,6 +395,12 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $order=atomic($db, static function () use ($db,$actor,$plan,$quote,$sats,$address): int {
             $time=now();
             // Recheck active plan and pricing inside the write transaction.
+            // Re-check wallet confirmation inside the payment write transaction.
+            $flag=query_one($db,'SELECT value FROM app_settings WHERE name="btc_address_confirmed"');
+            $wallet=query_one($db,'SELECT value FROM app_settings WHERE name="btc_address"');
+            if (($flag['value']??'0')!=='1' || ($wallet['value']??'')!==$address) {
+                fail(409,'Carteira alterada. Solicite uma nova cotação.');
+            }
             $current=query_one($db,'SELECT * FROM plans WHERE id=? AND available=1',[$plan['id']]);
             if (!$current || (int)$current['revision']!==(int)$plan['revision']) fail(409,'Plano alterado; tente novamente');
             $active=query_one($db,'SELECT id FROM contracts WHERE user_id=? AND started_at<=? AND expires_at>?',

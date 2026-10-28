@@ -1,6 +1,14 @@
 <?php
 declare(strict_types=1);
-require_once dirname(__DIR__) . '/server/schema.php';
+$dir=(string)(getenv('BITDEER_SERVER_DIR') ?: dirname(__DIR__).'/server');
+$file=realpath($dir.'/schema.php');
+if ($file===false || !is_file($file)) {
+    http_response_code(503);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'Backend PHP indisponível';
+    exit;
+}
+require_once $file;
 
 /**
  * Supported protection policies:
