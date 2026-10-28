@@ -624,6 +624,20 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         });
         json_out(['ok'=>true]);
     }
+    if ($action === 'admin.diagnostics' && $method === 'GET') {
+        auth_user($db,true);
+        $btc=query_one($db,'SELECT value FROM app_settings WHERE name="btc_address_confirmed"');
+        $enabled=getenv('BITDEER_ENABLE_MAIL')==='1';
+        $sender=(string)(getenv('BITDEER_MAIL_FROM') ?: '');
+        $mailReady=$enabled && function_exists('mail') &&
+            (bool)filter_var($sender,FILTER_VALIDATE_EMAIL);
+        $https=(!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS']!=='off');
+        json_out(['phpVersion'=>PHP_VERSION,'pdoSqlite'=>extension_loaded('pdo_sqlite'),
+            'dbWritable'=>is_writable(data_file()),
+            'https'=>$https,'mailConfigured'=>$mailReady,
+            'btcAddressConfirmed'=>($btc['value'] ?? '0')==='1',
+            'quoteProviders'=>'Coinbase / CoinGecko (validar rede no domínio)']);
+    }
     if ($action === 'admin.payment.settings' && $method === 'GET') {
         auth_user($db,true);
         $addr=query_one($db,'SELECT value FROM app_settings WHERE name="btc_address"');
