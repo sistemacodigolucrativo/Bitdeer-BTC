@@ -48,6 +48,23 @@ jobs:
         run: python3 tests/package_structure.py
       - name: Exercise unpacked PHP SQLite package over HTTP
         run: python3 tests/package_runtime_smoke.py
+      - name: Browser UI regression (mobile and desktop)
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund playwright
+          npx playwright install --with-deps chromium
+          mkdir -p /tmp/bitdeer-browser-e2e
+          unzip -q release-build/bitdeer-php-sqlite.zip -d /tmp/bitdeer-browser-e2e
+          php -r 'require "/tmp/bitdeer-browser-e2e/bitdeer/private/server/schema.php"; provision("browseradmin","BrowserAdminPassword2026","support@example.org");'
+          php -S 127.0.0.1:8777 -t /tmp/bitdeer-browser-e2e/bitdeer/public_html >/tmp/bitdeer-browser-php.log 2>&1 &
+          echo $! >/tmp/bitdeer-browser-php.pid
+          trap 'kill $(cat /tmp/bitdeer-browser-php.pid); cat /tmp/bitdeer-browser-php.log' EXIT
+          node tests/browser_smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bitdeer-browser-screenshots
+          path: release-build/*.png
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: bitdeer-php-sqlite-package
