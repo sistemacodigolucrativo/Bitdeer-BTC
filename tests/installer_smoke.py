@@ -42,7 +42,8 @@ with tempfile.TemporaryDirectory(prefix='bitdeer-install-') as folder:
             payload={
                 'csrf':token.group(1),'setup_key':key,'admin_login':'testadmin',
                 'admin_password':'IntegrationTestAdmin2026!', 'support_email':'support@example.org',
-                'confirmation':'yes'
+                'confirmation':'yes', 'site_url':'http://127.0.0.1:8766',
+                'environment_type':'shared'
             }
             return client.open(urllib.request.Request(BASE,
                 data=urllib.parse.urlencode(payload).encode('utf-8'),method='POST'),timeout=5)

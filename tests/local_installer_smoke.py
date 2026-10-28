@@ -29,7 +29,8 @@ with tempfile.TemporaryDirectory(prefix="bitdeer-local-installer-") as temp:
         assert csrf, "Missing installer CSRF token"
         fields={"csrf":csrf.group(1),"admin_login":"localadmin",
             "admin_password":"SomeStrongPasswordForCI",
-            "support_email":"support@example.org","confirmation":"yes"}
+            "support_email":"support@example.org","confirmation":"yes",
+            "site_url":"http://127.0.0.1:8773","environment_type":"auto"}
         def submit(values):
             return opener.open(urllib.request.Request(address,
                 data=urllib.parse.urlencode(values).encode(),method="POST"),timeout=10)
