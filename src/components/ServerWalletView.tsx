@@ -10,17 +10,14 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
   const t=language==='en'
     ?{title:'Wallet',balance:'Internal rewards',sats:'Internal satoshi bonuses',
       address:'BTC address registered',empty:'No address registered',edit:'Edit wallet',
-      history:'View reward history',chart:'Earned USD — last 7 days',withdraw:'Withdraw',btc:'BTC equivalent',
-      caution:'These are internal records, not mined BTC or confirmed blockchain transfers.'}
+      history:'View reward history',chart:'Earned USD — last 7 days',withdraw:'Withdraw',btc:'BTC equivalent'}
     :language==='es'
     ?{title:'Billetera',balance:'Recompensas internas',sats:'Bonos internos en satoshis',
       address:'Dirección BTC registrada',empty:'Ninguna dirección registrada',edit:'Editar billetera',
-      history:'Ver historial',chart:'USD acreditados — últimos 7 días',withdraw:'Retirar',btc:'Equivalente em BTC',
-      caution:'Son registros internos, no BTC minados ni transferencias confirmadas.'}
+      history:'Ver historial',chart:'USD acreditados — últimos 7 días',withdraw:'Retirar',btc:'Equivalente en BTC'}
     :{title:'Carteira',balance:'Recompensas internas',sats:'Bônus internos em satoshis',
       address:'Endereço BTC cadastrado',empty:'Nenhum endereço cadastrado',edit:'Editar carteira',
-      history:'Ver histórico de recompensas',chart:'USD creditados — últimos 7 dias',withdraw:'Sacar',btc:'Equivalente em BTC',
-      caution:'São registros internos, não BTC minerados ou transferências confirmadas.'};
+      history:'Ver histórico de recompensas',chart:'USD creditados — últimos 7 dias',withdraw:'Sacar',btc:'Equivalente em BTC'};
   const days=useMemo(()=>{
     const today=new Date();today.setHours(0,0,0,0);
     const result=Array.from({length:7},(_,i)=>({
@@ -52,7 +49,6 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
         {account?.plan.id||'FREE'}<Lock size={14}/>
       </p>
     </div>
-    <p className="text-xs text-amber-300">{t.caution}</p>
     <div className="bg-[#171b2d] border border-[#262e49] rounded-2xl p-4">
       <h3 className="flex gap-2 items-center text-sm font-bold mb-3"><TrendingUp className="text-emerald-400" size={17}/>{t.chart}</h3>
       <div className="h-28 flex gap-2 justify-between items-end">

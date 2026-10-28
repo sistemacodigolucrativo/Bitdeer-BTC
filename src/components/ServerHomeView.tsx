@@ -14,17 +14,17 @@ const details = {
     inactive:'Sessão inativa',check:'Atualizar',history:'Histórico',rewards:'Recompensas',
     daily:'Bônus diário',claim:'Resgatar bônus',notice:'Registros internos de recompensas. Não comprovam Bitcoin efetivamente minerado.',
     faq:'Perguntas frequentes',session:'Fim da sessão',cooldown:'Próxima sessão',
-    vip:'Plano VIP válido até', noHash:'Capacidade ilustrativa'},
+    vip:'Plano VIP válido até', noHash:'Capacidade de mineração'},
   en:{balance:'Internal USD balance',mining:'Mining panel', active:'Mining running',
     inactive:'Mining stopped',check:'Refresh',history:'History',rewards:'Rewards',
     daily:'Daily bonus',claim:'Claim bonus',notice:'Internal rewards only. This does not prove actual Bitcoin mining.',
     faq:'Frequently asked questions',session:'Session ends',cooldown:'Next session',
-    vip:'VIP plan expires', noHash:'Illustrative capacity'},
+    vip:'VIP plan expires', noHash:'Mining capacity'},
   es:{balance:'Saldo interno USD',mining:'Panel de minería', active:'Minería activa',
     inactive:'Minería detenida',check:'Actualizar',history:'Historial',rewards:'Recompensas',
     daily:'Bono diario',claim:'Reclamar bono',notice:'Recompensas internas, no prueba de minería real de Bitcoin.',
     faq:'Preguntas frecuentes',session:'Fin de sesión',cooldown:'Próxima sesión',
-    vip:'Plan VIP hasta', noHash:'Capacidad ilustrativa'}
+    vip:'Plan VIP hasta', noHash:'Capacidad de minería'}
 };
 export const ServerHomeView: React.FC<Props> = ({
   account,language,busy,btcUsd,onStart,onStop,onRefresh,onRewards,onHistory
@@ -79,9 +79,9 @@ export const ServerHomeView: React.FC<Props> = ({
           {' '}US$ {simulatedUsd.toFixed(8)}
         </p>
         <p className="text-[10px] text-slate-400 mt-1">
-          {language==='en'?'Internal projection between server updates. Not real blockchain BTC.':
-          language==='es'?'Proyección interna; no representa BTC real de blockchain.':
-          'Projeção interna entre atualizações. Não representa BTC real na blockchain.'}
+          {language==='en'?'Internal projection between server updates.':
+          language==='es'?'Proyección interna entre actualizaciones.':
+          'Projeção interna entre atualizações.'}
         </p>
       </div>
       <div className="flex justify-between items-center mb-5">

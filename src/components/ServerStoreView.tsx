@@ -19,10 +19,10 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
   const color=level>=4?'#fb7185':level===3?'#818cf8':level===2?'#38bdf8':'#60a5fa';
   const locale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const helper=language==='en'
-    ? {description:'Choose a plan. Rates and conditions come from the server.',activation:'Activation requires independent payment confirmation.',day:'per day',model:'Illustrative equipment',current:'Current plan',choose:'Choose plan',purchase:'Request VIP activation',free:'Free account',term:'days',unavailable:'Plans are not available yet.'}
+    ? {description:'Choose a plan. Rates and conditions come from the server.',activation:'Activation follows manual payment confirmation. No fixed deadline is guaranteed.',day:'per day',model:'Equipment illustration',current:'Current plan',choose:'Choose plan',purchase:'Request VIP activation',free:'Free account',term:'days',unavailable:'Plans are not available yet.'}
     : language==='es'
-    ? {description:'Elige un plan. Tarifas y condiciones proceden del servidor.',activation:'La activación requiere confirmación manual del pago.',day:'por día',model:'Equipo ilustrativo',current:'Plan actual',choose:'Elegir plan',purchase:'Solicitar activación VIP',free:'Cuenta gratuita',term:'días',unavailable:'Planes aún no disponibles.'}
-    : {description:'Escolha um plano. Valores e condições vêm do servidor.',activation:'Ativação somente após conferência manual do pagamento.',day:'por dia',model:'Equipamento ilustrativo',current:'Plano atual',choose:'Escolher plano',purchase:'Solicitar ativação VIP',free:'Conta gratuita',term:'dias',unavailable:'Planos ainda não disponíveis.'};
+    ? {description:'Elige un plan. Tarifas y condiciones proceden del servidor.',activation:'La activación requiere la confirmación manual del pago. No se garantiza un plazo fijo.',day:'por día',model:'Ilustración del equipo',current:'Plan actual',choose:'Elegir plan',purchase:'Solicitar activación VIP',free:'Cuenta gratuita',term:'días',unavailable:'Planes aún no disponibles.'}
+    : {description:'Escolha um plano. Valores e condições vêm do servidor.',activation:'Ativação após conferência manual do pagamento, sem prazo máximo garantido.',day:'por dia',model:'Representação visual do equipamento',current:'Plano atual',choose:'Escolher plano',purchase:'Solicitar ativação VIP',free:'Conta gratuita',term:'dias',unavailable:'Planos ainda não disponíveis.'};
   return <section className="space-y-4">
     <div className="flex justify-between items-center gap-2">
       <div><h2 className="font-black text-xl">{t.store}</h2>
@@ -52,7 +52,6 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
             <circle cx="80" cy="46" r="4" fill="#34d399"/>
           </svg>
         </div>
-        <p className="text-xs text-slate-400">{helper.model}</p>
         <strong className="text-2xl">US$ {selected.dailyUsd} <span className="text-xs text-slate-400">/ {helper.day}</span></strong>
         <p className="text-xs text-slate-300">{selected.durationDays} {helper.term} · {selected.hashrate}</p>
         <p className="text-xs text-slate-300">US$ {selected.bonusUsd} + {selected.bonusSatoshis.toLocaleString(locale)} satoshis /24h</p>
