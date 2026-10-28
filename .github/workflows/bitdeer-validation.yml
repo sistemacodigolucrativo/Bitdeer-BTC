@@ -19,6 +19,8 @@ jobs:
           node-version: '22'
       - name: PHP syntax
         run: find api server install bin -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: DNS owner proof and Bitcoin address checks
+        run: php tests/authorization_checks.php
       - name: Frontend lint and build
         run: |
           npm install --no-audit --no-fund --package-lock=false
