@@ -696,7 +696,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $actor=require_post_csrf($db,true);$body=request_body();
         $id=string_field($body,'id',60);$name=string_field($body,'name',120);
         if (!preg_match('/^[A-Z][A-Z0-9_]{2,59}$/D',$id) || $name==='') fail(422,'Identificador/nome inválido');
-        $fields=['priceCents','dailyCents','bonusUsdCents','bonusSatoshis','durationDays','sessionSeconds','restartCooldownSeconds'];
+        $fields=['priceCents','dailyCents','bonusUsdCents','bonusSatoshis','durationDays','sessionSeconds','restartCooldownSeconds','withdrawMinCents','withdrawAfterDays'];
         foreach ($fields as $f) {
             if (!isset($body[$f]) || !is_int($body[$f]) || $body[$f]<0 || $body[$f]>100000000) fail(422,'Campo numérico inválido: '.$f);
         }
@@ -706,12 +706,12 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $exists=query_one($db,'SELECT id FROM plans WHERE id=?',[$id]);
         atomic($db, static function () use ($db,$actor,$body,$id,$name,$hashrate,$serverModel,$available,$exists): void {
             if ($exists) {
-                execute_sql($db,'UPDATE plans SET name=?,price_cents=?,daily_cents=?,bonus_usd_cents=?,bonus_satoshis=?,duration_days=?,session_seconds=?,restart_cooldown_seconds=?,hashrate=?,server_model=?,available=?,revision=revision+1,updated_at=? WHERE id=?',
-                  [$name,$body['priceCents'],$body['dailyCents'],$body['bonusUsdCents'],$body['bonusSatoshis'],$body['durationDays'],$body['sessionSeconds'],$body['restartCooldownSeconds'],$hashrate,$serverModel,$available,now(),$id]);
+                execute_sql($db,'UPDATE plans SET name=?,price_cents=?,daily_cents=?,bonus_usd_cents=?,bonus_satoshis=?,duration_days=?,session_seconds=?,restart_cooldown_seconds=?,withdraw_min_cents=?,withdraw_after_days=?,hashrate=?,server_model=?,available=?,revision=revision+1,updated_at=? WHERE id=?',
+                  [$name,$body['priceCents'],$body['dailyCents'],$body['bonusUsdCents'],$body['bonusSatoshis'],$body['durationDays'],$body['sessionSeconds'],$body['restartCooldownSeconds'],$body['withdrawMinCents'],$body['withdrawAfterDays'],$hashrate,$serverModel,$available,now(),$id]);
             } else {
-                execute_sql($db,'INSERT INTO plans (id,name,price_cents,daily_cents,bonus_usd_cents,bonus_satoshis,duration_days,session_seconds,restart_cooldown_seconds,hashrate,server_model,available,updated_at)
-                  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                  [$id,$name,$body['priceCents'],$body['dailyCents'],$body['bonusUsdCents'],$body['bonusSatoshis'],$body['durationDays'],$body['sessionSeconds'],$body['restartCooldownSeconds'],$hashrate,$serverModel,$available,now()]);
+                execute_sql($db,'INSERT INTO plans (id,name,price_cents,daily_cents,bonus_usd_cents,bonus_satoshis,duration_days,session_seconds,restart_cooldown_seconds,withdraw_min_cents,withdraw_after_days,hashrate,server_model,available,updated_at)
+                  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                  [$id,$name,$body['priceCents'],$body['dailyCents'],$body['bonusUsdCents'],$body['bonusSatoshis'],$body['durationDays'],$body['sessionSeconds'],$body['restartCooldownSeconds'],$body['withdrawMinCents'],$body['withdrawAfterDays'],$hashrate,$serverModel,$available,now()]);
             }
             audit($db,(int)$actor['id'],'plan.save',null,['planId'=>$id,'revisionChange'=>true]);
         });
