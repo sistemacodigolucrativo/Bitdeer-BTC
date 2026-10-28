@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/quote.php';
+require_once __DIR__ . '/bitcoin.php';
 
 /* The reward unit exactly matches dailyRewards.ts:
  * one USD = 864,000,000 units; USD/day (in cents) yields cents * 100 units/s.
@@ -481,7 +482,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $sats=satoshi_payment((int)$plan['price_cents'], $quote['usd']);
         $addressRow=query_one($db,'SELECT value FROM app_settings WHERE name="btc_address"');
         $address=(string)($addressRow['value'] ?? '');
-        if (!preg_match('/^bc1[a-z02-9]{25,80}$/D',$address)) {
+        if (!btc_receive_address_valid($address)) {
             fail(503,'Endereço de recebimento BTC não configurado');
         }
         $order=atomic($db, static function () use ($db,$actor,$plan,$quote,$sats,$address): int {
@@ -735,7 +736,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $address=string_field($body,'btcAddress',90);
         $password=$body['adminPassword'] ?? null;
         $confirm=$body['confirmedOwner'] ?? false;
-        if (!preg_match('/^bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,59}$/D',$address)) {
+        if (!btc_receive_address_valid($address)) {
             fail(422,'Endereço BTC inválido ou formato não suportado');
         }
         if (!is_string($password) || strlen($password)>256) fail(422,'Senha administrativa obrigatória');
