@@ -165,7 +165,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           </div>
 
           {registerMode && <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300 block">Nome completo (opcional)</label>
+            <label className="text-xs font-semibold text-slate-300 block">{language==='en'?'Full name (optional)':language==='es'?'Nombre completo (opcional)':'Nome completo (opcional)'}</label>
             <input value={fullNameInput} onChange={e => setFullNameInput(e.target.value)}
               className="bg-[#181d33] border border-[#2b3353] rounded-2xl px-3.5 py-3 text-sm text-white w-full"/>
           </div>}
@@ -184,14 +184,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <span>{registerMode ? 'Criar conta de membro' : t.accessBtn}</span>
+                <span>{registerMode ? language==='en'?'Create member account':language==='es'?'Crear cuenta de miembro':'Criar conta de membro' : t.accessBtn}</span>
               )}
             </button>
           </div>
         </form>
         <button type="button" onClick={() => {setRegisterMode(v=>!v);setErrorMessage('');}}
           className="mt-4 text-indigo-300 text-xs underline">
-          {registerMode ? 'Já tenho conta — Entrar' : 'Novo por aqui? Criar conta'}
+          {registerMode ? language==='en'?'Already have an account? Sign in':language==='es'?'¿Ya tienes cuenta? Iniciar sesión':'Já tenho conta — Entrar' : language==='en'?'New here? Sign up':language==='es'?'¿Eres nuevo? Crear cuenta':'Novo por aqui? Criar conta'}
         </button>
       </div>
 

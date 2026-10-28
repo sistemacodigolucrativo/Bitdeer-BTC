@@ -10,13 +10,13 @@ const draftKey = 'bitdeer_support_draft_v2';
 const labels = {
   pt: {title:'Atendimento',subject:'Assunto',message:'Descreva sua solicitação',
     submit:'Abrir ticket',refresh:'Atualizar',clear:'Limpar rascunho',
-    history:'Meus tickets',email:'Abrir e-mail para suporte'},
+    history:'Meus tickets',email:'Abrir e-mail para suporte',back:'Voltar',empty:'Nenhum atendimento registrado.',resolved:'Resolvido',open:'Aberto',submitted:'Informe assunto e descrição.',emailMissing:'O endereço de suporte não está disponível.',emailNotice:'Confirme o envio no seu aplicativo de e-mail.',created:'registrado.',accepted:tr.accepted,unconfirmed:tr.unconfirmed,transported:'Notificação encaminhada ao transporte de e-mail; recebimento não confirmado.',notTransported:'Notificação por e-mail não confirmada; ticket registrado para atendimento.'},
   en: {title:'Support',subject:'Subject',message:'Describe your request',
     submit:'Create ticket',refresh:'Refresh',clear:'Clear draft',
-    history:'My tickets',email:'Open support email'},
+    history:'My tickets',email:'Open support email',back:'Back',empty:'No support requests registered.',resolved:'Resolved',open:'Open',submitted:'Enter a subject and description.',emailMissing:'The support email address is unavailable.',emailNotice:'Confirm delivery in your email application.',created:'registered.',accepted:'Email accepted by the transport, delivery not verified',unconfirmed:'Email notification pending or unavailable',transported:'Email accepted by the transport; delivery is not confirmed.',notTransported:'Email notification not confirmed; ticket has been recorded for support.'},
   es: {title:'Soporte',subject:'Asunto',message:'Describa su solicitud',
     submit:'Crear ticket',refresh:'Actualizar',clear:'Borrar borrador',
-    history:'Mis tickets',email:'Abrir correo de soporte'}
+    history:'Mis tickets',email:'Abrir correo de soporte',back:'Volver',empty:'No hay solicitudes de soporte registradas.',resolved:'Resuelto',open:'Abierto',submitted:'Indique asunto y descripción.',emailMissing:'La dirección de soporte no está disponible.',emailNotice:'Confirme el envío en su aplicación de correo.',created:'registrado.',accepted:'Correo aceptado por el transporte, entrega no verificada',unconfirmed:'Notificación por correo pendiente o no disponible',transported:'Notificación aceptada por el transporte de correo; recepción no confirmada.',notTransported:'Notificación por correo no confirmada; ticket registrado para atención.'}
 };
 export const CustomerSupportView: React.FC<Props> = ({language,onBack}) => {
   const tr=labels[language] || labels.pt;
@@ -43,30 +43,28 @@ export const CustomerSupportView: React.FC<Props> = ({language,onBack}) => {
   },[subject,message]);
   async function submit(e:React.FormEvent){
     e.preventDefault();setNotice('');
-    if(subject.trim().length<3||message.trim().length<10){setNotice('Informe assunto e descrição.');return;}
+    if(subject.trim().length<3||message.trim().length<10){setNotice(tr.submitted);return;}
     setLoading(true);
     try{
       const result=await api<{ticket:{id:number;notification_status:string}}>(
         'support.ticket.create',{subject:subject.trim(),message:message.trim()});
       setSubject('');setMessage('');sessionStorage.removeItem(draftKey);
-      setNotice('Ticket #'+result.ticket.id+' registrado. '+
-        (result.ticket.notification_status==='accepted'
-          ? 'Notificação entregue ao transporte de e-mail; recebimento ainda não confirmado.'
-          : 'Notificação por e-mail não confirmada; ticket registrado para atendimento.'));
+      setNotice('Ticket #'+result.ticket.id+' '+tr.created+' '+
+        (result.ticket.notification_status==='accepted'?tr.transported:tr.notTransported));
       await refresh();
     }catch(e){setNotice((e as Error).message);}
     finally{setLoading(false);}
   }
   function openMail(){
-    if(!recipient){setNotice('O endereço de suporte não está disponível.');return;}
+    if(!recipient){setNotice(tr.emailMissing);return;}
     const url='mailto:'+recipient+'?subject='+encodeURIComponent(subject.trim())+
       '&body='+encodeURIComponent(message.trim());
     window.location.href=url;
-    setNotice('O envio deve ser confirmado no aplicativo de e-mail.');
+    setNotice(tr.emailNotice);
   }
   return <section className="w-full flex-1 flex flex-col bg-[#121626] text-white overflow-hidden">
     <header className="p-4 border-b border-[#232943] flex items-center gap-3">
-      <button onClick={onBack} aria-label="Voltar"><ArrowLeft size={20}/></button>
+      <button onClick={onBack} aria-label={tr.back}><ArrowLeft size={20}/></button>
       <h2 className="font-bold">{tr.title}</h2>
       <button className="ml-auto" onClick={()=>void refresh()} aria-label={tr.refresh}><RefreshCw size={18}/></button>
     </header>
@@ -98,11 +96,11 @@ export const CustomerSupportView: React.FC<Props> = ({language,onBack}) => {
       </form>
       <section className="space-y-2">
         <h3 className="font-bold text-sm">{tr.history}</h3>
-        {!tickets.length && <p className="text-xs text-slate-400">Nenhum atendimento registrado.</p>}
+        {!tickets.length && <p className="text-xs text-slate-400">{tr.empty}</p>}
         {tickets.map(ticket=><article key={ticket.id}
           className="bg-[#1e2338] p-3 rounded-xl text-xs border border-[#2b3350] space-y-1">
           <strong>#{ticket.id} · {ticket.subject}</strong>
-          <p>{ticket.status==='resolved'?'Resolvido':'Aberto'} · {new Date(ticket.created_at*1000).toLocaleString('pt-BR')}</p>
+          <p>{ticket.status==='resolved'?tr.resolved:tr.open} · {new Date(ticket.created_at*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR')}</p>
           <p className="text-slate-300 whitespace-pre-wrap">{ticket.message}</p>
           <p className="text-slate-400">{ticket.notification_status==='accepted'
             ? 'E-mail encaminhado ao transporte, entrega não verificada'

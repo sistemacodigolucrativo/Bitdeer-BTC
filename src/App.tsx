@@ -18,10 +18,10 @@ import { CongratulationsModal } from './components/CongratulationsModal';
 
 
 class AppErrorBoundary extends React.Component<
-  { children: React.ReactNode },
+  { children: React.ReactNode; language: LanguageCode },
   { hasError: boolean }
 > {
-  constructor(props: { children: React.ReactNode }) {
+  constructor(props: { children: React.ReactNode; language: LanguageCode }) {
     super(props);
     this.state = { hasError: false };
   }
@@ -36,19 +36,24 @@ class AppErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
+      const t=this.props.language==='en'
+        ? {title:'Synchronizing interface...',description:'A temporary display error occurred. Your records and balance remain saved.',continue:'Continue to dashboard'}
+        :this.props.language==='es'
+        ? {title:'Sincronizando interfaz...',description:'Se produjo un error temporal de visualización. Sus registros y saldo están guardados.',continue:'Continuar al panel'}
+        : {title:'Sincronizando interface...',description:'Detectamos uma oscilação temporária na exibição. Seus dados e saldo permanecem salvos.',continue:'Continuar no Painel'};
       return (
         <div className="min-h-screen bg-[#090c17] text-white flex flex-col items-center justify-center p-6 text-center">
           <div className="max-w-xs w-full bg-[#171b2d] border border-[#252c45] rounded-3xl p-6 space-y-4 shadow-2xl">
-            <h2 className="text-base font-black text-white">Sincronizando interface...</h2>
+            <h2 className="text-base font-black text-white">{t.title}</h2>
             <p className="text-xs text-slate-400">
-              Detectamos uma oscilação temporária na exibição. Seus dados e saldo permanecem salvos.
+              {t.description}
             </p>
             <button
               type="button"
               onClick={() => this.setState({ hasError: false })}
               className="w-full py-3 rounded-xl bg-[#f43f5e] hover:bg-[#e11d48] text-white font-bold text-xs cursor-pointer"
             >
-              Continuar no Painel
+              {t.continue}
             </button>
           </div>
         </div>
@@ -175,11 +180,11 @@ export default function App() {
   };
 
   return (
-    <AppErrorBoundary>
+    <AppErrorBoundary language={language}>
       <div className={`min-h-screen ${theme === 'light' ? 'theme-light bg-slate-100 text-slate-900' : 'bg-[#090c17] text-slate-100'} flex flex-col items-center justify-center p-0 md:p-6 overflow-x-hidden transition-colors duration-200`}>
         {/* Mobile App Viewport Container */}
         <main className={`w-full ${authUser?.role === 'admin' ? 'max-w-6xl' : 'max-w-[420px]'} h-[100dvh] md:h-[840px] md:rounded-3xl md:shadow-2xl ${theme === 'light' ? 'bg-white border md:border-slate-200 text-slate-800' : 'bg-[#121626] border-0 md:border md:border-[#20263f] text-slate-100'} overflow-hidden flex flex-col relative transition-colors duration-200`}>
-          {checkingSession && <div className="p-8 text-center">Verificando sessão segura...</div>}
+          {checkingSession && <div className="p-8 text-center">{language==='en'?'Checking secure session...':language==='es'?'Verificando sesión segura...':'Verificando sessão segura...'}</div>}
           {/* Step 2: Language Screen (after member login) */}
           {!checkingSession && activeScreen === 'language' && (
             <LanguageScreen
