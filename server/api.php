@@ -387,7 +387,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     if ($action === 'language.preference' && $method === 'GET') {
         $actor=auth_user($db);
         $row=query_one($db,'SELECT language FROM language_preferences WHERE user_id=?',[$actor['id']]);
-        json_out(['language'=>$row['language']??'pt']);
+        json_out(['language'=>$row['language']??null]);
     }
     if ($action === 'language.preference' && $method === 'POST') {
         $actor=require_post_csrf($db);
@@ -828,6 +828,39 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             audit($db,(int)$actor['id'],'order.approve',(int)$order['user_id'],['orderId'=>$id,'planId'=>$order['plan_id'],'paymentTxid'=>$paymentRef]);
         });
         json_out(['ok'=>true]);
+    }
+    if ($action === 'admin.withdrawals' && $method === 'GET') {
+        auth_user($db,true);
+        json_out(['requests'=>query_all($db,'SELECT r.id,r.user_id,u.login,r.plan_id,
+           r.btc_address,r.usd_cents,r.btc_satoshis,r.quote_usd_cents,r.status,
+           r.created_at,r.processed_at,r.reference
+           FROM withdraw_requests r JOIN users u ON u.id=r.user_id
+           ORDER BY r.id DESC LIMIT 100')]);
+    }
+    if ($action === 'admin.withdraw.process' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);
+        $body=request_body();
+        $id=param_id($body,'requestId');
+        $status=string_field($body,'status',20);
+        $reference=string_field($body,'reference',160);
+        if (!in_array($status,['approved','rejected'],true) || strlen($reference)<6)
+            fail(422,'Indique uma decisão e uma referência de conferência');
+        if ($status==='approved' && ($body['manualReviewConfirmed']??false)!==true)
+            fail(422,'Aprovação exige confirmação da conferência externa manual');
+        atomic($db,static function() use($db,$actor,$id,$status,$reference): void {
+            $request=query_one($db,'SELECT * FROM withdraw_requests WHERE id=?',[$id]);
+            if (!$request || $request['status']!=='pending')
+                fail(409,'Solicitação inexistente ou já processada');
+            if ($status==='rejected') {
+                execute_sql($db,'UPDATE mining_state SET balance_units=balance_units+?,updated_at=? WHERE user_id=?',
+                  [(int)$request['usd_cents']*8640000,now(),$request['user_id']]);
+            }
+            execute_sql($db,'UPDATE withdraw_requests SET status=?,processed_by=?,processed_at=?,reference=? WHERE id=?',
+              [$status,$actor['id'],now(),$reference,$id]);
+            audit($db,(int)$actor['id'],'withdraw.process',(int)$request['user_id'],
+              ['requestId'=>$id,'status'=>$status,'reference'=>$reference,'internalSimulation'=>true]);
+        });
+        json_out(['ok'=>true,'status'=>$status,'simulation'=>true]);
     }
     if ($action === 'admin.order.reject' && $method === 'POST') {
         $actor=require_post_csrf($db,true);
