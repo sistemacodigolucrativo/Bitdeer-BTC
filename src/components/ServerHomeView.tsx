@@ -61,7 +61,7 @@ export const ServerHomeView: React.FC<Props> = ({
       <div className="flex justify-between items-center gap-2 mb-4">
         <h3 className="text-xs font-black tracking-wider text-slate-300 uppercase">{d.mining}</h3>
         <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-lg">
-          {account?.plan.id ?? 'FREE'} · US$ {account?.plan.dailyUsd ?? '0.00'}/dia
+          {account?.plan.id ?? 'FREE'} · US$ {account?.plan.dailyUsd ?? '0.00'}/{language==='en'?'day':language==='es'?'día':'dia'}
         </span>
       </div>
       <div className="bg-[#11182b] border border-[#303b59] rounded-2xl px-4 py-3 mb-4">
@@ -138,8 +138,16 @@ export const ServerHomeView: React.FC<Props> = ({
         {expanded?<ChevronUp size={16}/>:<ChevronDown size={16}/>}
       </button>
       {expanded && <div className="border-t border-[#232a43] mt-3 pt-3 space-y-2 text-xs text-slate-400">
-        <p>{d.notice}</p><p>FREE: {account?.plan.sessionSeconds || 7200}s por sessão. VIP: conforme contrato vigente.</p>
-        <p>Os benefícios são calculados no servidor, não no armazenamento do navegador.</p>
+        <p>{d.notice}</p><p>{language==='en'
+          ? 'FREE: '+(account?.plan.sessionSeconds || 7200)+'s per session. VIP: according to the active contract.'
+          : language==='es'
+          ? 'FREE: '+(account?.plan.sessionSeconds || 7200)+'s por sesión. VIP: según el contrato vigente.'
+          : 'FREE: '+(account?.plan.sessionSeconds || 7200)+'s por sessão. VIP: conforme contrato vigente.'}</p>
+        <p>{language==='en'
+          ? 'Internal rewards are calculated on the server, not stored as browser balances.'
+          : language==='es'
+          ? 'Las recompensas internas se calculan en el servidor y no se guardan como saldos en el navegador.'
+          : 'Os benefícios são calculados no servidor, não no armazenamento do navegador.'}</p>
       </div>}
     </section>
   </div>;

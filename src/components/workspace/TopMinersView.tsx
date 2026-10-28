@@ -85,8 +85,16 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd})=>{
     <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
       <p className="text-[11px] text-slate-400">{notice}</p>
       <p className="text-[10px] text-slate-500">{btcUsd
-        ? 'USD indicado pela cotação pública BTC/USD obtida do servidor. Valores de BTC fictícios.'
-        : 'Cotação BTC/USD indisponível; valores USD não exibidos.'}</p>
+        ? language==='en'
+          ? 'USD is calculated using the public BTC/USD quote provided by the server. BTC values are fictional.'
+          : language==='es'
+          ? 'USD calculado con la cotización pública BTC/USD del servidor. Las cantidades BTC son ficticias.'
+          : 'USD indicado pela cotação pública BTC/USD obtida do servidor. Valores de BTC fictícios.'
+        : language==='en'
+          ? 'BTC/USD rate unavailable; USD amounts are hidden.'
+          : language==='es'
+          ? 'Cotización BTC/USD no disponible; los importes USD no se muestran.'
+          : 'Cotação BTC/USD indisponível; valores USD não exibidos.'}</p>
       <div className="space-y-3" aria-label="Ranking demonstrativo Top Miners">
         {showcase.map((miner,index)=><article key={miner.name} data-testid="miner-card"
           className="bg-[#1c2238] border border-[#2a314d] rounded-2xl px-3.5 py-4 shadow-sm flex gap-2.5 items-center">

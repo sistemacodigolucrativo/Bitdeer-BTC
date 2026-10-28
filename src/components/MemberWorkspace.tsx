@@ -64,12 +64,13 @@ export const MemberWorkspace: React.FC<{
   // The BTC figure is a quote-based equivalent of that very same USD balance,
   // not a separately held on-chain Bitcoin balance.
   const liveBalanceUsd = projectInternalBalance(account,lastSnapshotReceivedAt,balanceTick);
+  const freshBtcUsd=btcQuote && balanceTick/1000-btcQuote.quotedAt<60 ? btcUsd : null;
   const availableUsdCents=Math.max(0,Math.floor((account?.mining.balanceUnits??0)/8640000));
-  const validQuote=btcUsd!==null && Number.isFinite(btcUsd) && btcUsd>0 &&
+  const validQuote=freshBtcUsd!==null && Number.isFinite(freshBtcUsd) && freshBtcUsd>0 &&
     btcQuote!==null && Date.now()/1000-btcQuote.quotedAt>=0 &&
     Date.now()/1000-btcQuote.quotedAt<60;
   const availableBtcSatoshis=validQuote&&btcUsd!==null
-    ? Math.floor(availableUsdCents/100*100000000/btcUsd)
+    ? Math.floor(availableUsdCents/100*100000000/freshBtcUsd)
     : null;
   const availableAmount=withdrawMode==='USD'
     ? 'US$ '+new Intl.NumberFormat(dateLocale,{minimumFractionDigits:2,maximumFractionDigits:2})
@@ -227,7 +228,7 @@ export const MemberWorkspace: React.FC<{
               <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{tr.save}</button>
             </form> : <form className="space-y-3" onSubmit={e=>{e.preventDefault();void submitWithdrawal();}}>
               <p className="text-xs text-slate-300 break-all">{tr.wallet}: {account?.profile.walletAddress}</p>
-              <p className="text-xs text-slate-400">{tr.quote}: {btcUsd?('US$ '+btcUsd.toFixed(2)+'/BTC'):tr.unavailable}.
+              <p className="text-xs text-slate-400">{tr.quote}: {freshBtcUsd?('US$ '+freshBtcUsd.toFixed(2)+'/BTC'):tr.unavailable}.
               {btcQuote&&<> {tr.source}: {btcQuote.source} · {new Date(btcQuote.quotedAt*1000).toLocaleTimeString(dateLocale)}.</>}
               {' '}{tr.rateNotice}</p>
               <p className="text-xs text-slate-400">{tr.minimum}: US$ {account?.plan.withdrawMinUsd??'0.00'}.
@@ -244,24 +245,24 @@ export const MemberWorkspace: React.FC<{
                   className="w-full mt-2 bg-[#11182c] rounded-lg p-3"/>
               </label>
               <p className="text-xs text-amber-300">{tr.terms}</p>
-              <button disabled={busy || !btcUsd} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{tr.submit}</button>
+              <button disabled={busy || !freshBtcUsd} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{tr.submit}</button>
             </form>}
           </section>}
     </div> :
       page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('settings')}/> :
-      page==='topMiners' ? <TopMinersView language={language} btcUsd={btcUsd} onBack={()=>setPage('settings')}/> :
+      page==='topMiners' ? <TopMinersView language={language} btcUsd={freshBtcUsd} onBack={()=>setPage('settings')}/> :
       page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
       page==='referrals' ? <ReferralHistoryView language={language} onBack={()=>setPage('settings')}/> :
       <div className="flex-1 overflow-auto p-5 space-y-4">
         {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
-        {page==='home' && <ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} language={language} btcUsd={btcUsd} busy={busy}
+        {page==='home' && <ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} language={language} btcUsd={freshBtcUsd} busy={busy}
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
           onRefresh={()=>void reload()} onRewards={()=>setPage('reward')}
           onHistory={()=>setPage('history')}/>}
         {page==='reward' && <ServerRewardView account={account} language={language} busy={busy}
           onClaim={()=>void act('rewards.claim')} onHistory={()=>setPage('history')}/>}
         {page==='wallet' && <>
-          <ServerWalletView account={account} liveBalanceUsd={liveBalanceUsd} language={language} btcUsd={btcUsd}
+          <ServerWalletView account={account} liveBalanceUsd={liveBalanceUsd} language={language} btcUsd={freshBtcUsd}
             accruals={ledger.accruals} onEdit={()=>setPage('profile')} onHistory={()=>setPage('history')}
             onWithdraw={()=>{
               setWalletDraft(account?.profile.walletAddress??'');
