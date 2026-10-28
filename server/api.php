@@ -158,6 +158,31 @@ function send_ticket_notification(PDO $db, int $ticketId): string {
     return $status;
 }
 
+/** Upgrade older SQLite installations without importing browser mock records. */
+function ensure_referral_tables(PDO $db): void {
+    $db->exec('CREATE TABLE IF NOT EXISTS referral_codes (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id),
+        code TEXT NOT NULL UNIQUE COLLATE NOCASE, created_at INTEGER NOT NULL
+    )');
+    $db->exec('CREATE TABLE IF NOT EXISTS referral_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        inviter_id INTEGER NOT NULL REFERENCES users(id),
+        invitee_id INTEGER NOT NULL UNIQUE REFERENCES users(id),
+        invite_code TEXT NOT NULL,
+        reward_usd_units INTEGER NOT NULL,created_at INTEGER NOT NULL
+    )');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_referrals_inviter ON referral_events(inviter_id,created_at)');
+}
+function own_referral_code(PDO $db, int $owner): string {
+    return atomic($db,static function() use ($db,$owner): string {
+        $found=query_one($db,'SELECT code FROM referral_codes WHERE user_id=?',[$owner]);
+        if ($found) return (string)$found['code'];
+        $code=strtoupper(bin2hex(random_bytes(5)));
+        execute_sql($db,'INSERT INTO referral_codes (user_id,code,created_at) VALUES (?,?,?)',
+            [$owner,$code,now()]);
+        return $code;
+    });
+}
 function api_dispatch(PDO $db, string $action, string $method): never {
     if ($action === 'health' && $method === 'GET') json_out(['ok'=>true,'version'=>'php-sqlite-1']);
     if ($action === 'support' && $method === 'GET') {
@@ -228,21 +253,64 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $plans = query_all($db,'SELECT * FROM plans WHERE available=1 ORDER BY price_cents,id');
         json_out(['plans'=>array_map('canonical_plan',$plans)]);
     }
+    if ($action === 'referrals.mine' && $method === 'GET') {
+        $actor=auth_user($db);
+        if ($actor['role']!=='member') fail(403,'Acesso restrito ao membro');
+        ensure_referral_tables($db);
+        $owner=(int)$actor['id'];
+        $code=own_referral_code($db,$owner);
+        $items=query_all($db,'SELECT e.id,e.created_at,e.reward_usd_units,u.login
+          FROM referral_events e JOIN users u ON u.id=e.invitee_id
+          WHERE e.inviter_id=? ORDER BY e.id DESC LIMIT 100',[$owner]);
+        $history=[];
+        foreach ($items as $row) {
+            $user=(string)$row['login'];
+            $history[]=['id'=>(int)$row['id'],
+                'referredAlias'=>substr($user,0,2).'***',
+                'createdAt'=>(int)$row['created_at'],
+                'rewardUsd'=>units_usd((int)$row['reward_usd_units'])];
+        }
+        $total=query_one($db,'SELECT COALESCE(SUM(reward_usd_units),0) AS units,
+          COUNT(*) AS count FROM referral_events WHERE inviter_id=?',[$owner]);
+        json_out(['code'=>$code,'history'=>$history,
+          'totalUsd'=>units_usd((int)$total['units']),'count'=>(int)$total['count'],
+          'source'=>'sqlite','unit'=>'internal_usd']);
+    }
     if ($action === 'register' && $method === 'POST') {
-        $body = request_body();
-        $login = string_field($body,'login',40);
-        $password = $body['password'] ?? '';
-        $name = string_field($body,'displayName',120);
+        $body=request_body();
+        $login=string_field($body,'login',40);
+        $password=$body['password'] ?? '';
+        $name=string_field($body,'displayName',120);
+        $invite=strtoupper(string_field($body,'inviteCode',20));
         if (!validate_login($login) || !is_string($password) || !validate_password($password)) {
             fail(422,'Usuário ou senha inválidos (mínimo 10 caracteres para senha)');
         }
-        $id = atomic($db, static function () use ($db,$login,$password,$name): int {
-            if (query_one($db,'SELECT id FROM users WHERE login=?',[$login]) !== null) fail(409,'Usuário já cadastrado');
+        if ($invite!=='' && !preg_match('/^[A-F0-9]{10}$/D',$invite)) {
+            fail(422,'Código de indicação inválido');
+        }
+        ensure_referral_tables($db);
+        $id=atomic($db,static function() use ($db,$login,$password,$name,$invite): int {
+            if (query_one($db,'SELECT id FROM users WHERE login=?',[$login])!==null) fail(409,'Usuário já cadastrado');
+            $inviter=null;
+            if ($invite!=='') {
+                $inviter=query_one($db,'SELECT c.user_id FROM referral_codes c JOIN users u ON u.id=c.user_id
+                    WHERE c.code=? AND u.role="member" AND u.status="active"',[$invite]);
+                if (!$inviter) fail(422,'Código de indicação inexistente ou inativo');
+            }
             $time=now();
-            execute_sql($db,'INSERT INTO users (login,password_hash,role,status,display_name,created_at,updated_at) VALUES (?,?,"member","active",?,?,?)',
+            execute_sql($db,'INSERT INTO users (login,password_hash,role,status,display_name,created_at,updated_at)
+              VALUES (?,?,"member","active",?,?,?)',
               [$login,secure_password($password),$name,$time,$time]);
             $id=(int)$db->lastInsertId();
             execute_sql($db,'INSERT INTO mining_state(user_id,updated_at) VALUES (?,?)',[$id,$time]);
+            if ($inviter) {
+                // Existing US$1/signup rule: internal ledger only, never external BTC.
+                $units=864000000;
+                execute_sql($db,'INSERT INTO referral_events(inviter_id,invitee_id,invite_code,reward_usd_units,created_at)
+                  VALUES (?,?,?,?,?)',[(int)$inviter['user_id'],$id,$invite,$units,$time]);
+                execute_sql($db,'UPDATE mining_state SET balance_units=balance_units+?,updated_at=? WHERE user_id=?',
+                  [$units,$time,(int)$inviter['user_id']]);
+            }
             return $id;
         });
         json_out(['id'=>$id,'role'=>'member'],201);

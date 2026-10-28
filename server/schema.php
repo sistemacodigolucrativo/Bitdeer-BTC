@@ -115,6 +115,20 @@ CREATE TABLE IF NOT EXISTS admin_audit (
   action TEXT NOT NULL, target_user_id INTEGER REFERENCES users(id),
   details_json TEXT NOT NULL, created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS referral_codes (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id),
+  code TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS referral_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  inviter_id INTEGER NOT NULL REFERENCES users(id),
+  invitee_id INTEGER NOT NULL UNIQUE REFERENCES users(id),
+  invite_code TEXT NOT NULL,
+  reward_usd_units INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_referrals_inviter ON referral_events(inviter_id,created_at);
 CREATE TABLE IF NOT EXISTS app_settings (
   name TEXT PRIMARY KEY, value TEXT NOT NULL
 );
