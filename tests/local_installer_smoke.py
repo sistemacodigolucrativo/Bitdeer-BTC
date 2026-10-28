@@ -9,6 +9,7 @@ with tempfile.TemporaryDirectory(prefix="bitdeer-local-installer-") as temp:
     env["BITDEER_DB_PATH"]=path
     env.pop("BITDEER_INSTALL_POLICY",None)
     env.pop("BITDEER_INSTALL_KEY_HASH",None)
+    env["BITDEER_INSTALL_ALLOW_LOCAL"]="1"
     server=subprocess.Popen(["php","-S","127.0.0.1:8773","-t","."],
         env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     try:

@@ -37,11 +37,20 @@ function installer_page(string $title, string $message, int $status): never {
     exit;
 }
 
+try {
+    $path=data_file();
+    if (is_file($path)) {
+        installer_page('Instalador encerrado','Existe uma base de dados neste servidor. A reinstalação e a substituição de dados são bloqueadas.',410);
+    }
+} catch (Throwable $e) {
+    error_log('Installer data path invalid: '.$e->getMessage());
+    installer_page('Instalação indisponível','Não foi possível validar o diretório privado de dados.',503);
+}
 $policy=strtoupper(trim((string)(getenv('BITDEER_INSTALL_POLICY') ?: '')));
 // A simple first installation without an additional secret is permitted only
 // from the hosting server itself. Remote first-admin creation remains locked.
 $host=parse_url('http://'.(string)($_SERVER['HTTP_HOST'] ?? ''),PHP_URL_HOST);
-$localSetup=$policy==='' &&
+$localSetup=$policy==='' && getenv('BITDEER_INSTALL_ALLOW_LOCAL')==='1' &&
     in_array((string)($_SERVER['REMOTE_ADDR'] ?? ''),['127.0.0.1','::1'],true) &&
     in_array($host,['localhost','127.0.0.1','::1'],true);
 $dnsDomain=($policy==='' && !$localSetup) ? install_domain() : null;
@@ -57,15 +66,6 @@ if ($policy==='C') {
     if (!$ips || !in_array($remote,$ips,true)) {
         installer_page('Acesso restrito','O endereço IP não está autorizado para instalação.',403);
     }
-}
-try {
-    $path=data_file();
-    if (is_file($path)) {
-        installer_page('Instalador encerrado','Existe uma base de dados neste servidor. A reinstalação e a substituição de dados são bloqueadas.',410);
-    }
-} catch (Throwable $e) {
-    error_log('Installer data path invalid: '.$e->getMessage());
-    installer_page('Instalação indisponível','Não foi possível validar o diretório privado de dados.',503);
 }
 $isSecure=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off');
 if (!$isSecure && !in_array($_SERVER['REMOTE_ADDR']??'',['127.0.0.1','::1'],true)) {
