@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { AuthUser, Plan, api } from '../../services/api';
 import { LogOut, RefreshCw, Users, CreditCard, Settings } from 'lucide-react';
 
-type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number};
+type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string};
+type MemberDetails = {member: Member & {phone: string;wallet_address:string}; contracts:Array<{id:number;plan_id:string;started_at:number;expires_at:number}>;orders:Array<{id:number;plan_id:string;status:string}>;balanceUsd:string;bonusSatoshis:number};
 type Order = {id:number; user_id:number; login:string; plan_id:string; status:string; created_at:number};
 export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({user,onLogout}) => {
   const [section,setSection]=useState<'members'|'plans'|'orders'|'settings'>('members');
@@ -10,6 +11,10 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   const [plans,setPlans]=useState<Plan[]>([]);
   const [orders,setOrders]=useState<Order[]>([]);
   const [filter,setFilter]=useState('');
+  const [statusFilter,setStatusFilter]=useState('');
+  const [offset,setOffset]=useState(0);
+  const [total,setTotal]=useState(0);
+  const [details,setDetails]=useState<MemberDetails|null>(null);
   const [email,setEmail]=useState('');
   const [selected,setSelected]=useState<Plan|null>(null);
   const [notice,setNotice]=useState('');
@@ -18,12 +23,12 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   async function refresh() {
     try {
       const [m,p,o,s]=await Promise.all([
-        api<{members:Member[]}>('admin.members'),
-        api<{plans:Plan[]}>('plans'),
+        api<{members:Member[];total:number}>('admin.members',undefined,{q:filter,status:statusFilter,offset}),
+        api<{plans:Plan[]}>('admin.plans'),
         api<{orders:Order[]}>('admin.orders'),
         api<{email:string}>('support'),
       ]);
-      setMembers(m.members);setPlans(p.plans);setOrders(o.orders);setEmail(s.email);
+      setMembers(m.members);setTotal(m.total);setPlans(p.plans);setOrders(o.orders);setEmail(s.email);
     } catch(e) {setNotice((e as Error).message);}
   }
   useEffect(()=>{void refresh()},[]);
@@ -47,13 +52,25 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       </h1><button aria-label="Atualizar" onClick={()=>void refresh()}><RefreshCw size={18}/></button></div>
       {notice && <p role="status" className="bg-[#292a40] p-3 rounded-lg text-amber-300 text-sm">{notice}</p>}
       {section==='members' && <>
-        <input placeholder="Filtrar membros" value={filter} onChange={e=>setFilter(e.target.value)}
-          className="bg-[#1b2137] p-3 rounded-xl w-full border border-[#2b3350]"/>
-        <div className="space-y-3">{members.filter(m=>(m.login+' '+m.display_name).toLowerCase().includes(filter.toLowerCase())).map(m=>
+        <form className="flex flex-wrap gap-2" onSubmit={e=>{e.preventDefault();setOffset(0);void refresh();}}>
+          <input placeholder="Buscar por usuário, nome ou e-mail" value={filter} onChange={e=>setFilter(e.target.value)}
+            className="flex-1 min-w-40 bg-[#1b2137] p-3 rounded-xl border border-[#2b3350]"/>
+          <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}
+            className="bg-[#1b2137] p-3 rounded-xl">
+            <option value="">Todos os estados</option><option value="active">Ativos</option>
+            <option value="suspended">Suspensos</option><option value="archived">Arquivados</option>
+          </select>
+          <button className={btn}>Pesquisar</button>
+        </form>
+        <p className="text-xs text-slate-400">{total} membro(s) · exibindo até 50 por página.</p>
+        <div className="space-y-3">{members.map(m=>
           <article key={m.id} className="rounded-xl p-4 bg-[#1b2137] border border-[#2b3350] flex flex-wrap gap-4 items-center justify-between">
-            <div><strong>#{m.id} {m.login}</strong><p className="text-xs text-slate-400">{m.display_name} · {m.status}</p></div>
+            <div><strong>#{m.id} {m.login}</strong><p className="text-xs text-slate-400">{m.display_name} · {m.status} · {m.plan_id}</p></div>
             <div className="flex flex-wrap gap-2">
-              <button disabled={busy} className={btn} onClick={()=>setEditingMember({...m})}>Editar</button>
+              <button disabled={busy} className={btn} onClick={()=>
+                void api<MemberDetails>('admin.member.details',undefined,{id:m.id})
+                  .then(d=>{setDetails(d);setEditingMember({...d.member});})
+                  .catch(e=>setNotice((e as Error).message))}>Detalhes / Editar</button>
               {m.status==='active' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'suspended'})}>Suspender</button>}
               {m.status==='suspended' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'active'})}>Reativar</button>}
               {m.status!=='archived' && <button disabled={busy} className={btn} onClick={()=>{
@@ -62,18 +79,30 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
               {m.status==='archived' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'active'})}>Restaurar</button>}
             </div>
           </article>)}</div>
+        <div className="flex gap-3 items-center">
+          <button disabled={offset===0} className={btn} onClick={()=>setOffset(Math.max(0,offset-50))}>Anterior</button>
+          <span className="text-xs">{Math.floor(offset/50)+1} / {Math.max(1,Math.ceil(total/50))}</span>
+          <button disabled={offset+50>=total} className={btn} onClick={()=>setOffset(offset+50)}>Próxima</button>
+        </div>
+        {details && <div className="bg-[#1b2137] rounded-xl p-4 space-y-2 text-sm">
+          <h3 className="font-semibold">Detalhes de #{details.member.id} — {details.member.login}</h3>
+          <p>Plano(s) contratados: {details.contracts.length}</p>
+          <p>Saldo interno: US$ {details.balanceUsd} · satoshis internos: {details.bonusSatoshis}</p>
+          <p>Últimos pedidos: {details.orders.length}</p>
+          <button className="text-indigo-300 underline" onClick={()=>setDetails(null)}>Fechar detalhes</button>
+        </div>}
         {editingMember && <form className="rounded-xl bg-[#1b2137] p-4 space-y-3"
           onSubmit={e=>{e.preventDefault();void change('admin.member.edit',{
             userId:editingMember.id,displayName:editingMember.display_name,
-            email:editingMember.email,
+            email:editingMember.email,phone:details?.member.phone ?? '',walletAddress:details?.member.wallet_address ?? '',
           });setEditingMember(null);}}>
           <strong>Editar perfil de {editingMember.login}</strong>
-          {(['display_name','email'] as const).map(k=><label key={k} className="block text-sm">
-            {k==='display_name'?'Nome':'E-mail'}
+          {(['display_name','email','phone','wallet_address'] as const).map(k=><label key={k} className="block text-sm">
+            {({display_name:'Nome',email:'E-mail',phone:'Telefone',wallet_address:'Endereço BTC'} as const)[k]}
             <input className="w-full bg-[#11182c] p-3 rounded-lg mt-1" value={editingMember[k]}
               onChange={e=>setEditingMember(m=>m?{...m,[k]:e.target.value}:m)}/>
           </label>)}
-          <p className="text-xs text-slate-400">Os campos não exibidos serão preservados sem alterações.</p>
+          <p className="text-xs text-slate-400">As credenciais e permissões administrativas não podem ser editadas por este formulário.</p>
           <button className={btn} disabled={busy}>Salvar perfil</button>
           <button type="button" className="ml-2 text-sm" onClick={()=>setEditingMember(null)}>Cancelar</button>
         </form>}
@@ -87,7 +116,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         })}>Criar novo plano</button>
         <div className="grid md:grid-cols-2 gap-3">{plans.map(p=><button key={p.id} onClick={()=>setSelected({...p})}
             className="text-left p-4 bg-[#1b2137] rounded-xl border border-[#2b3350]">
-          <strong>{p.name}</strong><p className="text-sm">US$ {p.priceUsd} · US$ {p.dailyUsd}/dia · revisão {p.revision}</p></button>)}</div>
+          <strong>{p.name}</strong><p className="text-sm">US$ {p.priceUsd} · US$ {p.dailyUsd}/dia · revisão {p.revision} · {p.available?'Disponível':'Arquivado'}</p></button>)}</div>
         {selected && <form onSubmit={e=>{
           e.preventDefault();void change('admin.plan.save',{
             id:selected.id,name:selected.name,

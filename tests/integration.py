@@ -48,6 +48,7 @@ alice_user=alice.call("login",{"login":"alice","password":"longpassword123"})["u
 assert alice_user["role"]=="member"
 assert alice.call("profile")["plan"]["id"]=="FREE"
 assert alice.call("profile")["plan"]["sessionSeconds"]==7200
+assert guest.call("admin.plans",expected=401)["error"]
 bonus=alice.call("rewards.claim",{})
 assert bonus["mining"]["bonusSatoshisBalance"]==10000
 alice.call("rewards.claim",{},409)
@@ -58,6 +59,10 @@ assert alice.call("profile")["plan"]["id"]=="FREE"
 
 admin=Client()
 assert admin.call("login",{"login":"adminci","password":"StrongCIpassword123!"})["user"]["role"]=="admin"
+assert admin.call("admin.members")["total"]==2
+assert len(admin.call("admin.plans")["plans"])==5
+assert admin.call("admin.member.details",expected=422)["error"]
+assert admin.call("admin.member.details",expected=422)["error"]
 admin.call("admin.order.approve",{"orderId":order["orderId"],"paymentConfirmed":False},422)
 admin.call("admin.order.approve",{"orderId":order["orderId"],"paymentConfirmed":True})
 assert alice.call("profile")["plan"]["dailyUsd"]=="3.00"

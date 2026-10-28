@@ -24,8 +24,10 @@ let csrfToken = '';
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
 }
-export async function api<T>(action: string, body?: Record<string, unknown>): Promise<T> {
-  const response = await fetch('/api/index.php?action=' + encodeURIComponent(action), {
+export async function api<T>(action: string, body?: Record<string, unknown>, query?: Record<string, string | number>): Promise<T> {
+  const params = new URLSearchParams({action});
+  for (const [key, value] of Object.entries(query || {})) params.set(key, String(value));
+  const response = await fetch('/api/index.php?' + params.toString(), {
     credentials: 'same-origin',
     method: body === undefined ? 'GET' : 'POST',
     headers: {

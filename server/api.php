@@ -305,13 +305,58 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     }
     if ($action === 'admin.members' && $method === 'GET') {
         auth_user($db,true);
-        $q=trim(substr((string)($_GET['q'] ?? ''),0,80));$offset=max(0,min(100000,(int)($_GET['offset'] ?? 0)));
+        $q=trim(substr((string)($_GET['q'] ?? ''),0,80));
+        $offset=max(0,min(100000,(int)($_GET['offset'] ?? 0)));
+        $status=(string)($_GET['status'] ?? '');
+        if ($status!=='' && !in_array($status,['active','suspended','archived'],true)) fail(422,'Filtro inválido');
+        $escape=static fn(string $v):string => str_replace(['!','%','_'],['!!','!%','!_'],$v);
+        $like='%'.$escape($q).'%';
+        $where=' WHERE u.role="member" AND (u.login LIKE ? ESCAPE "!" OR u.display_name LIKE ? ESCAPE "!" OR u.email LIKE ? ESCAPE "!")';
+        $params=[$like,$like,$like];
+        if ($status!=='') { $where.=' AND u.status=?'; $params[]=$status; }
+        $total=query_one($db,'SELECT COUNT(*) AS n FROM users u'.$where,$params);
         $list=query_all($db,'SELECT u.id,u.login,u.display_name,u.email,u.status,u.role,
-            COALESCE(m.balance_units,0) AS balance_units FROM users u
-            LEFT JOIN mining_state m ON m.user_id=u.id
-            WHERE u.role="member" AND (u.login LIKE ? OR u.display_name LIKE ?)
-            ORDER BY u.id DESC LIMIT 50 OFFSET ?', ['%'.$q.'%','%'.$q.'%',$offset]);
-        json_out(['members'=>$list]);
+            COALESCE(m.balance_units,0) AS balance_units,
+            COALESCE((SELECT c.plan_id FROM contracts c WHERE c.user_id=u.id AND c.started_at<=? AND c.expires_at>?
+             ORDER BY c.id DESC LIMIT 1),"FREE") AS plan_id FROM users u
+            LEFT JOIN mining_state m ON m.user_id=u.id'.$where.'
+            ORDER BY u.id DESC LIMIT 50 OFFSET ?',
+            [now(),now(),...$params,$offset]);
+        json_out(['members'=>$list,'total'=>(int)$total['n'],'offset'=>$offset,'pageSize'=>50]);
+    }
+    if ($action === 'admin.member.details' && $method === 'GET') {
+        auth_user($db,true);
+        $id=filter_var($_GET['id'] ?? null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
+        if ($id===false || $id===null) fail(422,'Identificador inválido');
+        $user=query_one($db,'SELECT id,login,role,status,display_name,email,phone,wallet_address,
+            created_at,updated_at FROM users WHERE id=? AND role="member"',[$id]);
+        if (!$user) fail(404,'Membro não encontrado');
+        $contracts=query_all($db,'SELECT id,plan_id,plan_snapshot_json,started_at,expires_at
+            FROM contracts WHERE user_id=? ORDER BY id DESC LIMIT 30',[$id]);
+        $orders=query_all($db,'SELECT id,plan_id,status,created_at,expires_at
+            FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 30',[$id]);
+        $balance=query_one($db,'SELECT balance_units,bonus_satoshis_balance FROM mining_state WHERE user_id=?',[$id]);
+        json_out(['member'=>$user,'contracts'=>$contracts,'orders'=>$orders,
+            'balanceUsd'=>units_usd((int)($balance['balance_units']??0)),
+            'bonusSatoshis'=>(int)($balance['bonus_satoshis_balance']??0)]);
+    }
+    if ($action === 'admin.plans' && $method === 'GET') {
+        auth_user($db,true);
+        $plans=query_all($db,'SELECT * FROM plans ORDER BY price_cents,id');
+        $out=[];
+        foreach ($plans as $p) {
+            $mapped=canonical_plan($p);
+            $count=query_one($db,'SELECT COUNT(*) AS n FROM contracts WHERE plan_id=?
+                AND started_at<=? AND expires_at>?',[$p['id'],now(),now()]);
+            $mapped['activeContracts']=(int)($count['n'] ?? 0);
+            $out[]=$mapped;
+        }
+        json_out(['plans'=>$out]);
+    }
+    if ($action === 'admin.audit' && $method === 'GET') {
+        auth_user($db,true);
+        json_out(['actions'=>query_all($db,'SELECT id,admin_id,action,target_user_id,details_json,created_at
+            FROM admin_audit ORDER BY id DESC LIMIT 100')]);
     }
     if ($action === 'admin.orders' && $method === 'GET') {
         auth_user($db,true);
