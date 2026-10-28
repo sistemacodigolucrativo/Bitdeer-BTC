@@ -197,7 +197,7 @@ admin.call("admin.status",{"userId":alice_user["id"],"status":"archived"})
 alice3.call("profile",expected=401)
 admin.call("admin.status",{"userId":alice_user["id"],"status":"active"})
 admin.call("admin.password.reset",{"userId":alice_user["id"],"verificationId":1,"newPassword":"CIExampleValueOnly123"},403)
-alice3.call("admin.identity.verify",{"userId":alice_user["id"],
+bob_order_client.call("admin.identity.verify",{"userId":alice_user["id"],
   "verificationMethod":"approved","verificationReference":"ref-000123"},403)
 admin.call("admin.identity.verify",{"userId":alice_user["id"],
   "verificationMethod":"approved","verificationReference":"bad"},422)
