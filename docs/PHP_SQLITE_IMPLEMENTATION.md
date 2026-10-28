@@ -16,12 +16,16 @@ mas seus saldos simulados em localStorage não devem ser apresentados como dados
 
 ## Instalador e pendências
 
-Decisão técnica 13 continua pendente. Em razão disso, o endpoint de navegador
-/install/ responde **423 Locked** por padrão. Não foi escolhida nenhuma das
-alternativas A, B ou C.
+Decisão técnica 13 continua pendente. O instalador browser está implementado
+e suporta políticas A, B e C, mas **nenhuma política é selecionada por padrão**.
+Sem as variáveis de autorização exigidas, /install/ responde HTTP 423.
+O instalador testa chave privada e CSRF, cria SQLite em diretório privado
+e impede uma segunda instalação. Consulte docs/DEPLOYMENT.md para ativação
+somente após decisão explícita do proprietário.
 
-Existe um provisionamento CLI limitado a ambiente de teste/desenvolvimento.
-Isto não substitui a instalação por navegador especificada para a entrega final.
+O provisionamento CLI continua disponível apenas para testes/desenvolvimento.
+O assistente de navegador agora faz o provisionamento inicial completo, mas
+só pode ser habilitado com a proteção explícita da decisão nº 13.
 
 Em um ambiente isolado, fora de produção:
 
@@ -39,9 +43,10 @@ no servidor. Só contas de membro podem acessar perfil e mineração.
 - register, login, session, logout, profile, profile.update
 - plans, orders.create, orders.mine, mining.start, mining.stop,
   rewards.claim, ledger
-- support (destinatário público)
+- support, support.ticket.create, support.tickets.mine
+- admin.support.tickets, admin.support.status, admin.support.notify
 - admin.members, admin.status, admin.member.edit, admin.orders, admin.order.approve
-- admin.plan.save, admin.settings
+- admin.plan.save, admin.settings, admin.payment.settings, admin.overview
 
 A redefinição de senha usa verificação administrativa registrada. O administrador
 precisa verificar a identidade por canal independente, reautenticar com sua
@@ -59,18 +64,24 @@ pelo administrador, contratos VIP com snapshots e cálculo de recompensa por
 tempo decorrido e relógio do servidor, com transações SQLite.
 
 O saldo aqui representa **recompensas internas**, não comprovação de BTC
-efetivamente minerado nem saldo em blockchain. Os bônus USD e satoshis têm registro de resgate diário na API e histórico
-consultável. A integração com o sistema antigo de resgates e sua UX permanece pendente.
+efetivamente minerado nem saldo em blockchain. Os bônus USD e satoshis têm resgate diário e histórico no SQLite. A interface
+de membros acessa esses dados pela API, sem usar o antigo localStorage como
+fonte de verdade.
 
 ## Pendências antes de publicar
 
-- Decisão 13, instalador browser e ensaios de reinstalação.
+- Decisão 13: definir qual política será realmente ativada na hospedagem;
+  os três modos e o bloqueio de reinstalação têm testes isolados.
 - Política sobre efeito da suspensão na data de vencimento VIP; atualmente a
   data contratada continua correndo sem créditos durante suspensão.
 - Formalização operacional dos métodos de verificação de identidade: a
   verificação manual já é registrada, mas depende de procedimento humano.
-- Integração final com checkout BTC, carteiras, bônus, cotação e todos os
-  widgets do aplicativo legado, com regressão visual.
+- Reconciliar todos os componentes visuais do aplicativo legado,
+  incluindo internacionalização completa e estados responsivos.
+- Verificar domínio/HTTPS e se a confirmação de endereço BTC é feita
+  pelo responsável por controlar a carteira, não somente pelo painel.
+- Configurar efetivamente o serviço de e-mail caso tickets devam gerar
+  notificações; tickets são persistidos mesmo sem transporte de e-mail.
 - Confirmar requisitos da hospedagem (PHP, PDO SQLite e diretórios privados).
 - Deploy/publicação só com autorização específica.
 
@@ -117,3 +128,20 @@ reintroduzida no novo workspace, mas o layout interno ainda não foi
 reconciliado pixel a pixel com os componentes React antigos.
 Esses componentes continuam no repositório e só devem ser
 reintegrados após consumir a API sem leitura de saldos de localStorage.
+
+
+## Pacote de implantação sem publicação automática
+
+A CI gera um arquivo ZIP para homologação contendo uma pasta publica
+para o React compilado e rotas PHP, e outra pasta privada para o backend
+e SQLite. Não contém credenciais e não faz deploy. Consulte
+docs/DEPLOYMENT.md antes de usar; a raiz pública do domínio
+deve apontar apenas para public_html.
+
+A autenticação administrativa exige confirmação da posse do endereço
+BTC antes de criar novos pedidos. O valor é armazenado no SQLite,
+e o estado de confirmação pode ser revogado pelo administrador.
+
+Tickets de suporte são registrados em support_tickets, e as
+notificações por e-mail são opt-in no servidor. Uma notificação
+aceita pelo transporte não significa entrega comprovada.
