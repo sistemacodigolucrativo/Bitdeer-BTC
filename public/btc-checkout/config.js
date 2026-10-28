@@ -1,12 +1,12 @@
 /**
- * config.js — Fonte única da verdade (Planos, Endereço BTC de Produção, Expiração, Fontes de Cotação e MOCK_MODE=false)
+ * config.js — Referência histórica do checkout desativado; não é fonte ativa de pagamentos
  * SEGURANÇA: Apenas endereço público de recebimento. NUNCA inclua chaves privadas no front-end.
  */
 export const CONFIG = {
-  MOCK_MODE: false,
+  MOCK_MODE: true,
 
-  // Endereço BTC de recebimento oficial (Mainnet, SegWit nativo Bech32)
-  BTC_ADDRESS: 'bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z',
+  // Rota legada desativada. O recebimento é configurado apenas no SQLite pelo administrador.
+  BTC_ADDRESS: '',
 
   // Cache em memória da cotação (45 segundos — entre 30 e 60s)
   QUOTE_CACHE_TTL_MS: 45_000,
