@@ -7,6 +7,7 @@ import { translations } from '../i18n/translations';
 import QRCode from 'qrcode';
 import { ServerHomeView } from './ServerHomeView';
 import { ServerStoreView } from './ServerStoreView';
+import { ServerWalletView } from './ServerWalletView';
 import { memberTexts } from '../i18n/memberTexts';
 
 type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history';
@@ -116,21 +117,8 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
           <p className="text-xs text-slate-400">{words.bonusNotice}</p>
           <button className="text-sm underline text-indigo-300" onClick={()=>setPage('history')}>{words.rewardHistory}</button>
         </section>}
-        {page==='wallet' && <section className="space-y-4">
-          <h2 className="text-lg font-bold">{words.wallet}</h2>
-          <div className="p-5 bg-[#1b2137] rounded-2xl border border-[#2b3350] space-y-2">
-            <p className="text-xs text-slate-400">{words.internalBalance}</p>
-            <p className="text-3xl font-bold">US$ {account?.mining.balanceUsd || '0.00000000'}</p>
-            <p className="text-xs text-slate-400" >{words.internalSatsBalance}: {account?.mining.bonusSatoshisBalance || 0}</p>
-          </div>
-          <p className="text-xs text-amber-300">{words.walletNotice}</p>
-          <div className="p-4 bg-[#1b2137] rounded-2xl border border-[#2b3350]">
-            <p className="text-xs text-slate-400">{words.bitcoinAddress}</p>
-            <p className="text-xs break-all mt-2">{account?.profile.walletAddress || words.noWallet}</p>
-          </div>
-          <button className="text-sm underline text-indigo-300" onClick={()=>setPage('profile')}>{words.editWallet}</button>
-          <button className="block text-sm underline text-indigo-300" onClick={()=>setPage('history')}>{words.history}</button>
-        </section>}
+        {page==='wallet' && <ServerWalletView account={account} language={language}
+          accruals={ledger.accruals} onEdit={()=>setPage('profile')} onHistory={()=>setPage('history')}/>}
         {page==='settings' && <section className="space-y-3">
           <h2 className="text-lg font-bold">{words.settings}</h2>
           <p className="text-xs text-slate-400">{words.account}: {user.login} · Usuário ID #{user.id}</p>
