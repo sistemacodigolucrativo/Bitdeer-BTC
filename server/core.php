@@ -9,9 +9,10 @@ date_default_timezone_set('UTC');
 
 function data_file(): string {
     $custom = getenv('BITDEER_DB_PATH');
-    $path = $custom !== false && $custom !== ''
-        ? $custom
-        : dirname(__DIR__, 2) . '/bitdeer-private-data/bitdeer.sqlite';
+    $packaged=dirname(__DIR__).'/data';
+    $default=is_dir($packaged) ? $packaged.'/bitdeer.sqlite'
+      : dirname(__DIR__, 2).'/bitdeer-private-data/bitdeer.sqlite';
+    $path=($custom !== false && $custom !== '') ? $custom : $default;
     if (!str_starts_with($path, '/')) {
         throw new RuntimeException('BITDEER_DB_PATH must be an absolute path');
     }
