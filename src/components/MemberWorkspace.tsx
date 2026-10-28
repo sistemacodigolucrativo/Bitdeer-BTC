@@ -50,6 +50,23 @@ export const MemberWorkspace: React.FC<{
   const [withdrawAmount,setWithdrawAmount]=useState('');
   type WithdrawRequest={id:number;usd_cents:number;btc_satoshis:number;status:'pending'|'awaiting_vip'|'approved'|'rejected';created_at:number};
   const [withdrawHistory,setWithdrawHistory]=useState<WithdrawRequest[]>([]);
+  // The PHP/SQLite profile is authoritative. Only complete USD cents can be
+  // requested; fractional accruals are not counted as withdrawable cents.
+  // The BTC figure is a quote-based equivalent of that very same USD balance,
+  // not a separately held on-chain Bitcoin balance.
+  const availableUsdCents=Math.max(0,Math.floor((account?.mining.balanceUnits??0)/8640000));
+  const validQuote=btcUsd!==null && Number.isFinite(btcUsd) && btcUsd>0 &&
+    btcQuote!==null && Date.now()/1000-btcQuote.quotedAt>=0 &&
+    Date.now()/1000-btcQuote.quotedAt<60;
+  const availableBtcSatoshis=validQuote&&btcUsd!==null
+    ? Math.floor(availableUsdCents/100*100000000/btcUsd)
+    : null;
+  const availableAmount=withdrawMode==='USD'
+    ? 'US$ '+new Intl.NumberFormat(dateLocale,{minimumFractionDigits:2,maximumFractionDigits:2})
+        .format(availableUsdCents/100)
+    : availableBtcSatoshis!==null
+      ? (availableBtcSatoshis/100000000).toFixed(8)+' BTC'
+      : '— BTC';
   useEffect(() => {
     if (!checkout) {setCheckoutQr('');return;}
     const bip21='bitcoin:'+checkout.btcAddress+'?amount='+checkout.btcAmount;
@@ -154,6 +171,26 @@ export const MemberWorkspace: React.FC<{
         onClick={()=>{setWalletStep('none');setPage('wallet');}}><ArrowLeft size={18}/> Voltar à carteira</button>
       <h2 className="text-xl font-bold">Solicitação de Saque</h2>
       {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-amber-300 text-xs">{notice}</p>}
+      <section data-testid="withdraw-available-card" aria-live="polite"
+        className="rounded-2xl border border-[#303b59] bg-[#191e32] px-4 py-5 space-y-2">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+          {withdrawMode==='USD'
+            ? language==='en'?'Available balance in USD':language==='es'?'Saldo disponible en USD':'Saldo disponível em USD'
+            : language==='en'?'Available balance in BTC':language==='es'?'Saldo disponible en BTC':'Saldo disponível em BTC'}
+        </p>
+        <strong data-testid="withdraw-available-amount"
+          className="block text-2xl font-black font-mono text-emerald-300 tabular-nums break-all">
+          {availableAmount}
+        </strong>
+        <p className="text-[11px] text-slate-400">
+          {language==='en'?'Internal credits available for requests; this is not a blockchain BTC balance.':
+            language==='es'?'Créditos internos disponibles para solicitudes; no es saldo BTC en blockchain.':
+            'Créditos internos disponíveis para solicitação, não saldo BTC na blockchain.'}
+        </p>
+        {withdrawMode==='BTC'&&!validQuote&&<p className="text-xs text-amber-300">
+          {language==='en'?'BTC/USD quote unavailable.':language==='es'?'Cotización BTC/USD no disponible.':'Cotação BTC/USD indisponível.'}
+        </p>}
+      </section>
           {walletStep!=='none' && <section className="bg-[#1b2137] border border-indigo-500 rounded-2xl p-4 space-y-3">
             <div className="flex justify-between items-center">
               <h3 className="font-bold">{walletStep==='register'?'Cadastrar carteira Bitcoin':'Solicitar saque interno'}</h3>
