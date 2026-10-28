@@ -91,6 +91,14 @@ CREATE TABLE IF NOT EXISTS bonus_claims (
   UNIQUE(user_id, claimed_at)
 );
 CREATE INDEX IF NOT EXISTS idx_bonus_claims_user ON bonus_claims(user_id, claimed_at);
+CREATE TABLE IF NOT EXISTS identity_checks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  member_id INTEGER NOT NULL REFERENCES users(id),
+  admin_id INTEGER NOT NULL REFERENCES users(id),
+  verified_method TEXT NOT NULL, verification_reference TEXT NOT NULL,
+  verified_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_identity_checks ON identity_checks(member_id,admin_id,expires_at);
 CREATE TABLE IF NOT EXISTS admin_audit (
   id INTEGER PRIMARY KEY AUTOINCREMENT, admin_id INTEGER NOT NULL REFERENCES users(id),
   action TEXT NOT NULL, target_user_id INTEGER REFERENCES users(id),

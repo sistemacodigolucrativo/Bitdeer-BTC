@@ -493,9 +493,56 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         });
         json_out(['ok'=>true]);
     }
+    if ($action === 'admin.identity.verify' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);
+        $body=request_body();
+        $memberId=param_id($body,'userId');
+        $method=string_field($body,'verificationMethod',40);
+        $reference=string_field($body,'verificationReference',150);
+        $password=$body['adminPassword'] ?? null;
+        if (($body['identityConfirmed'] ?? false)!==true ||
+            !in_array($method,['in_person','known_contact','other_offline'],true) ||
+            mb_strlen($reference)<6 || !is_string($password)) {
+            fail(422,'Verificação independente da identidade deve ser registrada antes da redefinição');
+        }
+        $admin=query_one($db,'SELECT password_hash FROM users WHERE id=? AND role="admin" AND status="active"',[$actor['id']]);
+        if (!$admin || !password_verify($password,$admin['password_hash'])) {
+            fail(403,'Reautenticação administrativa inválida');
+        }
+        $checkId=atomic($db, static function () use ($db,$actor,$memberId,$method,$reference): int {
+            $member=query_one($db,'SELECT id FROM users WHERE id=? AND role="member" AND status!="archived"',[$memberId]);
+            if (!$member) fail(404,'Membro indisponível');
+            $time=now();
+            execute_sql($db,'INSERT INTO identity_checks(member_id,admin_id,verified_method,verification_reference,verified_at,expires_at)
+                VALUES (?,?,?,?,?,?)',[$memberId,$actor['id'],$method,$reference,$time,$time+600]);
+            $id=(int)$db->lastInsertId();
+            audit($db,(int)$actor['id'],'identity.verification',$memberId,['method'=>$method,'checkId'=>$id]);
+            return $id;
+        });
+        json_out(['verificationId'=>$checkId,'validForSeconds'=>600]);
+    }
     if ($action === 'admin.password.reset' && $method === 'POST') {
-        auth_user($db,true);
-        fail(409,'Redefinição bloqueada até definição do procedimento de verificação de identidade');
+        $actor=require_post_csrf($db,true);
+        $body=request_body();
+        $memberId=param_id($body,'userId');
+        $checkId=param_id($body,'verificationId');
+        $newPassword=$body['newPassword'] ?? null;
+        if (!is_string($newPassword) || !validate_password($newPassword)) {
+            fail(422,'Nova senha deve ter de 10 a 256 caracteres');
+        }
+        $hashed=secure_password($newPassword);
+        atomic($db, static function() use ($db,$actor,$memberId,$checkId,$hashed): void {
+            $check=query_one($db,'SELECT id FROM identity_checks WHERE id=? AND member_id=? AND admin_id=?
+                  AND consumed_at IS NULL AND expires_at>=?',[$checkId,$memberId,$actor['id'],now()]);
+            if (!$check) fail(403,'Verificação de identidade ausente, expirada ou já utilizada');
+            $member=query_one($db,'SELECT id FROM users WHERE id=? AND role="member" AND status!="archived"',[$memberId]);
+            if (!$member) fail(404,'Membro indisponível');
+            execute_sql($db,'UPDATE users SET password_hash=?,updated_at=? WHERE id=?',[$hashed,now(),$memberId]);
+            execute_sql($db,'UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL',[now(),$memberId]);
+            execute_sql($db,'UPDATE identity_checks SET consumed_at=? WHERE id=?',[now(),$checkId]);
+            audit($db,(int)$actor['id'],'member.password.reset',$memberId,['verificationId'=>$checkId,'sessionsRevoked'=>true]);
+        });
+        json_out(['ok'=>true]);
     }
     fail(404,'Operação não encontrada');
 }

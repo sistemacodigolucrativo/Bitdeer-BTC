@@ -20,6 +20,12 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   const [selected,setSelected]=useState<Plan|null>(null);
   const [notice,setNotice]=useState('');
   const [editingMember,setEditingMember]=useState<Member|null>(null);
+  const [verificationMethod,setVerificationMethod]=useState('known_contact');
+  const [verificationReference,setVerificationReference]=useState('');
+  const [adminPassword,setAdminPassword]=useState('');
+  const [newMemberPassword,setNewMemberPassword]=useState('');
+  const [identityConfirmed,setIdentityConfirmed]=useState(false);
+  const [verificationId,setVerificationId]=useState<number|null>(null);
   const [busy,setBusy]=useState(false);
   async function refresh() {
     try {
@@ -71,7 +77,8 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
             <div className="flex flex-wrap gap-2">
               <button disabled={busy} className={btn} onClick={()=>
                 void api<MemberDetails>('admin.member.details',undefined,{id:m.id})
-                  .then(d=>{setDetails(d);setEditingMember({...d.member});})
+                  .then(d=>{setDetails(d);setEditingMember({...d.member});setVerificationId(null);
+                    setIdentityConfirmed(false);setNewMemberPassword('');setAdminPassword('');setVerificationReference('');})
                   .catch(e=>setNotice((e as Error).message))}>Detalhes / Editar</button>
               {m.status==='active' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'suspended'})}>Suspender</button>}
               {m.status==='suspended' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'active'})}>Reativar</button>}
@@ -108,7 +115,50 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
           <button className={btn} disabled={busy}>Salvar perfil</button>
           <button type="button" className="ml-2 text-sm" onClick={()=>setEditingMember(null)}>Cancelar</button>
         </form>}
-        <p className="text-xs text-slate-400">Redefinição de senha bloqueada até aprovação do procedimento de verificação de identidade.</p>
+        {editingMember && <section className="rounded-xl bg-[#1b2137] p-4 space-y-3">
+          <h3 className="font-bold text-sm">Redefinição administrativa de senha</h3>
+          <p className="text-xs text-amber-300">Verifique a identidade do membro por meio independente antes de emitir a autorização. Não registre documentos, senhas ou dados sensíveis no campo de referência.</p>
+          <select value={verificationMethod} onChange={e=>setVerificationMethod(e.target.value)}
+            className="bg-[#11182c] w-full p-3 rounded-lg text-sm">
+            <option value="known_contact">Contato já conhecido e confirmado</option>
+            <option value="in_person">Verificação presencial</option>
+            <option value="other_offline">Outro método independente</option>
+          </select>
+          <input value={verificationReference} onChange={e=>setVerificationReference(e.target.value)}
+            placeholder="Referência da verificação realizada (mín. 6 caracteres)"
+            className="w-full bg-[#11182c] p-3 rounded-lg text-sm"/>
+          <input type="password" autoComplete="current-password"
+            value={adminPassword} onChange={e=>setAdminPassword(e.target.value)}
+            placeholder="Confirme sua senha de administrador" className="w-full bg-[#11182c] p-3 rounded-lg text-sm"/>
+          <label className="text-xs flex gap-2 items-start"><input type="checkbox" checked={identityConfirmed}
+            onChange={e=>setIdentityConfirmed(e.target.checked)}/>
+            Confirmo ter verificado pessoalmente a identidade do membro por canal independente.</label>
+          <button disabled={busy || !identityConfirmed} className={btn} onClick={()=>{
+            if(!editingMember)return;
+            setBusy(true);setNotice('');
+            void api<{verificationId:number}>('admin.identity.verify',{
+              userId:editingMember.id,verificationMethod,verificationReference,
+              adminPassword,identityConfirmed
+            }).then(result=>{setVerificationId(result.verificationId);setAdminPassword('');
+              setNotice('Verificação registrada. Autorização válida por 10 minutos.');})
+              .catch(e=>setNotice((e as Error).message)).finally(()=>setBusy(false));
+          }}>Registrar verificação de identidade</button>
+          {verificationId!==null && <div className="space-y-3 border-t border-[#2b3350] pt-3">
+            <label className="text-xs block">Nova senha
+              <input type="password" minLength={10} maxLength={256}
+                autoComplete="new-password" value={newMemberPassword} onChange={e=>setNewMemberPassword(e.target.value)}
+                className="w-full bg-[#11182c] rounded-lg p-3 mt-1"/>
+            </label>
+            <button disabled={busy || newMemberPassword.length<10} className={btn} onClick={()=>{
+              if(!editingMember)return;
+              setBusy(true);setNotice('');
+              void api('admin.password.reset',{userId:editingMember.id,verificationId,newPassword:newMemberPassword})
+                .then(()=>{setVerificationId(null);setNewMemberPassword('');
+                  setNotice('Senha redefinida. Sessões existentes revogadas. Informe a nova senha ao membro por canal seguro.');})
+                .catch(e=>setNotice((e as Error).message)).finally(()=>setBusy(false));
+            }}>Redefinir senha e revogar sessões</button>
+          </div>}
+        </section>}
       </>}
       {section==='plans' && <>
         <p className="text-xs text-slate-400">As alterações afetam apenas futuras contratações; contratos existentes mantêm os valores da contratação.</p>

@@ -43,8 +43,13 @@ no servidor. Só contas de membro podem acessar perfil e mineração.
 - admin.members, admin.status, admin.member.edit, admin.orders, admin.order.approve
 - admin.plan.save, admin.settings
 
-**Bloqueado:** admin.password.reset, até definir procedimento concreto para
-verificação de identidade do membro. Senhas antigas não são recuperáveis.
+A redefinição de senha usa verificação administrativa registrada. O administrador
+precisa verificar a identidade por canal independente, reautenticar com sua
+senha, registrar o método e a referência não sensível e usar uma autorização
+única válida por 10 minutos. A nova senha é armazenada em hash e todas as
+sessões antigas são revogadas. O sistema não comprova de forma automática
+que a verificação externa foi realmente executada: isso é responsabilidade
+do administrador.
 
 ## Regras cobertas
 
@@ -62,7 +67,8 @@ consultável. A integração com o sistema antigo de resgates e sua UX permanece
 - Decisão 13, instalador browser e ensaios de reinstalação.
 - Política sobre efeito da suspensão na data de vencimento VIP; atualmente a
   data contratada continua correndo sem créditos durante suspensão.
-- Verificação de identidade para reset de senha.
+- Formalização operacional dos métodos de verificação de identidade: a
+  verificação manual já é registrada, mas depende de procedimento humano.
 - Integração final com checkout BTC, carteiras, bônus, cotação e todos os
   widgets do aplicativo legado, com regressão visual.
 - Confirmar requisitos da hospedagem (PHP, PDO SQLite e diretórios privados).

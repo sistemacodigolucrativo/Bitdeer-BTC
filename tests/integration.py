@@ -99,5 +99,17 @@ assert alice3.call("profile")["mining"]["balanceUsd"]==balance, "no retroactive 
 admin.call("admin.status",{"userId":alice_user["id"],"status":"archived"})
 alice3.call("profile",expected=401)
 admin.call("admin.status",{"userId":alice_user["id"],"status":"active"})
-admin.call("admin.password.reset",{},409)
+admin.call("admin.password.reset",{},422)
+admin.call("admin.identity.verify",{"userId":alice_user["id"],"verificationMethod":"known_contact",
+  "verificationReference":"ref-000123","adminPassword":"wrongpassword","identityConfirmed":True},403)
+verification=admin.call("admin.identity.verify",{"userId":alice_user["id"],
+  "verificationMethod":"known_contact","verificationReference":"ref-000123",
+  "adminPassword":"StrongCIpassword123!","identityConfirmed":True})
+assert admin.call("admin.password.reset",{"userId":alice_user["id"],
+  "verificationId":verification["verificationId"],"newPassword":"NewStrongPassword456!"})["ok"]
+admin.call("admin.password.reset",{"userId":alice_user["id"],
+  "verificationId":verification["verificationId"],"newPassword":"NewStrongPassword456!"},403)
+newsession=Client()
+newsession.call("login",{"login":"alice","password":"longpassword123"},401)
+assert newsession.call("login",{"login":"alice","password":"NewStrongPassword456!"})["user"]["id"]==alice_user["id"]
 print("PASS: registration, login, RBAC, immutable VIP, manual approval, mining accrual, suspension, archive, sessions")
