@@ -37,6 +37,25 @@ try {
   await page.getByRole('button',{name:/Resgatar ambos os bônus diários|Claim both daily bonuses|Reclamar ambos bonos diarios/i})
     .waitFor({timeout:10000});
   await page.locator('nav button').first().click();
+  // Verify visual interpolation uses backend-authoritative running state and increases
+  // while mining, without writing local browser balances.
+  const homeValue=page.getByTestId('mining-live-usd');
+  await homeValue.waitFor({timeout:10000});
+  await page.getByRole('button',{name:/Iniciar Mineração|Start Mining|Iniciar Minería/}).click();
+  await page.getByRole('button',{name:/Mineração Ativa|Mining Active|Minería Activa/}).waitFor({timeout:10000});
+  const firstUsd=await homeValue.innerText();
+  await page.waitForTimeout(2500);
+  const secondUsd=await homeValue.innerText();
+  const displayedUsd=s=>Number(s.match(/US\\$\\s*([\\d.]+)/)?.[1]??NaN);
+  if(!(displayedUsd(secondUsd)>displayedUsd(firstUsd)))throw Error('Live mining USD not increasing');
+  await page.locator('nav button').nth(3).click();
+  const walletBalance=page.getByTestId('wallet-live-usd');
+  await walletBalance.waitFor({timeout:10000});
+  const firstWallet=await walletBalance.innerText();
+  await page.waitForTimeout(2100);
+  const secondWallet=await walletBalance.innerText();
+  if(!(displayedUsd(secondWallet)>displayedUsd(firstWallet)))throw Error('Live wallet USD not increasing');
+  await page.locator('nav button').first().click();
   for(let i=0;i<5;i++){
     await page.locator('nav button').nth(i).click();
     await page.waitForTimeout(200);

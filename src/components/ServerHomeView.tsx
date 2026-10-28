@@ -69,7 +69,7 @@ export const ServerHomeView: React.FC<Props> = ({
           {language==='en'?'Bitcoin counter - BTC':language==='es'?'Contador de Bitcoin - BTC':'Contador de Bitcoin - BTC'}
         </p>
         <strong className="text-2xl font-bold font-mono text-amber-300">{estimatedBtc} BTC</strong>
-        <p className="text-xs text-slate-300 mt-1">
+        <p data-testid="mining-live-usd" className="text-xs text-slate-300 mt-1">
           {language==='en'?'Estimated USD equivalent':language==='es'?'Equivalencia estimada en USD':'Equivalência estimada em USD'}:
           {' '}US$ {liveBalanceUsd.toFixed(8)}
         </p>
