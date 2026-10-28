@@ -20,7 +20,7 @@ O instalador aceita a primeira instalação via domínio com desafio DNS TXT
 aleatório de sessão. A prova verifica domínio canônico do servidor,
 sem chave pré-configurada, e não se confunde com visita pública à página.
 A verificação DNS real depende de um domínio operacional controlado pelo
-proprietário. O modo local sem chave permanece como alternativa.
+proprietário. O modo local sem chave permanece como alternativa opt-in com BITDEER_INSTALL_ALLOW_LOCAL=1 em ambiente local.
 Ambos têm CSRF e bloqueio após instalação. Veja docs/DEPLOYMENT.md.
 
 O provisionamento por CLI permanece disponível para testes isolados.

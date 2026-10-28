@@ -24,8 +24,9 @@ private/data é a pasta destinada ao banco SQLite e NÃO deve ser pública.
    O código aleatório expira em 30 minutos, só vale naquela sessão e
    a instalação é bloqueada após criar o SQLite e o administrador.
    A verificação exige dns_get_record (DNS TXT habilitado no PHP).
-5. Instalação por acesso local/loopback continua disponível sem etapa DNS.
-   Não exponha a interface local a terceiros por proxy sem autenticação.
+5. A alternativa local/loopback precisa de habilitação explícita do servidor
+   (BITDEER_INSTALL_ALLOW_LOCAL=1) e acesso efetivamente local. Não habilite
+   em uma interface pública atrás de proxy. Para o uso normal, utilize o DNS TXT.
    Se o servidor não identificar um host canônico confiável, o instalador
    NÃO liberará cadastro remoto de administrador; corrija o virtual host.
 6. Formulário: login do primeiro administrador, senha e e-mail de suporte.

@@ -18,7 +18,7 @@
 ## Requisitos que dependem da operação real
 
 1. **Hospedagem:** apontar DocumentRoot para public_html, manter private fora do acesso público e confirmar HTTPS, PHP >= 8.2, PDO SQLite e permissões. Não há servidor de hospedagem conectado a esta automação.
-2. **Primeira instalação:** para usar o domínio, publique o TXT temporário _bitdeer-install e comprove controle do DNS; também há modo local. A reinstalação permanece bloqueada.
+2. **Primeira instalação:** para usar o domínio, publique o TXT temporário _bitdeer-install e comprove controle do DNS; o modo local exige BITDEER_INSTALL_ALLOW_LOCAL=1. A reinstalação permanece bloqueada.
 3. **Recebimento BTC:** o responsável deve controlar e confirmar independentemente o endereço pelo painel administrativo. Até isso ocorrer, novos pedidos permanecem bloqueados. O código não executa verificação na blockchain.
 4. **Suporte:** configure e verifique o transporte de e-mail no ambiente real. Tickets são persistidos mesmo sem entrega de mensagens. A opção mail() não confirma entrega final.
 5. **Identidade:** aplique o procedimento manual em IDENTITY_AND_PASSWORD_RESETS.md. A confirmação registrada depende da verificação humana.
