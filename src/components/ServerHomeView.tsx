@@ -51,7 +51,7 @@ export const ServerHomeView: React.FC<Props> = ({
         {(account?.profile.displayName || account?.user.login || 'M').charAt(0).toUpperCase()}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] text-slate-400 truncate">{t.greeting}</p>
+        <p className="text-[11px] text-slate-400 truncate">{language==='en'?'Welcome back':language==='es'?'Bienvenido de nuevo':'Boas-vindas'}</p>
         <p className="text-sm font-extrabold text-white truncate">{account?.profile.displayName || account?.user.login || 'Membro'}</p>
       </div>
       <button aria-label={d.check} onClick={onRefresh} className="text-slate-300"><RefreshCw size={18}/></button>

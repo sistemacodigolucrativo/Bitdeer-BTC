@@ -112,7 +112,7 @@ export const MemberWorkspace: React.FC<{
           accruals={ledger.accruals} onEdit={()=>setPage('profile')} onHistory={()=>setPage('history')}/>}
         {page==='settings' && <section className="space-y-3">
           <h2 className="text-lg font-bold">{words.settings}</h2>
-          <p className="text-xs text-slate-400">{words.account}: {user.login} · Usuário ID #{user.id}</p>
+          <p className="text-xs text-slate-400">{words.account}: {user.login} · {language==='en'?'User ID':language==='es'?'ID de usuario':'ID do usuário'} #{user.id}</p>
           <label className="flex items-center justify-between bg-[#1b2137] rounded-xl border border-[#2b3350] p-4 text-sm">
             <span>{language==='en'?'Language':language==='es'?'Idioma':'Idioma'}</span>
             <select value={language} onChange={e=>onChangeLanguage(e.target.value as LanguageCode)}
@@ -143,7 +143,7 @@ export const MemberWorkspace: React.FC<{
             <p className="text-sm" >{words.price}: US$ {checkout.priceUsd}</p>
             <p className="text-sm" >{words.exactAmount}: <strong>{checkout.btcAmount} BTC</strong> ({checkout.btcSatoshis} satoshis)</p>
             <p className="text-xs text-slate-400" >{words.quotation}: US$ {checkout.quoteRateUsd} por BTC · {checkout.quoteSource}</p>
-            <p className="text-xs text-amber-300" >{words.quoteExpiry} {new Date(checkout.expiresAt*1000).toLocaleString('pt-BR')}. {words.expiredWarning}</p>
+            <p className="text-xs text-amber-300" >{words.quoteExpiry} {new Date(checkout.expiresAt*1000).toLocaleString(dateLocale)}. {words.expiredWarning}</p>
             {checkoutQr && <img src={checkoutQr} alt="QR do endereço e valor BTC deste pedido" className="mx-auto rounded-lg w-40 h-40"/>}
             <p className="text-xs break-all font-mono">{checkout.btcAddress}</p>
             <div className="flex gap-2">
@@ -165,13 +165,13 @@ export const MemberWorkspace: React.FC<{
           <h3 className="text-sm font-semibold">{words.accrual}</h3>
           {ledger.accruals.length===0 && <p className="text-xs text-slate-400">{words.noAccrual}</p>}
           {ledger.accruals.map((r,i)=><div key={i} className="p-3 bg-[#1b2137] rounded-xl text-xs">
-            {r.plan_id} · {new Date(r.start_ts*1000).toLocaleString('pt-BR')} — {new Date(r.end_ts*1000).toLocaleString('pt-BR')}
+            {r.plan_id} · {new Date(r.start_ts*1000).toLocaleString(dateLocale)} — {new Date(r.end_ts*1000).toLocaleString(dateLocale)}
             <p >{words.earnedUnits}: {r.earned_units}</p>
           </div>)}
           <h3 className="text-sm font-semibold">{words.dailyBonusClaims}</h3>
           {ledger.bonuses.length===0 && <p className="text-xs text-slate-400">{words.noBonus}</p>}
           {ledger.bonuses.map((r,i)=><div key={i} className="p-3 bg-[#1b2137] rounded-xl text-xs">
-            {r.plan_id} · {new Date(r.claimed_at*1000).toLocaleString('pt-BR')}
+            {r.plan_id} · {new Date(r.claimed_at*1000).toLocaleString(dateLocale)}
             <p>{r.bonus_satoshis} satoshis internos · {r.bonus_usd_units} unidades USD</p>
           </div>)}
         </>}

@@ -30,7 +30,7 @@ export const TopMinersView:React.FC<Props>=({language,onBack})=>{
       <button onClick={()=>void refresh()} title={tr.refresh} aria-label={tr.refresh}><RefreshCw size={18}/></button>
     </header>
     <div className="p-4 overflow-y-auto space-y-3">
-      <p className="text-xs text-slate-400">{tr.subtitle}. Nenhum valor representa BTC minerado na blockchain.</p>
+      <p className="text-xs text-slate-400">{tr.subtitle}. {language==='en'?'Figures are not mined BTC.':language==='es'?'Las cifras no son BTC minados.':'Os valores não representam BTC minerado.'}</p>
       {error&&<p role="alert" className="text-amber-300 text-xs">{error}</p>}
       {loading&&<p className="text-xs text-slate-400">...</p>}
       {!loading&&!miners.length&&<p className="text-xs text-slate-400">{tr.none}</p>}
@@ -38,8 +38,8 @@ export const TopMinersView:React.FC<Props>=({language,onBack})=>{
         <div className="w-9 h-9 bg-[#273356] rounded-xl flex items-center justify-center">
           {m.rank<=3?<Trophy className="text-amber-400" size={18}/>:<span className="font-bold text-xs">#{m.rank}</span>}
         </div>
-        <div className="flex-1 min-w-0"><strong className="text-sm">{m.alias}</strong>
-          <p className="text-xs text-slate-400">{m.intervals} intervalos contabilizados</p></div>
+        <div className="flex-1 min-w-0"><strong className="text-sm">{language==='en'?'Miner':language==='es'?'Minero':'Minerador'} #{m.rank.toString().padStart(2,'0')}</strong>
+          <p className="text-xs text-slate-400">{m.intervals} {language==='en'?'credited intervals':language==='es'?'intervalos registrados':'intervalos contabilizados'}</p></div>
         <div className="text-right"><strong className="font-mono text-xs">{m.balanceUsd}</strong>
           <p className="text-[10px] text-slate-400">{tr.label}</p></div>
       </div>)}
