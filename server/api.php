@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/core.php';
+require_once __DIR__ . '/quote.php';
 
 /* The reward unit exactly matches dailyRewards.ts:
  * one USD = 864,000,000 units; USD/day (in cents) yields cents * 100 units/s.
@@ -289,18 +290,43 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $body=request_body();$id=string_field($body,'planId',60);
         $plan=query_one($db,'SELECT * FROM plans WHERE id=? AND available=1 AND id!="FREE"',[$id]);
         if (!$plan) fail(422,'Plano não disponível');
-        $order=atomic($db, static function () use ($db,$actor,$plan): int {
+        // Do not trust a browser exchange rate or payment address.
+        $quote=verified_btc_quote();
+        $sats=satoshi_payment((int)$plan['price_cents'], $quote['usd']);
+        $addressRow=query_one($db,'SELECT value FROM app_settings WHERE name="btc_address"');
+        $address=(string)($addressRow['value'] ?? '');
+        if (!preg_match('/^bc1[a-z02-9]{25,80}$/D',$address)) {
+            fail(503,'Endereço de recebimento BTC não configurado');
+        }
+        $order=atomic($db, static function () use ($db,$actor,$plan,$quote,$sats,$address): int {
             $time=now();
-            execute_sql($db,'INSERT INTO orders(user_id,plan_id,snapshot_json,status,created_at,expires_at)
-               VALUES (?,?,?,"pending",?,?)',[$actor['id'],$plan['id'],json_encode($plan,JSON_THROW_ON_ERROR),$time,$time+900]);
+            // Recheck active plan and pricing inside the write transaction.
+            $current=query_one($db,'SELECT * FROM plans WHERE id=? AND available=1',[$plan['id']]);
+            if (!$current || (int)$current['revision']!==(int)$plan['revision']) fail(409,'Plano alterado; tente novamente');
+            $active=query_one($db,'SELECT id FROM contracts WHERE user_id=? AND started_at<=? AND expires_at>?',
+                [$actor['id'],$time,$time]);
+            if ($active) fail(409,'Já existe contratação VIP ativa');
+            execute_sql($db,'INSERT INTO orders(user_id,plan_id,snapshot_json,status,created_at,expires_at,
+                 btc_address,btc_sats,quote_usd_cents,quote_source)
+                 VALUES (?,?,?,"pending",?,?,?,?,?,?)',
+                [$actor['id'],$plan['id'],json_encode($plan,JSON_THROW_ON_ERROR),$time,$time+900,
+                    $address,$sats,(int)round($quote['usd']*100),$quote['source']]);
             return (int)$db->lastInsertId();
         });
-        json_out(['orderId'=>$order,'status'=>'pending','activation'=>'manual','priceUsd'=>number_format($plan['price_cents']/100,2,'.','')],201);
+        json_out(['orderId'=>$order,'status'=>'pending','activation'=>'manual',
+          'priceUsd'=>number_format($plan['price_cents']/100,2,'.',''),
+          'quoteRateUsd'=>number_format($quote['usd'],2,'.',''),
+          'quoteSource'=>$quote['source'],
+          'btcAddress'=>$address,'btcSatoshis'=>$sats,
+          'btcAmount'=>number_format($sats/100000000,8,'.',''),
+          'expiresAt'=>$quote['quoted_at']+900],201);
     }
     if ($action === 'orders.mine' && $method === 'GET') {
         $actor=auth_user($db);
         if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
-        $list=query_all($db,'SELECT id,plan_id,status,created_at,expires_at FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 100',[$actor['id']]);
+        $list=query_all($db,'SELECT id,plan_id,CASE WHEN status="pending" AND expires_at<? THEN "expired" ELSE status END AS status,
+          created_at,expires_at,btc_address,btc_sats,quote_usd_cents,quote_source, payment_ref
+          FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 100',[now(),$actor['id']]);
         json_out(['orders'=>$list]);
     }
     if ($action === 'admin.members' && $method === 'GET') {
@@ -360,8 +386,10 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     }
     if ($action === 'admin.orders' && $method === 'GET') {
         auth_user($db,true);
-        $list=query_all($db,'SELECT o.id,o.user_id,u.login,o.plan_id,o.status,o.created_at,o.expires_at
-            FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.id DESC LIMIT 100');
+        $list=query_all($db,'SELECT o.id,o.user_id,u.login,o.plan_id,
+            CASE WHEN o.status="pending" AND o.expires_at<? THEN "expired" ELSE o.status END AS status,
+            o.created_at,o.expires_at,o.btc_sats,o.btc_address,o.quote_usd_cents,o.quote_source,o.payment_ref
+            FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.id DESC LIMIT 100',[now()]);
         json_out(['orders'=>$list]);
     }
     if ($action === 'admin.member.edit' && $method === 'POST') {
@@ -429,8 +457,10 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     }
     if ($action === 'admin.order.approve' && $method === 'POST') {
         $actor=require_post_csrf($db,true);$body=request_body();$id=param_id($body,'orderId');
+        $paymentRef=string_field($body,'paymentReference',100);
+        if (!preg_match('/^[a-fA-F0-9]{64}$/D',$paymentRef)) fail(422,'Informe o TXID BTC com 64 caracteres hexadecimais após verificar o pagamento');
         if (($body['paymentConfirmed'] ?? false)!==true) fail(422,'Confirme explicitamente o pagamento antes da ativação');
-        atomic($db, static function () use ($db,$actor,$id): void {
+        atomic($db, static function () use ($db,$actor,$id,$paymentRef): void {
             $order=query_one($db,'SELECT * FROM orders WHERE id=?',[$id]);
             if (!$order || $order['status']!=='pending') fail(409,'Pedido inexistente ou não pendente');
             $time=now();
@@ -448,9 +478,9 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             if ($days<=0) fail(422,'Duração inválida');
             execute_sql($db,'INSERT INTO contracts(user_id,plan_id,plan_snapshot_json,order_id,started_at,expires_at,created_by) VALUES (?,?,?,?,?,?,?)',
               [$order['user_id'],$order['plan_id'],$order['snapshot_json'],$id,$time,$time+$days*86400,$actor['id']]);
-            execute_sql($db,'UPDATE orders SET status="approved",approved_by=?,approved_at=? WHERE id=?',
-              [$actor['id'],$time,$id]);
-            audit($db,(int)$actor['id'],'order.approve',(int)$order['user_id'],['orderId'=>$id,'planId'=>$order['plan_id']]);
+            execute_sql($db,'UPDATE orders SET status="approved",approved_by=?,approved_at=?,payment_ref=? WHERE id=?',
+              [$actor['id'],$time,$paymentRef,$id]);
+            audit($db,(int)$actor['id'],'order.approve',(int)$order['user_id'],['orderId'=>$id,'planId'=>$order['plan_id'],'paymentTxid'=>$paymentRef]);
         });
         json_out(['ok'=>true]);
     }

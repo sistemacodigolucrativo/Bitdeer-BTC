@@ -55,6 +55,9 @@ alice.call("rewards.claim",{},409)
 assert len(alice.call("ledger")["bonuses"])==1
 alice.call("admin.members",expected=403)
 order=alice.call("orders.create",{"planId":"VIP_01"},201)
+assert order["btcAmount"]=="0.00025000"
+assert order["quoteSource"]=="CI fixture"
+assert order["btcAddress"].startswith("bc1")
 assert alice.call("profile")["plan"]["id"]=="FREE"
 
 admin=Client()
@@ -63,8 +66,8 @@ assert admin.call("admin.members")["total"]==2
 assert len(admin.call("admin.plans")["plans"])==5
 assert admin.call("admin.member.details",expected=422)["error"]
 assert admin.call("admin.member.details&id="+str(alice_user["id"]))["member"]["login"]=="alice"
-admin.call("admin.order.approve",{"orderId":order["orderId"],"paymentConfirmed":False},422)
-admin.call("admin.order.approve",{"orderId":order["orderId"],"paymentConfirmed":True})
+admin.call("admin.order.approve",{"orderId":order["orderId"],"paymentConfirmed":False,"paymentReference":"a"*64},422)
+admin.call("admin.order.approve",{"orderId":order["orderId"],"paymentConfirmed":True,"paymentReference":"a"*64})
 assert alice.call("profile")["plan"]["dailyUsd"]=="3.00"
 assert alice.call("profile")["plan"]["sessionSeconds"]==0
 admin.call("admin.plan.save",{"id":"VIP_01","name":"VIP 01","priceCents":3000,

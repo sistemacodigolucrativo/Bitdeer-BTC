@@ -32,6 +32,7 @@ jobs:
       - name: API integration regression
         env:
           BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
+          BITDEER_TEST_QUOTE_USD: '80000'
         run: |
           php -S 127.0.0.1:8765 -t . >/tmp/bitdeer-php.log 2>&1 &
           echo $! >/tmp/bitdeer-php.pid

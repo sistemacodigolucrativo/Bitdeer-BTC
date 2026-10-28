@@ -62,7 +62,10 @@ CREATE TABLE IF NOT EXISTS orders (
   plan_id TEXT NOT NULL REFERENCES plans(id), snapshot_json TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected','expired')),
   created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
-  approved_by INTEGER REFERENCES users(id), approved_at INTEGER
+  approved_by INTEGER REFERENCES users(id), approved_at INTEGER,
+  btc_address TEXT NOT NULL DEFAULT '', btc_sats INTEGER NOT NULL DEFAULT 0,
+  quote_usd_cents INTEGER NOT NULL DEFAULT 0, quote_source TEXT NOT NULL DEFAULT '',
+  payment_ref TEXT UNIQUE
 );
 CREATE TABLE IF NOT EXISTS mining_state (
   user_id INTEGER PRIMARY KEY REFERENCES users(id),
@@ -121,6 +124,9 @@ SQL);
         execute_sql($db, 'INSERT INTO users (login,password_hash,role,status,display_name,created_at,updated_at) VALUES (?,?,"admin","active",?,?,?)',
           [$login,secure_password($password),'Administrador',$time,$time]);
         execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("support_email",?)', [$supportEmail]);
+        // Preserve the original public BTC receiving address from checkout/config.ts.
+        execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("btc_address",?)',
+          ['bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z']);
         execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("schema_version","1")');
     });
 }
