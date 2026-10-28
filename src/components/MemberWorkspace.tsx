@@ -9,6 +9,7 @@ import { ServerHomeView } from './ServerHomeView';
 import { ServerStoreView } from './ServerStoreView';
 import { ServerWalletView } from './ServerWalletView';
 import { formatBrazilianPhone, validBrazilianPhone } from '../utils/phone';
+import { projectInternalBalance } from '../utils/projectInternalBalance';
 import { ServerRewardView } from './ServerRewardView';
 import { TopMinersView } from './workspace/TopMinersView';
 import { ReferralHistoryView } from './workspace/ReferralHistoryView';
@@ -31,6 +32,12 @@ export const MemberWorkspace: React.FC<{
   const words = memberTexts[language] || memberTexts.pt;
   const dateLocale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const [account, setAccount] = useState<MemberData | null>(null);
+  const [balanceTick,setBalanceTick] = useState(Date.now());
+  const [lastSnapshotReceivedAt,setLastSnapshotReceivedAt] = useState(Date.now());
+  const acceptSnapshot=(data:MemberData)=>{
+    setLastSnapshotReceivedAt(Date.now());
+    setAccount(data);
+  };
   const [plans, setPlans] = useState<Plan[]>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [checkout, setCheckout] = useState<PurchaseOrder|null>(null);
@@ -54,6 +61,7 @@ export const MemberWorkspace: React.FC<{
   // requested; fractional accruals are not counted as withdrawable cents.
   // The BTC figure is a quote-based equivalent of that very same USD balance,
   // not a separately held on-chain Bitcoin balance.
+  const liveBalanceUsd = projectInternalBalance(account,lastSnapshotReceivedAt,balanceTick);
   const availableUsdCents=Math.max(0,Math.floor((account?.mining.balanceUnits??0)/8640000));
   const validQuote=btcUsd!==null && Number.isFinite(btcUsd) && btcUsd>0 &&
     btcQuote!==null && Date.now()/1000-btcQuote.quotedAt>=0 &&
@@ -83,7 +91,7 @@ export const MemberWorkspace: React.FC<{
   async function reload() {
     try {
       const data = await api<MemberData>('profile');
-      setAccount(data); setProfile({...data.profile,phone:formatBrazilianPhone(data.profile.phone)});
+      acceptSnapshot(data); setProfile({...data.profile,phone:formatBrazilianPhone(data.profile.phone)});
     } catch(e) { setNotice((e as Error).message); }
   }
   useEffect(() => {
@@ -131,14 +139,27 @@ export const MemberWorkspace: React.FC<{
     api<{orders: typeof orders}>('orders.mine').then(x=>setOrders(x.orders)).catch(()=>{});
     api<typeof ledger>('ledger').then(setLedger).catch(()=>{});
   }, []);
-  // Refresh server-authoritative balances and active plan across devices without
-  // overwriting any member profile form currently being edited.
+  // Real-time display is interpolated each second between short, authoritative
+  // PHP/SQLite reads. No rewards or balances are written by the browser.
+  useEffect(()=>{
+    const frame=window.setInterval(()=>{
+      if (document.visibilityState==='visible') setBalanceTick(Date.now());
+    },1000);
+    return ()=>window.clearInterval(frame);
+  },[]);
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
-      void api<MemberData>('profile').then(setAccount).catch(() => {});
-    }, 15000);
-    return () => window.clearInterval(timer);
+    let outstanding=false;
+    const refresh=()=>{
+      if (document.visibilityState !== 'visible' || outstanding) return;
+      outstanding=true;
+      void api<MemberData>('profile')
+        .then(data=>{setAccount(data);setLastSnapshotReceivedAt(Date.now());})
+        .catch(()=>{})
+        .finally(()=>{outstanding=false;});
+    };
+    const timer=window.setInterval(refresh,5000);
+    document.addEventListener('visibilitychange',refresh);
+    return ()=>{window.clearInterval(timer);document.removeEventListener('visibilitychange',refresh);};
   }, []);
   async function act(action: string, body: Record<string, unknown> = {}) {
     setBusy(true); setNotice('');
@@ -231,14 +252,14 @@ export const MemberWorkspace: React.FC<{
       page==='referrals' ? <ReferralHistoryView language={language} onBack={()=>setPage('settings')}/> :
       <div className="flex-1 overflow-auto p-5 space-y-4">
         {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
-        {page==='home' && <ServerHomeView account={account} language={language} btcUsd={btcUsd} busy={busy}
+        {page==='home' && <ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} language={language} btcUsd={btcUsd} busy={busy}
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
           onRefresh={()=>void reload()} onRewards={()=>setPage('reward')}
           onHistory={()=>setPage('history')}/>}
         {page==='reward' && <ServerRewardView account={account} language={language} busy={busy}
           onClaim={()=>void act('rewards.claim')} onHistory={()=>setPage('history')}/>}
         {page==='wallet' && <>
-          <ServerWalletView account={account} language={language} btcUsd={btcUsd}
+          <ServerWalletView account={account} liveBalanceUsd={liveBalanceUsd} language={language} btcUsd={btcUsd}
             accruals={ledger.accruals} onEdit={()=>setPage('profile')} onHistory={()=>setPage('history')}
             onWithdraw={()=>{
               setWalletDraft(account?.profile.walletAddress??'');

@@ -5,7 +5,7 @@ import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
 
 type Props = {
-  account: MemberData | null; language: LanguageCode; busy: boolean; btcUsd:number|null;
+  account: MemberData | null; language: LanguageCode; busy: boolean; btcUsd:number|null; liveBalanceUsd:number;
   onStart: () => void; onStop: () => void; onRefresh: () => void;
   onRewards: () => void; onHistory: () => void;
 };
@@ -27,7 +27,7 @@ const details = {
     vip:'Plan VIP hasta', noHash:'Capacidad de minería'}
 };
 export const ServerHomeView: React.FC<Props> = ({
-  account,language,busy,btcUsd,onStart,onStop,onRefresh,onRewards,onHistory
+  account,language,busy,btcUsd,liveBalanceUsd,onStart,onStop,onRefresh,onRewards,onHistory
 }) => {
   const t=translations[language]?.home ?? translations.pt.home;
   const d=details[language] ?? details.pt;
@@ -44,12 +44,7 @@ export const ServerHomeView: React.FC<Props> = ({
     (seconds%60).toString().padStart(2,'0');
   const inCooldown=!!(account?.mining.cooldownUntil && account.mining.cooldownUntil>clock/1000);
   const isVip=account?.plan.id!=='FREE' && account?.plan.id!==undefined;
-  const terminalEnd=account?.mining.sessionEndsAt ?? account?.plan.expiresAt ?? Math.floor(clock/1000);
-  const secondsSinceSync=account?.mining.running
-    ? Math.max(0,Math.min(Math.floor(clock/1000),terminalEnd)-(account?.asOf??Math.floor(clock/1000))) : 0;
-  const simulatedUsd=Number(account?.mining.balanceUsd??'0')+
-    secondsSinceSync*Number(account?.plan.dailyUsd??'0')/86400;
-  const estimatedBtc=btcUsd && btcUsd>0 ? (simulatedUsd/btcUsd).toFixed(8) : '—';
+  const estimatedBtc=btcUsd && btcUsd>0 ? (liveBalanceUsd/btcUsd).toFixed(8) : '—';
   const stamp=(v:number)=>new Date(v*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR');
   return <div className="space-y-4 select-none pb-4">
     <div className="flex items-center gap-3 bg-[#171b2d] border border-[#252c45] rounded-2xl p-3 shadow-sm">
@@ -76,7 +71,7 @@ export const ServerHomeView: React.FC<Props> = ({
         <strong className="text-2xl font-bold font-mono text-amber-300">{estimatedBtc} BTC</strong>
         <p className="text-xs text-slate-300 mt-1">
           {language==='en'?'Estimated USD equivalent':language==='es'?'Equivalencia estimada en USD':'Equivalência estimada em USD'}:
-          {' '}US$ {simulatedUsd.toFixed(8)}
+          {' '}US$ {liveBalanceUsd.toFixed(8)}
         </p>
         <p className="text-[10px] text-slate-400 mt-1">
           {language==='en'?'Internal projection between server updates.':
