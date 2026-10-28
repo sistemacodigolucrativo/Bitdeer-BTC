@@ -60,6 +60,54 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
     catch(e){setNotice((e as Error).message);}
     finally{setBusy(false);}
   }
+  const renderPlanEditor=()=>selected&&<form className="space-y-3"
+    onSubmit={e=>{
+      e.preventDefault();
+      void change('admin.plan.save',{
+        id:selected.id,name:selected.name,
+        priceCents:Math.round(Number(selected.priceUsd)*100),
+        dailyCents:Math.round(Number(selected.dailyUsd)*100),
+        bonusUsdCents:Math.round(Number(selected.bonusUsd)*100),
+        bonusSatoshis:selected.bonusSatoshis,durationDays:selected.durationDays,
+        sessionSeconds:selected.sessionSeconds,restartCooldownSeconds:selected.restartCooldownSeconds,
+        withdrawMinCents:Math.round(Number(selected.withdrawMinUsd)*100),
+        withdrawAfterDays:selected.withdrawAfterDays,
+        hashrate:selected.hashrate,serverModel:selected.serverModel,available:selected.available
+      });
+      setSelected(null);
+    }}>
+    <h3 className="font-semibold">{selected.revision===0?'Cadastrar novo plano':'Editar '+selected.name}</h3>
+    {selected.revision===0 && <label className="block text-sm">Identificador do plano
+      <input required value={selected.id} onChange={e=>setSelected(p=>p?{...p,id:e.target.value.toUpperCase()}:p)}
+        className="w-full mt-1 bg-[#11182c] p-3 rounded-lg"/>
+    </label>}
+    {([
+      ['name','Nome do plano'],['priceUsd','Preço (USD)'],
+      ['dailyUsd','Recompensa diária interna (USD)'],['bonusUsd','Bônus diário (USD)'],
+      ['bonusSatoshis','Bônus diário (satoshis internos)'],
+      ['durationDays','Duração do plano (dias)'],
+      ['sessionSeconds','Duração da sessão (segundos)'],
+      ['restartCooldownSeconds','Intervalo entre sessões (segundos)'],
+      ['withdrawMinUsd','Valor mínimo de saque (USD)'],
+      ['withdrawAfterDays','Prazo mínimo para saque (dias)'],
+      ['hashrate','Capacidade ilustrativa'],['serverModel','Equipamento ilustrativo']
+    ] as const).map(([key,label])=><label key={key} className="block text-sm">
+      {label}<input required value={selected[key]} type={
+        ['bonusSatoshis','durationDays','sessionSeconds','restartCooldownSeconds','withdrawAfterDays'].includes(key)?'number':
+        ['priceUsd','dailyUsd','bonusUsd','withdrawMinUsd'].includes(key)?'number':'text'}
+        min={['priceUsd','dailyUsd','bonusUsd','withdrawMinUsd','bonusSatoshis','durationDays','sessionSeconds','restartCooldownSeconds','withdrawAfterDays'].includes(key)?0:undefined}
+        step={['priceUsd','dailyUsd','bonusUsd','withdrawMinUsd'].includes(key)?'0.01':'1'}
+        onChange={e=>setSelected(p=>p?{...p,[key]:
+          typeof p[key]==='number'?Number(e.target.value):e.target.value}:p)}
+        className="w-full block mt-1 bg-[#11182c] p-3 rounded-lg"/>
+    </label>)}
+    <label className="flex items-center gap-2 text-sm">
+      <input type="checkbox" checked={selected.available}
+        onChange={e=>setSelected(p=>p?{...p,available:e.target.checked}:p)}/>
+      Disponível para novas adesões
+    </label>
+    <button className="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3 py-2 text-xs font-bold" disabled={busy}>Salvar alterações</button>
+  </form>;
   const btn='rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 px-3 py-2 text-xs font-bold';
   return <div className="h-full w-full bg-[#121526] text-white flex flex-col overflow-hidden">
     <header className="relative px-4 py-3 bg-[#171b2d] border-b border-[#2b3350] flex justify-between items-center z-40">
@@ -215,39 +263,28 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         </section>}
       </>}
       {section==='plans' && <>
-        <p className="text-xs text-slate-400">As alterações afetam apenas futuras contratações; contratos existentes mantêm os valores da contratação.</p>
+        <p className="text-xs text-slate-400">Cada plano pode ser expandido para edição. Novas regras valem apenas para futuros contratos e renovações.</p>
         <button className={btn} onClick={()=>setSelected({
           id:'VIP_CUSTOM',name:'Novo Plano VIP',revision:0,priceUsd:'0.00',dailyUsd:'0.00',
-          bonusUsd:'0.00',bonusSatoshis:0,durationDays:30,sessionSeconds:0,restartCooldownSeconds:0,hashrate:'',serverModel:'',available:false
+          bonusUsd:'0.00',bonusSatoshis:0,durationDays:30,sessionSeconds:0,restartCooldownSeconds:0,
+          withdrawMinUsd:'0.00',withdrawAfterDays:0,hashrate:'',serverModel:'',available:false
         })}>Criar novo plano</button>
-        <div className="grid md:grid-cols-2 gap-3">{plans.map(p=><button key={p.id} onClick={()=>setSelected({...p})}
-            className="text-left p-4 bg-[#1b2137] rounded-xl border border-[#2b3350]">
-          <strong>{p.name}</strong><p className="text-sm">US$ {p.priceUsd} · US$ {p.dailyUsd}/dia · revisão {p.revision} · {p.available?'Disponível':'Arquivado'}</p></button>)}</div>
-        {selected && <form onSubmit={e=>{
-          e.preventDefault();void change('admin.plan.save',{
-            id:selected.id,name:selected.name,
-            priceCents:Math.round(Number(selected.priceUsd)*100),
-            dailyCents:Math.round(Number(selected.dailyUsd)*100),
-            bonusUsdCents:Math.round(Number(selected.bonusUsd)*100),
-            bonusSatoshis:selected.bonusSatoshis,durationDays:selected.durationDays,
-            sessionSeconds:selected.sessionSeconds,restartCooldownSeconds:selected.restartCooldownSeconds,
-            hashrate:selected.hashrate,serverModel:selected.serverModel,available:selected.available,
-          });setSelected(null);
-        }} className="rounded-xl p-4 bg-[#1b2137] space-y-3">
-          <strong>{selected.revision===0?'Cadastrar novo plano':'Editar '+selected.id}</strong>
-          {selected.revision===0 && <label className="block text-sm">ID estável do plano
-            <input required className="w-full bg-[#11182c] p-2 rounded-lg" value={selected.id}
-              onChange={e=>setSelected(p=>p?{...p,id:e.target.value.toUpperCase()}:p)}/>
-          </label>}
-          {(['name','priceUsd','dailyUsd','bonusUsd','bonusSatoshis','durationDays','sessionSeconds','restartCooldownSeconds','hashrate','serverModel'] as const).map(k=>
-            <label key={k} className="block text-sm">{k}
-              <input value={selected[k]} type={typeof selected[k]==='number'?'number':'text'}
-                onChange={e=>setSelected(p=>p?{...p,[k]:typeof p[k]==='number'?Number(e.target.value):e.target.value}:p)}
-                className="w-full block mt-1 bg-[#11182c] p-2 rounded-lg"/>
-            </label>)}
-          <label className="text-sm flex items-center gap-2"><input type="checkbox" checked={selected.available} onChange={e=>setSelected(p=>p?{...p,available:e.target.checked}:p)}/>Disponível para novas adesões</label>
-          <button className={btn} disabled={busy}>Salvar nova revisão</button>
-        </form>}
+        <div className="space-y-3">{plans.map(p=><article key={p.id}
+          className="bg-[#1b2137] border border-[#2b3350] rounded-xl overflow-hidden">
+          <button type="button" onClick={()=>setSelected(prev=>prev?.id===p.id?null:{...p})}
+            aria-expanded={selected?.id===p.id}
+            className="w-full text-left p-4 flex justify-between items-center gap-2">
+            <div><strong>{p.name}</strong>
+              <p className="text-xs text-slate-400 mt-1">US$ {p.priceUsd} · US$ {p.dailyUsd}/dia · revisão {p.revision} · {p.available?'Disponível':'Arquivado'}</p></div>
+            {selected?.id===p.id?<ChevronUp size={19}/>:<ChevronDown size={19}/>}
+          </button>
+          {selected?.id===p.id && <div className="border-t border-[#2b3350] p-4">
+            {renderPlanEditor()}
+          </div>}
+        </article>)}</div>
+        {selected && selected.revision===0 && <div className="bg-[#1b2137] border border-[#2b3350] rounded-xl p-4">
+          {renderPlanEditor()}
+        </div>}
       </>}
       {section==='orders' && <div className="space-y-3">
         {orders.map(o=><article key={o.id} className="p-4 rounded-xl bg-[#1b2137] border border-[#2b3350] flex gap-4 flex-wrap justify-between">

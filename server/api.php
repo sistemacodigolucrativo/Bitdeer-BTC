@@ -904,7 +904,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $memberId=param_id($body,'userId');
         $method=string_field($body,'verificationMethod',40);
         $reference=string_field($body,'verificationReference',150);
-        if (!in_array($method,['in_person','known_contact','other_offline'],true) ||
+        if (!in_array($method,['approved','in_person','known_contact','other_offline'],true) ||
             mb_strlen($reference)<6) {
             fail(422,'Informe uma referência de atendimento com seis caracteres ou mais');
         }

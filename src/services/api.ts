@@ -9,7 +9,7 @@ export type Plan = {
   id: string; name: string; revision: number; priceUsd: string;
   dailyUsd: string; bonusUsd: string; bonusSatoshis: number;
   durationDays: number; sessionSeconds: number; restartCooldownSeconds: number; hashrate: string; serverModel: string;
-  available: boolean;
+  available: boolean; withdrawMinUsd: string; withdrawAfterDays: number;
 };
 export type MemberData = {
   user: AuthUser;
@@ -17,7 +17,7 @@ export type MemberData = {
   mining: { running: boolean; balanceUnits: number; balanceUsd: string; bonusSatoshisBalance: number; lastBonusAt: number | null;
     sessionEndsAt: number | null; cooldownUntil: number | null };
   plan: { id: string; revision: number; dailyUsd: string; bonusUsd: string;
-    bonusSatoshis: number; hashrate: string; sessionSeconds: number; restartCooldownSeconds: number; expiresAt: number | null };
+    bonusSatoshis: number; hashrate: string; sessionSeconds: number; restartCooldownSeconds: number; expiresAt: number | null; withdrawMinUsd: string; withdrawAfterDays: number };
 };
 
 let csrfToken = '';
