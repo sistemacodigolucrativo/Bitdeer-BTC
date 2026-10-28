@@ -119,9 +119,29 @@ assert alice.call("profile")["plan"]["dailyUsd"]=="3.00"
 assert alice.call("profile")["plan"]["sessionSeconds"]==0
 admin.call("admin.plan.save",{"id":"VIP_01","name":"VIP 01","priceCents":3000,
   "dailyCents":400,"bonusUsdCents":100,"bonusSatoshis":20000,
-  "durationDays":30,"sessionSeconds":0,"restartCooldownSeconds":0,"hashrate":"+ 275 Gh/s","serverModel":"Antminer S19 Pro",
+  "durationDays":30,"sessionSeconds":0,"restartCooldownSeconds":0,
+  "withdrawMinCents":200,"withdrawAfterDays":15,
+  "hashrate":"+ 275 Gh/s","serverModel":"Antminer S19 Pro",
   "available":True})
 assert alice.call("profile")["plan"]["dailyUsd"]=="3.00", "VIP contract terms cannot change"
+assert alice.call("profile")["plan"]["withdrawMinUsd"]=="0.00", "existing contract rules are snapshotted"
+assert admin.call("admin.plans")["plans"][1]["withdrawAfterDays"]==15
+assert alice.call("language.preference")["language"]=="pt"
+assert alice.call("language.preference",{"language":"en"})["language"]=="en"
+assert alice.call("language.preference")["language"]=="en"
+alice.call("language.preference",{"language":"xx"},422)
+quote=alice.call("withdraw.quote")
+assert float(quote["btcUsd"])==80000
+alice.call("withdraw.request",{"mode":"USD","amount":"0.50"},409)
+alice.call("profile.update",{"displayName":"Alice","email":"alice@example.org",
+  "phone":"+5531999999999","walletAddress":"bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z"})
+balance_before_withdraw=float(alice.call("profile")["mining"]["balanceUsd"])
+request=alice.call("withdraw.request",{"mode":"USD","amount":"0.50"},201)
+assert request["status"]=="pending" and request["simulation"]
+assert alice.call("withdraw.mine")["requests"][0]["id"]==request["id"]
+assert abs(float(alice.call("profile")["mining"]["balanceUsd"])-(balance_before_withdraw-0.5))<0.000001
+alice.call("withdraw.request",{"mode":"USD","amount":"999.00"},409)
+
 # Reusing a TXID with different letter case must not activate a second VIP.
 bob_order_client=Client()
 bob_order_client.call("login",{"login":"bob","password":"anotherpassword123"})
@@ -134,7 +154,8 @@ assert any(o["id"]==second_order["orderId"] and o["status"]=="rejected"
   for o in admin.call("admin.orders")["orders"])
 assert bob_order_client.call("profile")["plan"]["id"]=="FREE"
 
-admin.call("admin.member.edit",{"userId":alice_user["id"],"displayName":"Alice Testada","email":"alice@example.org"})
+admin.call("admin.member.edit",{"userId":alice_user["id"],"login":"alice",
+  "displayName":"Alice Testada","email":"alice@example.org"})
 assert alice.call("profile")["profile"]["displayName"]=="Alice Testada"
 # Option A: the existing VIP contract deadline is not extended by suspension.
 dbcheck=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
@@ -176,11 +197,12 @@ admin.call("admin.status",{"userId":alice_user["id"],"status":"archived"})
 alice3.call("profile",expected=401)
 admin.call("admin.status",{"userId":alice_user["id"],"status":"active"})
 admin.call("admin.password.reset",{"userId":alice_user["id"],"verificationId":1,"newPassword":"CIExampleValueOnly123"},403)
-admin.call("admin.identity.verify",{"userId":alice_user["id"],"verificationMethod":"known_contact",
-  "verificationReference":"ref-000123","adminPassword":"wrongpassword","identityConfirmed":True},403)
+alice3.call("admin.identity.verify",{"userId":alice_user["id"],
+  "verificationMethod":"approved","verificationReference":"ref-000123"},403)
+admin.call("admin.identity.verify",{"userId":alice_user["id"],
+  "verificationMethod":"approved","verificationReference":"bad"},422)
 verification=admin.call("admin.identity.verify",{"userId":alice_user["id"],
-  "verificationMethod":"known_contact","verificationReference":"ref-000123",
-  "adminPassword":"StrongCIpassword123!","identityConfirmed":True})
+  "verificationMethod":"approved","verificationReference":"ref-000123"})
 assert admin.call("admin.password.reset",{"userId":alice_user["id"],
   "verificationId":verification["verificationId"],"newPassword":"NewStrongPassword456!"})["ok"]
 admin.call("admin.password.reset",{"userId":alice_user["id"],
