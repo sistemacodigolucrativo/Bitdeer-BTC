@@ -99,7 +99,7 @@ assert alice3.call("profile")["mining"]["balanceUsd"]==balance, "no retroactive 
 admin.call("admin.status",{"userId":alice_user["id"],"status":"archived"})
 alice3.call("profile",expected=401)
 admin.call("admin.status",{"userId":alice_user["id"],"status":"active"})
-admin.call("admin.password.reset",{},422)
+admin.call("admin.password.reset",{"userId":alice_user["id"],"verificationId":1,"newPassword":"CIExampleValueOnly123"},403)
 admin.call("admin.identity.verify",{"userId":alice_user["id"],"verificationMethod":"known_contact",
   "verificationReference":"ref-000123","adminPassword":"wrongpassword","identityConfirmed":True},403)
 verification=admin.call("admin.identity.verify",{"userId":alice_user["id"],
