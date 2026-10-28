@@ -12,6 +12,7 @@ export type Plan = {
   available: boolean; withdrawMinUsd: string; withdrawAfterDays: number;
 };
 export type MemberData = {
+  asOf: number;
   user: AuthUser;
   profile: { displayName: string; email: string; phone: string; walletAddress: string };
   mining: { running: boolean; balanceUnits: number; balanceUsd: string; bonusSatoshisBalance: number; lastBonusAt: number | null;

@@ -83,6 +83,7 @@ function member_snapshot(PDO $db, int $userId): array {
     if ($user === null || $mining === null) throw new RuntimeException('Member data missing');
     $plan = plan_at($db, $userId, now());
     return [
+       'asOf'=>now(),
        'user'=>public_user($user),
        'profile'=>['displayName'=>$user['display_name'], 'email'=>$user['email'],
          'phone'=>$user['phone'],'walletAddress'=>$user['wallet_address']],
