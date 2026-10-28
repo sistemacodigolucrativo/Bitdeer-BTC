@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AuthUser, MemberData, Plan, api } from '../services/api';
 import { CustomerSupportView } from './workspace/CustomerSupportView';
 import { LanguageCode } from '../types';
-import { Home, Store, User, Headphones, LogOut, RefreshCw, History, Wallet, Gift, Settings, Trophy, ScrollText } from 'lucide-react';
+import { Home, Store, User, Headphones, LogOut, RefreshCw, History, Wallet, Gift, Settings, Trophy, ScrollText, Users } from 'lucide-react';
 import { translations } from '../i18n/translations';
 import QRCode from 'qrcode';
 import { ServerHomeView } from './ServerHomeView';
@@ -10,10 +10,11 @@ import { ServerStoreView } from './ServerStoreView';
 import { ServerWalletView } from './ServerWalletView';
 import { ServerRewardView } from './ServerRewardView';
 import { TopMinersView } from './workspace/TopMinersView';
+import { ReferralHistoryView } from './workspace/ReferralHistoryView';
 import { SubscriptionHistoryView } from './workspace/SubscriptionHistoryView';
 import { memberTexts } from '../i18n/memberTexts';
 
-type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history' | 'topMiners' | 'subscriptions';
+type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'referrals';
 type PurchaseOrder = {
   orderId: number; status: string; priceUsd: string; quoteRateUsd: string;
   quoteSource: string; btcAddress: string; btcSatoshis: number;
@@ -100,6 +101,7 @@ export const MemberWorkspace: React.FC<{
     {page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('settings')}/> :
       page==='topMiners' ? <TopMinersView language={language} onBack={()=>setPage('settings')}/> :
       page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
+      page==='referrals' ? <ReferralHistoryView language={language} onBack={()=>setPage('settings')}/> :
       <div className="flex-1 overflow-auto p-5 space-y-4">
         {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
         {page==='home' && <ServerHomeView account={account} language={language} busy={busy}
@@ -125,6 +127,7 @@ export const MemberWorkspace: React.FC<{
           {([
             ['profile',words.profile,User],
             ['history',words.history,History],
+            ['referrals',language==='en'?'Referrals':language==='es'?'Referidos':'Indicações',Users],
             ['subscriptions',language==='en'?'Subscriptions':language==='es'?'Suscripciones':'Histórico VIP',ScrollText],
             ['topMiners',language==='en'?'Top Miners':language==='es'?'Mejores mineros':'Top Miners',Trophy],
             ['support',words.support,Headphones],

@@ -54,8 +54,8 @@ export async function login(loginValue: string, password: string): Promise<AuthU
   csrfToken = data.csrfToken;
   return data.user;
 }
-export async function register(loginValue: string, password: string, displayName: string) {
-  return api<{id: number; role: 'member'}>('register', {login: loginValue, password, displayName});
+export async function register(loginValue: string, password: string, displayName: string, inviteCode = '') {
+  return api<{id: number; role: 'member'}>('register', {login: loginValue, password, displayName, inviteCode});
 }
 export async function logout(): Promise<void> {
   try { await api('logout', {}); } finally { csrfToken = ''; }

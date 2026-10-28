@@ -18,6 +18,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [passwordInput, setPasswordInput] = useState('');
   const [registerMode, setRegisterMode] = useState(false);
   const [fullNameInput, setFullNameInput] = useState('');
+  const [inviteCode,setInviteCode] = useState(
+    ()=>new URLSearchParams(window.location.search).get('invite') || ''
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +30,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     try {
       const userLogin = loginInput.trim();
       if (registerMode) {
-        await backendRegister(userLogin, passwordInput, fullNameInput.trim());
+        await backendRegister(userLogin, passwordInput, fullNameInput.trim(),inviteCode.trim());
       }
       const user = await backendLogin(userLogin, passwordInput);
       onLoginSuccess(user);
@@ -166,6 +169,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             <input value={fullNameInput} onChange={e => setFullNameInput(e.target.value)}
               className="bg-[#181d33] border border-[#2b3353] rounded-2xl px-3.5 py-3 text-sm text-white w-full"/>
           </div>}
+          {registerMode && <label className="block text-xs text-slate-300">
+            {language==='en'?'Invite code (optional)':language==='es'?'Código de invitación (opcional)':'Código de indicação (opcional)'}
+            <input value={inviteCode} onChange={e=>setInviteCode(e.target.value.toUpperCase())}
+              maxLength={20} className="w-full mt-2 bg-[#181d33] border border-[#2b3353] rounded-2xl p-3 text-sm"/>
+          </label>}
           {/* Cadastro público sempre gera uma conta de membro. */}
           <div className="pt-2">
             <button
