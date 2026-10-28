@@ -96,6 +96,7 @@ function member_snapshot(PDO $db, int $userId): array {
          'dailyUsd'=>number_format($plan['daily_cents']/100,2,'.',''),
          'bonusUsd'=>number_format((int)$plan['snapshot']['bonus_usd_cents']/100,2,'.',''),
          'bonusSatoshis'=>(int)$plan['snapshot']['bonus_satoshis'],
+         'hashrate'=>$plan['snapshot']['hashrate'] ?? '',
          'sessionSeconds'=>(int)($plan['snapshot']['session_seconds'] ?? 0),
          'restartCooldownSeconds'=>(int)($plan['snapshot']['restart_cooldown_seconds'] ?? 0),
          'expiresAt'=>$plan['expires']],

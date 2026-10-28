@@ -5,6 +5,7 @@ import { LanguageCode } from '../types';
 import { Home, Store, User, Headphones, LogOut, RefreshCw, History, Wallet, Gift, Settings } from 'lucide-react';
 import { translations } from '../i18n/translations';
 import QRCode from 'qrcode';
+import { ServerHomeView } from './ServerHomeView';
 
 type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history';
 type PurchaseOrder = {
@@ -81,24 +82,10 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
     {page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('home')}/> :
       <div className="flex-1 overflow-auto p-5 space-y-4">
         {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
-        {page==='home' && <>
-          <div className="rounded-2xl bg-[#1b2137] p-5 border border-[#2b3350] space-y-2">
-            <p className="text-slate-400 text-sm">Saldo interno de recompensas</p>
-            <p className="text-3xl font-bold">US$ {account?.mining.balanceUsd || '0.00000000'}</p>
-            <p className="text-xs text-slate-400">Plano: {account?.plan.id || 'FREE'} · US$ {account?.plan.dailyUsd || '1.00'}/dia</p>
-            <p className="text-xs text-slate-400">Satoshis de bônus internos: {account?.mining.bonusSatoshisBalance || 0}</p>
-            <p className="text-xs text-slate-400">Bônus diário disponível: US$ {account?.plan.bonusUsd || '0.00'} + {account?.plan.bonusSatoshis || 0} satoshis</p>
-            {account?.plan.expiresAt && <p className="text-xs">VIP até: {new Date(account.plan.expiresAt*1000).toLocaleString('pt-BR')}</p>}
-          </div>
-          <p className="text-xs text-slate-400">Os valores são registros do sistema calculados pelo servidor; não constituem prova de Bitcoin minerado ou de saldo de carteira externa.</p>
-          <div className="flex gap-2">
-            <button disabled={busy || account?.mining.running} onClick={()=>void act('mining.start')} className="flex-1 rounded-xl bg-emerald-600 p-3 disabled:opacity-40">Iniciar</button>
-            <button disabled={busy || !account?.mining.running} onClick={()=>void act('mining.stop')} className="flex-1 rounded-xl bg-rose-600 p-3 disabled:opacity-40">Parar</button>
-            <button disabled={busy} onClick={()=>void reload()} className="p-3 rounded-xl border border-slate-600"><RefreshCw size={18}/></button>
-          </div>
-          {account?.mining.sessionEndsAt && <p className="text-xs text-slate-400">Fim da sessão: {new Date(account.mining.sessionEndsAt*1000).toLocaleString('pt-BR')}</p>}
-          {account?.mining.cooldownUntil && <p className="text-xs text-slate-400">Nova sessão a partir de: {new Date(account.mining.cooldownUntil*1000).toLocaleString('pt-BR')}</p>}
-        </>}
+        {page==='home' && <ServerHomeView account={account} language={language} busy={busy}
+          onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
+          onRefresh={()=>void reload()} onRewards={()=>setPage('reward')}
+          onHistory={()=>setPage('history')}/>}
         {page==='reward' && <section className="space-y-4">
           <h2 className="text-lg font-bold">Recompensas</h2>
           <div className="bg-[#1b2137] rounded-2xl p-5 border border-[#2b3350] space-y-2">

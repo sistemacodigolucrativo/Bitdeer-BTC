@@ -17,7 +17,7 @@ export type MemberData = {
   mining: { running: boolean; balanceUnits: number; balanceUsd: string; bonusSatoshisBalance: number; lastBonusAt: number | null;
     sessionEndsAt: number | null; cooldownUntil: number | null };
   plan: { id: string; revision: number; dailyUsd: string; bonusUsd: string;
-    bonusSatoshis: number; sessionSeconds: number; restartCooldownSeconds: number; expiresAt: number | null };
+    bonusSatoshis: number; hashrate: string; sessionSeconds: number; restartCooldownSeconds: number; expiresAt: number | null };
 };
 
 let csrfToken = '';
