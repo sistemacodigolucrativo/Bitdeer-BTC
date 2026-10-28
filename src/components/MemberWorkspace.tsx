@@ -181,7 +181,7 @@ export const MemberWorkspace: React.FC<{
           </section>}
     </div> :
       page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('settings')}/> :
-      page==='topMiners' ? <TopMinersView language={language} onBack={()=>setPage('settings')}/> :
+      page==='topMiners' ? <TopMinersView language={language} btcUsd={btcUsd} onBack={()=>setPage('settings')}/> :
       page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
       page==='referrals' ? <ReferralHistoryView language={language} onBack={()=>setPage('settings')}/> :
       <div className="flex-1 overflow-auto p-5 space-y-4">
