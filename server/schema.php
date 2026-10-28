@@ -91,6 +91,17 @@ CREATE TABLE IF NOT EXISTS bonus_claims (
   UNIQUE(user_id, claimed_at)
 );
 CREATE INDEX IF NOT EXISTS idx_bonus_claims_user ON bonus_claims(user_id, claimed_at);
+CREATE TABLE IF NOT EXISTS support_tickets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  subject TEXT NOT NULL, message TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','resolved')),
+  notification_status TEXT NOT NULL DEFAULT 'pending'
+    CHECK(notification_status IN ('pending','accepted','failed')),
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+  notification_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_support_user ON support_tickets(user_id,created_at);
 CREATE TABLE IF NOT EXISTS identity_checks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   member_id INTEGER NOT NULL REFERENCES users(id),

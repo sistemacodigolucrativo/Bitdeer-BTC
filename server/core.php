@@ -15,11 +15,29 @@ function data_file(): string {
     if (!str_starts_with($path, '/')) {
         throw new RuntimeException('BITDEER_DB_PATH must be an absolute path');
     }
-    $public = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
-    $folder = realpath(dirname($path));
-    if ($public !== false && $folder !== false &&
-        ($folder === $public || str_starts_with($folder, $public . DIRECTORY_SEPARATOR))) {
-        throw new RuntimeException('SQLite database may not be inside the document root');
+    // Resolve the existing ancestor even when the SQLite directory does not exist yet.
+    // Otherwise a first-time install could place a readable database under public/.
+    $publicRoot = (string)($_SERVER['DOCUMENT_ROOT'] ?? '');
+    $public = $publicRoot === '' ? false : realpath($publicRoot);
+    $folder = dirname($path);
+    $missing = [];
+    while (!is_dir($folder)) {
+        $parent = dirname($folder);
+        if ($parent === $folder) throw new RuntimeException('Invalid database parent directory');
+        array_unshift($missing, basename($folder));
+        $folder = $parent;
+    }
+    $canonical = realpath($folder);
+    if ($canonical === false) throw new RuntimeException('Cannot resolve database directory');
+    foreach ($missing as $segment) {
+        if ($segment === '.' || $segment === '..' || $segment === '') {
+            throw new RuntimeException('Unsafe SQLite directory path');
+        }
+        $canonical .= DIRECTORY_SEPARATOR . $segment;
+    }
+    if ($public !== false && ($canonical === $public ||
+        str_starts_with($canonical, $public . DIRECTORY_SEPARATOR))) {
+        throw new RuntimeException('SQLite database must be outside the web document root');
     }
     return $path;
 }

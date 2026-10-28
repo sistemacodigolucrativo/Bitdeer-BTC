@@ -130,11 +130,98 @@ function is_email_or_empty(string $email): bool {
     return $email === '' || (strlen($email)<=254 && (bool)filter_var($email,FILTER_VALIDATE_EMAIL));
 }
 
+function send_ticket_notification(PDO $db, int $ticketId): string {
+    $ticket=query_one($db,'SELECT t.*,u.login FROM support_tickets t JOIN users u ON u.id=t.user_id
+      WHERE t.id=?',[$ticketId]);
+    if (!$ticket) return 'failed';
+    $status='pending';
+    // Delivery is explicitly opt-in. If mail() accepts a message, this means
+    // handed to the local mail transport, NOT delivered to its recipient.
+    if (getenv('BITDEER_ENABLE_MAIL') === '1') {
+        $setting=query_one($db,'SELECT value FROM app_settings WHERE name="support_email"');
+        $to=(string)($setting['value'] ?? '');
+        $from=(string)(getenv('BITDEER_MAIL_FROM') ?: '');
+        if (filter_var($to,FILTER_VALIDATE_EMAIL) && filter_var($from,FILTER_VALIDATE_EMAIL)) {
+            $subject='[Bitdeer BTC] Ticket #'.$ticketId;
+            $body="Atendimento Bitdeer BTC\nTicket #".$ticketId."\nLogin: ".$ticket['login'].
+                "\nAssunto: ".$ticket['subject']."\n\n".$ticket['message'];
+            $safeFrom=str_replace(["\r","\n"],'',$from);
+            $accepted=@mail($to,$subject,$body,"From: ".$safeFrom."\r\nContent-Type: text/plain; charset=UTF-8");
+            $status=$accepted?'accepted':'failed';
+        } else {
+            $status='failed';
+        }
+    }
+    execute_sql($db,'UPDATE support_tickets SET notification_status=?,notification_at=?,updated_at=? WHERE id=?',
+      [$status,now(),now(),$ticketId]);
+    return $status;
+}
+
 function api_dispatch(PDO $db, string $action, string $method): never {
     if ($action === 'health' && $method === 'GET') json_out(['ok'=>true,'version'=>'php-sqlite-1']);
     if ($action === 'support' && $method === 'GET') {
         $setting = query_one($db,'SELECT value FROM app_settings WHERE name="support_email"');
         json_out(['email'=>$setting['value'] ?? '']);
+    }
+    if ($action === 'support.ticket.create' && $method === 'POST') {
+        $actor=require_post_csrf($db);
+        if ($actor['role'] !== 'member') fail(403,'Apenas membros podem abrir tickets');
+        $body=request_body();
+        $subject=string_field($body,'subject',120);
+        $message=string_field($body,'message',2500);
+        if (mb_strlen($subject)<3 || mb_strlen($message)<10 ||
+            preg_match('/[\x00-\x1F\x7F]/',$subject)) {
+            fail(422,'Preencha o assunto e a descrição do atendimento');
+        }
+        $id=atomic($db, static function() use($db,$actor,$subject,$message): int {
+            $recent=query_one($db,'SELECT COUNT(*) AS n FROM support_tickets WHERE user_id=? AND created_at>?',
+                [$actor['id'],now()-3600]);
+            if ((int)$recent['n']>=5) fail(429,'Limite de cinco tickets por hora');
+            $at=now();
+            execute_sql($db,'INSERT INTO support_tickets(user_id,subject,message,created_at,updated_at)
+                VALUES (?,?,?,?,?)',[$actor['id'],$subject,$message,$at,$at]);
+            return (int)$db->lastInsertId();
+        });
+        // Persist before attempting transport. Never claim an email was delivered.
+        send_ticket_notification($db,$id);
+        $ticket=query_one($db,'SELECT id,status,notification_status,created_at FROM support_tickets WHERE id=?',[$id]);
+        json_out(['ticket'=>$ticket],201);
+    }
+    if ($action === 'support.tickets.mine' && $method === 'GET') {
+        $actor=auth_user($db);
+        if ($actor['role'] !== 'member') fail(403,'Apenas membros');
+        json_out(['tickets'=>query_all($db,'SELECT id,subject,message,status,notification_status,created_at
+          FROM support_tickets WHERE user_id=? ORDER BY id DESC LIMIT 100',[$actor['id']])]);
+    }
+    if ($action === 'admin.support.tickets' && $method === 'GET') {
+        auth_user($db,true);
+        json_out(['tickets'=>query_all($db,'SELECT t.id,t.user_id,u.login,t.subject,t.message,
+           t.status,t.notification_status,t.created_at,t.notification_at
+           FROM support_tickets t JOIN users u ON u.id=t.user_id ORDER BY t.id DESC LIMIT 100')]);
+    }
+    if ($action === 'admin.support.status' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);
+        $body=request_body();
+        $id=param_id($body,'ticketId');
+        $status=string_field($body,'status',16);
+        if (!in_array($status,['open','resolved'],true)) fail(422,'Estado inválido');
+        atomic($db,static function() use($db,$actor,$id,$status):void {
+            if (!query_one($db,'SELECT id FROM support_tickets WHERE id=?',[$id]))
+                fail(404,'Ticket não encontrado');
+            execute_sql($db,'UPDATE support_tickets SET status=?,updated_at=? WHERE id=?',
+                [$status,now(),$id]);
+            audit($db,(int)$actor['id'],'ticket.status',null,['ticketId'=>$id,'status'=>$status]);
+        });
+        json_out(['ok'=>true]);
+    }
+    if ($action === 'admin.support.notify' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);
+        $id=param_id(request_body(),'ticketId');
+        $ticket=query_one($db,'SELECT id FROM support_tickets WHERE id=?',[$id]);
+        if (!$ticket) fail(404,'Ticket não encontrado');
+        $notification=send_ticket_notification($db,$id);
+        audit($db,(int)$actor['id'],'ticket.notify',null,['ticketId'=>$id,'status'=>$notification]);
+        json_out(['notificationStatus'=>$notification]);
     }
     if ($action === 'plans' && $method === 'GET') {
         $plans = query_all($db,'SELECT * FROM plans WHERE available=1 ORDER BY price_cents,id');
