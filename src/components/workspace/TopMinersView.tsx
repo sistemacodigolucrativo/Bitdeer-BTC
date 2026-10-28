@@ -1,48 +1,54 @@
-import React, {useEffect,useState} from 'react';
-import {ArrowLeft, Trophy, RefreshCw} from 'lucide-react';
+import React from 'react';
+import {ArrowLeft} from 'lucide-react';
 import {LanguageCode} from '../../types';
-import {api} from '../../services/api';
 
-type Miner={rank:number;alias:string;balanceUsd:string;intervals:number};
+type Miner={name:string;country:string;flag:string;message:string;btc:string;usd:string};
+// Showcase-only reference data. Never associate these names or values with real members,
+// blockchain confirmations, the SQLite reward ledger, or actual payouts.
+const showcase:Miner[]=[
+  {name:'James Hudson',country:'USA',flag:'🇺🇸',message:'Crypto growth unstoppable',btc:'0.99047281',usd:'79,520.6840'},
+  {name:'Adi Satria',country:'Indonesia',flag:'🇮🇩',message:'Building the digital future',btc:'0.95812730',usd:'76,919.5377'},
+  {name:'Chinedu Okafor',country:'Nigeria',flag:'🇳🇬',message:'Blockchain opportunities ahead',btc:'0.91450380',usd:'73,417.4449'},
+  {name:'Ricardo Mendes',country:'Brazil',flag:'🇧🇷',message:'Exploring crypto innovation',btc:'0.87920465',usd:'70,583.1667'},
+  {name:'Rohan Kapoor',country:'India',flag:'🇮🇳',message:'New horizons in technology',btc:'0.84116527',usd:'67,529.0493'},
+  {name:'Jahir Uddin',country:'Bangladesh',flag:'🇧🇩',message:'Digital progress every day',btc:'0.80234198',usd:'64,411.3549'},
+  {name:'Sardor Karimov',country:'Uzbekistan',flag:'🇺🇿',message:'Connected by innovation',btc:'0.76832140',usd:'61,680.0632'},
+  {name:'Jose dela Cruz',country:'Philippines',flag:'🇵🇭',message:'A growing crypto community',btc:'0.72150420',usd:'57,920.9798'},
+  {name:'Aina Roslan',country:'Malaysia',flag:'🇲🇾',message:'Learning together worldwide',btc:'0.68419035',usd:'54,925.0470'},
+  {name:'Javier Torres',country:'Mexico',flag:'🇲🇽',message:'Technology connects us',btc:'0.64289010',usd:'51,609.5112'}
+];
 type Props={language:LanguageCode;onBack:()=>void};
 export const TopMinersView:React.FC<Props>=({language,onBack})=>{
-  const [miners,setMiners]=useState<Miner[]>([]);
-  const [error,setError]=useState('');
-  const [loading,setLoading]=useState(true);
-  const tr=language==='en'
-    ?{title:'Top Miners',subtitle:'Ranking by internal credited rewards only',none:'No eligible entries yet',label:'Internal USD',refresh:'Refresh'}
-    :language==='es'
-    ?{title:'Mineros destacados',subtitle:'Ranking de recompensas internas acreditadas',none:'Sin registros disponibles',label:'USD internos',refresh:'Actualizar'}
-    :{title:'Top Miners',subtitle:'Ranking apenas de recompensas internas creditadas',none:'Nenhum registro elegível',label:'USD internos',refresh:'Atualizar'};
-  const refresh=async()=>{
-    setLoading(true);
-    try {
-      const result=await api<{miners:Miner[]}>('leaderboard');
-      setMiners(result.miners);setError('');
-    } catch(e){setError((e as Error).message);}
-    finally{setLoading(false);}
-  };
-  useEffect(()=>{void refresh();},[]);
-  return <section className="w-full flex-1 flex flex-col bg-[#121626] text-white overflow-hidden">
-    <header className="flex items-center justify-between p-4 border-b border-[#232943] bg-[#141829]">
-      <button onClick={onBack} aria-label="Voltar" className="p-2 rounded-xl bg-[#1b2137]"><ArrowLeft size={19}/></button>
-      <h2 className="font-bold">{tr.title}</h2>
-      <button onClick={()=>void refresh()} title={tr.refresh} aria-label={tr.refresh}><RefreshCw size={18}/></button>
+  const notice=language==='en'
+    ? 'Demonstration ranking: fictional profiles and illustrative amounts, not actual BTC mined or received.'
+    : language==='es'
+    ? 'Ranking demostrativo: perfiles y valores ficticios, sin BTC realmente minados ni recibidos.'
+    : 'Ranking demonstrativo: perfis e valores fictícios, sem BTC efetivamente minerado ou recebido.';
+  return <section className="flex-1 min-h-0 w-full flex flex-col bg-[#121626] text-white overflow-hidden">
+    <header className="grid grid-cols-[44px_1fr_44px] items-center gap-2 px-4 py-4 border-b border-[#232943] bg-[#141829]">
+      <button type="button" onClick={onBack} aria-label={language==='en'?'Back':language==='es'?'Volver':'Voltar'}
+        className="w-10 h-10 rounded-xl bg-[#1b2137] flex items-center justify-center">
+        <ArrowLeft size={20}/>
+      </button>
+      <h2 className="font-extrabold text-lg text-center">Top Miners</h2>
+      <span aria-hidden="true"/>
     </header>
-    <div className="p-4 overflow-y-auto space-y-3">
-      <p className="text-xs text-slate-400">{tr.subtitle}. {language==='en'?'Figures are not mined BTC.':language==='es'?'Las cifras no son BTC minados.':'Os valores não representam BTC minerado.'}</p>
-      {error&&<p role="alert" className="text-amber-300 text-xs">{error}</p>}
-      {loading&&<p className="text-xs text-slate-400">...</p>}
-      {!loading&&!miners.length&&<p className="text-xs text-slate-400">{tr.none}</p>}
-      {miners.map(m=><div key={m.rank} className="bg-[#1b2137] border border-[#272e4b] rounded-2xl p-4 flex items-center gap-3">
-        <div className="w-9 h-9 bg-[#273356] rounded-xl flex items-center justify-center">
-          {m.rank<=3?<Trophy className="text-amber-400" size={18}/>:<span className="font-bold text-xs">#{m.rank}</span>}
+    <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
+      <p className="text-[11px] text-slate-400 mb-3">{notice}</p>
+      {showcase.map((miner,index)=><article key={miner.name}
+        className="bg-[#1c2238] border border-[#2a314d] rounded-2xl px-3.5 py-4 shadow-sm flex gap-2.5 items-center">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-[14px] leading-tight text-slate-100 truncate">{miner.name}</h3>
+          <p className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-400 min-w-0">
+            <span aria-label={miner.country} className="shrink-0 text-sm">{miner.flag}</span>
+            <span className="truncate">{miner.country} · {miner.message}</span>
+          </p>
         </div>
-        <div className="flex-1 min-w-0"><strong className="text-sm">{language==='en'?'Miner':language==='es'?'Minero':'Minerador'} #{m.rank.toString().padStart(2,'0')}</strong>
-          <p className="text-xs text-slate-400">{m.intervals} {language==='en'?'credited intervals':language==='es'?'intervalos registrados':'intervalos contabilizados'}</p></div>
-        <div className="text-right"><strong className="font-mono text-xs">{m.balanceUsd}</strong>
-          <p className="text-[10px] text-slate-400">{tr.label}</p></div>
-      </div>)}
+        <div className="min-w-[118px] text-right shrink-0">
+          <p className="font-semibold font-mono text-[12px] text-slate-100 tabular-nums whitespace-nowrap">{miner.btc} BTC</p>
+          <p className="font-mono mt-1.5 text-[11px] text-slate-400 tabular-nums whitespace-nowrap">$ {miner.usd}</p>
+        </div>
+      </article>)}
     </div>
   </section>;
 };
