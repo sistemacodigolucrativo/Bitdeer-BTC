@@ -66,6 +66,7 @@ try {
   await page.locator('nav button').nth(3).click();
   await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
   await page.getByText('Solicitação de Saque').waitFor({timeout:10000});
+  await page.getByTestId('withdraw-available-card').waitFor({timeout:10000});
   await page.getByText('Cadastrar carteira Bitcoin').waitFor({timeout:10000});
   await page.screenshot({path:'release-build/member-mobile.png',fullPage:true});
   await page.locator('input[placeholder="bc1..."]').fill('bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z');
