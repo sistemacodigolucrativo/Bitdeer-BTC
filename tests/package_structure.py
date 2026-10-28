@@ -13,6 +13,7 @@ with zipfile.ZipFile(archive) as z:
       'bitdeer/public_html/index.html',
       'bitdeer/public_html/api/index.php',
       'bitdeer/public_html/install/index.php',
+      'bitdeer/public_html/install/ownership.php',
       'bitdeer/private/server/api.php',
       'bitdeer/private/server/schema.php',
       'bitdeer/private/server/core.php',
@@ -27,6 +28,7 @@ with zipfile.ZipFile(archive) as z:
         for path in (
             root/'public_html'/'api'/'index.php',
             root/'public_html'/'install'/'index.php',
+            root/'public_html'/'install'/'ownership.php',
             root/'private'/'server'/'api.php',
             root/'private'/'server'/'core.php',
             root/'private'/'server'/'schema.php'
