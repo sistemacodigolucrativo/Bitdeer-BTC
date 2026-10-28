@@ -39,7 +39,10 @@ function installer_page(string $title, string $message, int $status): never {
 $policy=strtoupper(trim((string)(getenv('BITDEER_INSTALL_POLICY') ?: '')));
 // A simple first installation without an additional secret is permitted only
 // from the hosting server itself. Remote first-admin creation remains locked.
-$localSetup=$policy==='' && in_array((string)($_SERVER['REMOTE_ADDR'] ?? ''),['127.0.0.1','::1'],true);
+$host=parse_url('http://'.(string)($_SERVER['HTTP_HOST'] ?? ''),PHP_URL_HOST);
+$localSetup=$policy==='' &&
+    in_array((string)($_SERVER['REMOTE_ADDR'] ?? ''),['127.0.0.1','::1'],true) &&
+    in_array($host,['localhost','127.0.0.1','::1'],true);
 $hash=(string)(getenv('BITDEER_INSTALL_KEY_HASH') ?: '');
 if (!$localSetup && (!in_array($policy,['A','B','C'],true) || $hash==='' || !password_get_info($hash)['algo'])) {
     installer_page('Instalador bloqueado',
