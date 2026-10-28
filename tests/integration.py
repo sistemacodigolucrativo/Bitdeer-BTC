@@ -140,6 +140,20 @@ request=alice.call("withdraw.request",{"mode":"USD","amount":"0.50"},201)
 assert request["status"]=="pending" and request["simulation"]
 assert alice.call("withdraw.mine")["requests"][0]["id"]==request["id"]
 assert abs(float(alice.call("profile")["mining"]["balanceUsd"])-(balance_before_withdraw-0.5))<0.000001
+assert any(x["id"]==request["id"] for x in admin.call("admin.withdrawals")["requests"])
+admin.call("admin.withdraw.process",{"requestId":request["id"],
+    "status":"approved","reference":"audit-ref-123"},422)
+admin.call("admin.withdraw.process",{"requestId":request["id"],
+    "status":"rejected","reference":"pedido recusado"})
+assert abs(float(alice.call("profile")["mining"]["balanceUsd"])-balance_before_withdraw)<0.000001
+admin.call("admin.withdraw.process",{"requestId":request["id"],
+    "status":"rejected","reference":"pedido recusado"},409)
+simulated_btc_request=alice.call("withdraw.request",{"mode":"BTC","amount":"0.00000500"},201)
+assert simulated_btc_request["status"]=="pending"
+assert simulated_btc_request["btcAmount"]=="0.00000500"
+admin.call("admin.withdraw.process",{"requestId":simulated_btc_request["id"],
+    "status":"approved","reference":"conferência interna CI","manualReviewConfirmed":True})
+assert alice.call("withdraw.mine")["requests"][0]["status"]=="approved"
 alice.call("withdraw.request",{"mode":"USD","amount":"999.00"},409)
 
 # Reusing a TXID with different letter case must not activate a second VIP.
@@ -157,6 +171,15 @@ assert bob_order_client.call("profile")["plan"]["id"]=="FREE"
 admin.call("admin.member.edit",{"userId":alice_user["id"],"login":"alice",
   "displayName":"Alice Testada","email":"alice@example.org"})
 assert alice.call("profile")["profile"]["displayName"]=="Alice Testada"
+charlie_id=next(x["id"] for x in admin.call("admin.members")["members"] if x["login"]=="charlie")
+admin.call("admin.member.edit",{"userId":charlie_id,"login":"alice",
+  "displayName":"Charlie","email":""},409)
+admin.call("admin.member.edit",{"userId":charlie_id,"login":"charlie_new",
+  "displayName":"Charlie","email":""})
+guest.call("login",{"login":"charlie","password":"CharlieStrongPassword2026"},401)
+guest.call("login",{"login":"charlie_new","password":"CharlieStrongPassword2026"})
+assert alice.call("referrals.mine")["count"]==1
+
 # Option A: the existing VIP contract deadline is not extended by suspension.
 dbcheck=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
 try:
