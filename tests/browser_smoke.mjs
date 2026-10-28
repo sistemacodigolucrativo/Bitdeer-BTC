@@ -41,6 +41,13 @@ try {
   await page.locator('nav button').nth(4).click();
   await page.getByRole('button',{name:/Top Miners|Mejores mineros/}).click();
   await page.getByText('James Hudson').waitFor({timeout:10000});
+  const minerCards=page.locator('[data-testid="miner-card"]');
+  if(await minerCards.count()!==200)throw Error('Top Miners must show exactly 200 demonstration profiles');
+  const minerNames=await minerCards.locator('h3').allTextContents();
+  if(new Set(minerNames).size!==200)throw Error('Duplicated Top Miners profile name');
+  const brazilCount=await minerCards.filter({hasText:/Brasil|Brazil/}).count();
+  if(brazilCount<60)throw Error('Top Miners must have at least 60 Brazilian profiles');
+  await page.screenshot({path:'release-build/top-miners-mobile.png',fullPage:true});
   await page.getByText(/Ranking demonstrativo|Demonstration ranking|Ranking demostrativo/i).waitFor({timeout:10000});
   await page.locator('nav button').nth(4).click();
   await page.getByRole('button',{name:/Histórico VIP|Subscriptions|Suscripciones/}).click();
@@ -74,6 +81,19 @@ try {
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+3);
   if(overflow)throw Error('Horizontal overflow on desktop member view');
   await page.screenshot({path:'release-build/member-desktop.png',fullPage:true});
+  // Change the member language, verify localStorage, SQLite and page reload.
+  await page.locator('nav button').nth(4).click();
+  await page.locator('select').selectOption('es');
+  await page.waitForTimeout(500);
+  const storedLanguage=await page.evaluate(()=>Object.entries(localStorage).filter(
+    ([key])=>key.startsWith('btc_member_language_')).map(([,value])=>value));
+  if(!storedLanguage.includes('es'))throw Error('Member-specific language not persisted locally');
+  const pref=await ctx.request.get('/api/index.php?action=language.preference');
+  if((await pref.json()).language!=='es')throw Error('Member language not persisted in SQLite');
+  await page.reload();
+  await page.locator('nav button').nth(4).click();
+  if(await page.locator('select').inputValue()!=='es')
+    throw Error('Language was reset after reload');
   await ctx.close();
 
   const admin=await browser.newContext({viewport:{width:1280,height:800},baseURL:base});
