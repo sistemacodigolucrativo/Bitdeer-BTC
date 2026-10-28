@@ -15,6 +15,7 @@ import { TopMinersView } from './workspace/TopMinersView';
 import { ReferralHistoryView } from './workspace/ReferralHistoryView';
 import { SubscriptionHistoryView } from './workspace/SubscriptionHistoryView';
 import { memberTexts } from '../i18n/memberTexts';
+import { memberViewCopy } from '../i18n/memberViewCopy';
 
 type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'referrals' | 'withdraw';
 type PurchaseOrder = {
@@ -30,6 +31,7 @@ export const MemberWorkspace: React.FC<{
   const [page, setPage] = useState<Page>('home');
   const tabNames = translations[language].tabs;
   const words = memberTexts[language] || memberTexts.pt;
+  const tr = memberViewCopy[language];
   const dateLocale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const [account, setAccount] = useState<MemberData | null>(null);
   const [balanceTick,setBalanceTick] = useState(Date.now());
@@ -165,7 +167,7 @@ export const MemberWorkspace: React.FC<{
     setBusy(true); setNotice('');
     try {
       if(action==='profile.update' && typeof body.phone==='string' && !validBrazilianPhone(body.phone)) {
-        throw new Error('Informe um telefone brasileiro válido com DDD (10 ou 11 dígitos).');
+        throw new Error(tr.phone);
       }
       const result = await api<PurchaseOrder | {ok:boolean}>(action,body);
       if (action==='orders.create') setCheckout(result as PurchaseOrder);
@@ -189,8 +191,8 @@ export const MemberWorkspace: React.FC<{
     </div>
     {page==='withdraw' ? <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
       <button type="button" className="inline-flex gap-2 items-center text-sm text-indigo-200"
-        onClick={()=>{setWalletStep('none');setPage('wallet');}}><ArrowLeft size={18}/> Voltar à carteira</button>
-      <h2 className="text-xl font-bold">Solicitação de Saque</h2>
+        onClick={()=>{setWalletStep('none');setPage('wallet');}}><ArrowLeft size={18}/> {tr.back}</button>
+      <h2 className="text-xl font-bold">{tr.title}</h2>
       {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-amber-300 text-xs">{notice}</p>}
       <section data-testid="withdraw-available-card" aria-live="polite"
         className="rounded-2xl border border-[#303b59] bg-[#191e32] px-4 py-5 space-y-2">
@@ -214,35 +216,35 @@ export const MemberWorkspace: React.FC<{
       </section>
           {walletStep!=='none' && <section className="bg-[#1b2137] border border-indigo-500 rounded-2xl p-4 space-y-3">
             <div className="flex justify-between items-center">
-              <h3 className="font-bold">{walletStep==='register'?'Cadastrar carteira Bitcoin':'Solicitar saque interno'}</h3>
-              <button onClick={()=>{setWalletStep('none');setPage('wallet');}} className="text-xs underline">Fechar</button>
+              <h3 className="font-bold">{walletStep==='register'?tr.walletRegistration:tr.request}</h3>
+              <button onClick={()=>{setWalletStep('none');setPage('wallet');}} className="text-xs underline">{tr.close}</button>
             </div>
             {walletStep==='register' ? <form className="space-y-3" onSubmit={e=>{e.preventDefault();void saveWalletForWithdrawal();}}>
-              <label className="block text-sm">Endereço de recebimento BTC
+              <label className="block text-sm">{tr.address}
                 <input required value={walletDraft} onChange={e=>setWalletDraft(e.target.value)}
                   placeholder="bc1..." className="w-full mt-2 bg-[#11182c] rounded-lg p-3 font-mono text-xs"/>
               </label>
-              <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">Salvar carteira</button>
+              <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{tr.save}</button>
             </form> : <form className="space-y-3" onSubmit={e=>{e.preventDefault();void submitWithdrawal();}}>
-              <p className="text-xs text-slate-300 break-all">Carteira: {account?.profile.walletAddress}</p>
-              <p className="text-xs text-slate-400">Cotação BTC/USD: {btcUsd?('US$ '+btcUsd.toFixed(2)+'/BTC'):'indisponível'}.
-              {btcQuote&&<> Fonte: {btcQuote.source} · {new Date(btcQuote.quotedAt*1000).toLocaleTimeString(dateLocale)}.</>}
-              {' '}O servidor verifica a cotação ao registrar o pedido.</p>
-              <p className="text-xs text-slate-400">Saque mínimo: US$ {account?.plan.withdrawMinUsd??'0.00'}.
-                Prazo do plano: {account?.plan.withdrawAfterDays??0} dia(s).</p>
+              <p className="text-xs text-slate-300 break-all">{tr.wallet}: {account?.profile.walletAddress}</p>
+              <p className="text-xs text-slate-400">{tr.quote}: {btcUsd?('US$ '+btcUsd.toFixed(2)+'/BTC'):tr.unavailable}.
+              {btcQuote&&<> {tr.source}: {btcQuote.source} · {new Date(btcQuote.quotedAt*1000).toLocaleTimeString(dateLocale)}.</>}
+              {' '}{tr.rateNotice}</p>
+              <p className="text-xs text-slate-400">{tr.minimum}: US$ {account?.plan.withdrawMinUsd??'0.00'}.
+                {tr.period}: {account?.plan.withdrawAfterDays??0} {tr.days}.</p>
               <div className="flex gap-2">
                 <button type="button" className={'flex-1 p-2 rounded-lg '+(withdrawMode==='USD'?'bg-indigo-600':'bg-[#11182c]')}
-                  onClick={()=>{setWithdrawMode('USD');setWithdrawAmount('');}}>Dólar (USD)</button>
+                  onClick={()=>{setWithdrawMode('USD');setWithdrawAmount('');}}>{tr.usd}</button>
                 <button type="button" className={'flex-1 p-2 rounded-lg '+(withdrawMode==='BTC'?'bg-indigo-600':'bg-[#11182c]')}
-                  onClick={()=>{setWithdrawMode('BTC');setWithdrawAmount('');}}>Bitcoin (BTC)</button>
+                  onClick={()=>{setWithdrawMode('BTC');setWithdrawAmount('');}}>{tr.btc}</button>
               </div>
-              <label className="block text-sm">Valor solicitado ({withdrawMode})
+              <label className="block text-sm">{tr.amount} ({withdrawMode})
                 <input required type="number" min="0.00000001" step={withdrawMode==='BTC'?'0.00000001':'0.01'}
                   value={withdrawAmount} onChange={e=>setWithdrawAmount(e.target.value)}
                   className="w-full mt-2 bg-[#11182c] rounded-lg p-3"/>
               </label>
-              <p className="text-xs text-amber-300">Qualquer membro pode registrar uma solicitação com saldo interno suficiente. Sem VIP 01 a 04 ativo, ela ficará como "Aguardando assinatura VIP". A assinatura não garante pagamentos: não existe transferência automática de BTC real e a aprovação é administrativa.</p>
-              <button disabled={busy || !btcUsd} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">Registrar solicitação</button>
+              <p className="text-xs text-amber-300">{tr.terms}</p>
+              <button disabled={busy || !btcUsd} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{tr.submit}</button>
             </form>}
           </section>}
     </div> :
@@ -268,9 +270,9 @@ export const MemberWorkspace: React.FC<{
               setPage('withdraw');
             }}/>
           {withdrawHistory.length>0 && <section className="bg-[#171b2d] rounded-2xl p-4 space-y-2">
-            <h3 className="font-bold text-sm">Solicitações de saque</h3>
+            <h3 className="font-bold text-sm">{tr.requests}</h3>
             {withdrawHistory.map(x=><p key={x.id} className="text-xs border-b border-[#2b3350] pb-2">
-              #{x.id} · US$ {(x.usd_cents/100).toFixed(2)} · {(x.btc_satoshis/1e8).toFixed(8)} BTC (equivalência interna) · {x.status==='awaiting_vip'?'Aguardando assinatura VIP':x.status==='pending'?'Aguardando análise administrativa':x.status==='approved'?'Conferido':'Rejeitado'}
+              #{x.id} · US$ {(x.usd_cents/100).toFixed(2)} · {(x.btc_satoshis/1e8).toFixed(8)} BTC ({tr.equivalent}) · {x.status==='awaiting_vip'?tr.awaiting:x.status==='pending'?tr.pending:x.status==='approved'?tr.approved:tr.rejected}
             </p>)}
           </section>}
         </>}
@@ -304,12 +306,12 @@ export const MemberWorkspace: React.FC<{
           <ServerStoreView plans={plans} activePlanId={account?.plan.id ?? 'FREE'}
             language={language} busy={busy} onPurchase={planId=>void act('orders.create',{planId})}/>
           {checkout && <section className="bg-[#1b2137] border border-indigo-600/50 rounded-2xl p-4 space-y-3">
-            <h3 className="font-bold">Pedido #{checkout.orderId} — {words.pendingPayment}</h3>
+            <h3 className="font-bold">{tr.order} #{checkout.orderId} — {words.pendingPayment}</h3>
             <p className="text-sm" >{words.price}: US$ {checkout.priceUsd}</p>
             <p className="text-sm" >{words.exactAmount}: <strong>{checkout.btcAmount} BTC</strong> ({checkout.btcSatoshis} satoshis)</p>
-            <p className="text-xs text-slate-400" >{words.quotation}: US$ {checkout.quoteRateUsd} por BTC · {checkout.quoteSource}</p>
+            <p className="text-xs text-slate-400" >{words.quotation}: US$ {checkout.quoteRateUsd} {tr.perBtc} · {checkout.quoteSource}</p>
             <p className="text-xs text-amber-300" >{words.quoteExpiry} {new Date(checkout.expiresAt*1000).toLocaleString(dateLocale)}. {words.expiredWarning}</p>
-            {checkoutQr && <img src={checkoutQr} alt="QR do endereço e valor BTC deste pedido" className="mx-auto rounded-lg w-40 h-40"/>}
+            {checkoutQr && <img src={checkoutQr} alt={tr.qrAlt} className="mx-auto rounded-lg w-40 h-40"/>}
             <p className="text-xs break-all font-mono">{checkout.btcAddress}</p>
             <div className="flex gap-2">
               <button className="flex-1 bg-indigo-600 rounded-xl p-2 text-xs" onClick={()=>void copy(checkout.btcAddress)}>{words.copyAddress}</button>
@@ -337,7 +339,7 @@ export const MemberWorkspace: React.FC<{
           {ledger.bonuses.length===0 && <p className="text-xs text-slate-400">{words.noBonus}</p>}
           {ledger.bonuses.map((r,i)=><div key={i} className="p-3 bg-[#1b2137] rounded-xl text-xs">
             {r.plan_id} · {new Date(r.claimed_at*1000).toLocaleString(dateLocale)}
-            <p>{r.bonus_satoshis} satoshis internos · {r.bonus_usd_units} unidades USD</p>
+            <p>{r.bonus_satoshis} {tr.satoshis} · {r.bonus_usd_units} {tr.units}</p>
           </div>)}
         </>}
         {page==='profile' && <form onSubmit={e=>{e.preventDefault();void act('profile.update',profile)}} className="space-y-3">
