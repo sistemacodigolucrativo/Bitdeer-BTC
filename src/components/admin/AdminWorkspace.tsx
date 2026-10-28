@@ -248,6 +248,13 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
             {o.payment_ref && <p className="text-xs break-all">TXID: {o.payment_ref}</p>}
           </div>
           {o.status==='pending' && <button disabled={busy} className={btn} onClick={()=>{
+            const reason=window.prompt('Informe o motivo da rejeição do pedido (mínimo 6 caracteres).');
+            if (!reason || reason.trim().length<6)return;
+            if (window.confirm('Rejeitar o pedido e manter o plano inalterado?')) {
+              void change('admin.order.reject',{orderId:o.id,reason:reason.trim()});
+            }
+          }}>Rejeitar pedido</button>}
+          {o.status==='pending' && <button disabled={busy} className={btn} onClick={()=>{
             const txid = window.prompt('Informe o TXID da transferência BTC confirmada na blockchain (64 caracteres hexadecimais).');
             if (!txid) return;
             if(!/^[a-fA-F0-9]{64}$/.test(txid.trim())) {

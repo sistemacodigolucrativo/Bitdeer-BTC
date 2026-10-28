@@ -665,13 +665,15 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     }
     if ($action === 'admin.order.approve' && $method === 'POST') {
         $actor=require_post_csrf($db,true);$body=request_body();$id=param_id($body,'orderId');
-        $paymentRef=string_field($body,'paymentReference',100);
+        $paymentRef=strtolower(string_field($body,'paymentReference',100));
         if (!preg_match('/^[a-fA-F0-9]{64}$/D',$paymentRef)) fail(422,'Informe o TXID BTC com 64 caracteres hexadecimais após verificar o pagamento');
         if (($body['paymentConfirmed'] ?? false)!==true) fail(422,'Confirme explicitamente o pagamento antes da ativação');
         atomic($db, static function () use ($db,$actor,$id,$paymentRef): void {
             $order=query_one($db,'SELECT * FROM orders WHERE id=?',[$id]);
             if (!$order || $order['status']!=='pending') fail(409,'Pedido inexistente ou não pendente');
             $time=now();
+            $reused=query_one($db,'SELECT id FROM orders WHERE lower(payment_ref)=? AND id!=?',[$paymentRef,$id]);
+            if ($reused) fail(409,'TXID já associado a outro pagamento');
             if ((int)$order['expires_at']<$time) {
                 execute_sql($db,'UPDATE orders SET status="expired" WHERE id=?',[$id]);
                 fail(409,'Pedido expirado; nova contratação necessária');
@@ -689,6 +691,22 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             execute_sql($db,'UPDATE orders SET status="approved",approved_by=?,approved_at=?,payment_ref=? WHERE id=?',
               [$actor['id'],$time,$paymentRef,$id]);
             audit($db,(int)$actor['id'],'order.approve',(int)$order['user_id'],['orderId'=>$id,'planId'=>$order['plan_id'],'paymentTxid'=>$paymentRef]);
+        });
+        json_out(['ok'=>true]);
+    }
+    if ($action === 'admin.order.reject' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);
+        $body=request_body();
+        $id=param_id($body,'orderId');
+        $reason=string_field($body,'reason',250);
+        if (strlen($reason)<6) fail(422,'Motivo da rejeição obrigatório (mínimo seis caracteres)');
+        atomic($db,static function() use($db,$actor,$id,$reason): void {
+            $order=query_one($db,'SELECT id,user_id,status FROM orders WHERE id=?',[$id]);
+            if (!$order || $order['status']!=='pending') fail(409,'Somente pedidos pendentes podem ser rejeitados');
+            execute_sql($db,'UPDATE orders SET status="rejected",approved_by=?,approved_at=? WHERE id=?',
+                [$actor['id'],now(),$id]);
+            audit($db,(int)$actor['id'],'order.reject',(int)$order['user_id'],
+                ['orderId'=>$id,'reason'=>$reason]);
         });
         json_out(['ok'=>true]);
     }
