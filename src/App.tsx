@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LanguageCode, AppScreen } from './types';
 import { storageService } from './services/storageService';
 import { AuthUser, api, session as backendSession, logout as backendLogout } from './services/api';
@@ -77,19 +77,35 @@ export default function App() {
   const [showCongratulations, setShowCongratulations] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  const choiceRevision=useRef(0);
+  // Local, member-scoped selection takes priority on this device. Otherwise
+  // restore the persisted SQLite choice (including after changing devices).
+  async function restoreMemberLanguage(user:AuthUser) {
+    if(user.role!=='member')return;
+    const revision=choiceRevision.current;
+    const local=storageService.getMemberLanguage(user.id);
+    try {
+      const result=await api<{language:string|null}>('language.preference');
+      if (choiceRevision.current!==revision) return; // user changed language while loading
+      const backend=result.language;
+      if(local) {
+        setLanguage(local);
+        storageService.savePreferences({language:local,isFirstLaunch:false});
+        if (backend!==local) await api('language.preference',{language:local});
+      } else if(backend==='pt'||backend==='en'||backend==='es') {
+        setLanguage(backend);
+        storageService.saveMemberLanguage(user.id,backend);
+      }
+    } catch {
+      if(local && choiceRevision.current===revision) setLanguage(local);
+    }
+  }
   useEffect(() => {
     backendSession().then(user => {
-      setAuthUser(user);setActiveScreen('workspace');
-      if (user.role==='member') {
-        void api<{language:string}>('language.preference').then(result=>{
-          if (result.language==='pt'||result.language==='en'||result.language==='es') {
-            setLanguage(result.language);
-            storageService.savePreferences({language:result.language});
-          }
-        }).catch(()=>{});
-      }
-    })
-      .catch(() => {}).finally(() => setCheckingSession(false));
+      setAuthUser(user);
+      setActiveScreen('workspace');
+      void restoreMemberLanguage(user);
+    }).catch(() => {}).finally(() => setCheckingSession(false));
   }, []);
 
   // Sync state with storage changes
@@ -110,12 +126,21 @@ export default function App() {
   const handleSelectLanguage = (newLang: LanguageCode) => {
     const validLang = normalizeLanguage(newLang);
     setLanguage(validLang);
-    storageService.savePreferences({ language: validLang, isFirstLaunch:false });
-    if(authUser?.role==='member')void api('language.preference',{language:validLang}).catch(()=>{});
+    choiceRevision.current+=1;
+    if(authUser?.role==='member') {
+      storageService.saveMemberLanguage(authUser.id,validLang);
+      void api('language.preference',{language:validLang}).catch(()=>{});
+    } else {
+      storageService.savePreferences({language:validLang,isFirstLaunch:false});
+    }
   };
 
   const handleConfirmLanguage = () => {
-    storageService.savePreferences({ language });
+    storageService.savePreferences({ language,isFirstLaunch:false });
+    if (authUser?.role==='member') {
+      storageService.saveMemberLanguage(authUser.id,language);
+      void api('language.preference',{language}).catch(()=>{});
+    }
     setActiveScreen('onboarding');
   };
 
@@ -131,13 +156,7 @@ export default function App() {
     setAuthUser(user);
     setShowCongratulations(false);
     setActiveScreen(user.role==='admin'?'workspace':'language');
-    if(user.role==='member')void api<{language:string}>('language.preference')
-      .then(result=>{
-        if(result.language==='pt'||result.language==='en'||result.language==='es'){
-          setLanguage(result.language);
-          storageService.savePreferences({language:result.language});
-        }
-      }).catch(()=>{});
+    if(user.role==='member')void restoreMemberLanguage(user);
   };
 
   const handleProceedFromCongratulations = () => {
