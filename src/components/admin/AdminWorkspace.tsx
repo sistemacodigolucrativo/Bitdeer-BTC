@@ -25,6 +25,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   const [btcConfirmed,setBtcConfirmed]=useState(false);
   const [paymentPassword,setPaymentPassword]=useState('');
   const [ownerConfirmation,setOwnerConfirmation]=useState(false);
+  const [diagnostics,setDiagnostics]=useState<{phpVersion:string;pdoSqlite:boolean;dbWritable:boolean;https:boolean;mailConfigured:boolean;btcAddressConfirmed:boolean;quoteProviders:string}|null>(null);
   const [selected,setSelected]=useState<Plan|null>(null);
   const [notice,setNotice]=useState('');
   const [editingMember,setEditingMember]=useState<Member|null>(null);
@@ -47,6 +48,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       api<{actions:typeof audit}>('admin.audit').then(x=>setAudit(x.actions)).catch(()=>{});
       api<typeof overview>('admin.overview').then(setOverview).catch(()=>{});
       api<{tickets:Ticket[]}>('admin.support.tickets').then(x=>setTickets(x.tickets)).catch(()=>{});
+      api<typeof diagnostics>('admin.diagnostics').then(setDiagnostics).catch(()=>{});
       api<{btcAddress:string;confirmed:boolean}>('admin.payment.settings')
         .then(x=>{setBtcAddress(x.btcAddress);setBtcConfirmed(x.confirmed);})
         .catch(()=>{});
@@ -318,7 +320,22 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
           <button disabled={busy||!ownerConfirmation} className={btn}>Validar endereço e habilitar novos pedidos</button>
           <p className="text-xs text-slate-400">Alterações afetam apenas novos pedidos. Pagamentos e TXIDs antigos permanecem vinculados ao endereço original.</p>
         </form>
-        <p className="text-xs text-amber-300">Instalador /install indisponível até confirmação da decisão técnica nº 13.</p>
+        <section className="rounded-xl border border-[#2b3350] bg-[#1b2137] p-4 space-y-2">
+          <h3 className="font-semibold">Diagnóstico da hospedagem</h3>
+          {diagnostics?([
+            ['PHP',diagnostics.phpVersion],
+            ['SQLite',diagnostics.pdoSqlite?'Disponível':'Indisponível'],
+            ['Banco gravável',diagnostics.dbWritable?'Sim':'Não'],
+            ['HTTPS nesta conexão',diagnostics.https?'Sim':'Não / verificar proxy'],
+            ['Transporte de e-mail configurado',diagnostics.mailConfigured?'Sim':'Não'],
+            ['Carteira BTC confirmada',diagnostics.btcAddressConfirmed?'Sim':'Não']
+          ] as const).map(([label,value])=><div key={label}
+            className="flex gap-3 justify-between text-xs border-b border-[#2b3350] pb-2">
+            <span className="text-slate-400">{label}</span><strong>{value}</strong>
+          </div>):<p className="text-xs text-slate-400">Diagnóstico indisponível.</p>}
+          <p className="text-xs text-slate-400">Cotações: Coinbase e CoinGecko; a disponibilidade de rede deve ser verificada no domínio real. O sistema não confirma blockchain nem entrega de e-mail automaticamente.</p>
+        </section>
+        <p className="text-xs text-slate-400">O instalador de primeira execução está disponível sem chave somente por acesso local ao servidor. Não é liberado para criação administrativa pública.</p>
       </section>}
     </main>
   </div>;
