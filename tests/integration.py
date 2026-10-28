@@ -49,6 +49,12 @@ alice=Client()
 alice_user=alice.call("login",{"login":"alice","password":"longpassword123"})["user"]
 assert alice_user["role"]=="member"
 assert alice.call("profile")["plan"]["id"]=="FREE"
+ticket=alice.call("support.ticket.create",{"subject":"Problema no saldo",
+  "message":"Preciso de ajuda com meu saldo interno."},201)["ticket"]
+assert ticket["status"]=="open"
+assert ticket["notification_status"]=="pending"
+assert alice.call("support.tickets.mine")["tickets"][0]["id"]==ticket["id"]
+assert len(alice.call("support.tickets.mine")["tickets"])==1
 assert alice.call("profile")["plan"]["sessionSeconds"]==7200
 assert guest.call("admin.plans",expected=401)["error"]
 bonus=alice.call("rewards.claim",{})
@@ -66,6 +72,9 @@ admin=Client()
 assert admin.call("login",{"login":"adminci","password":"StrongCIpassword123!"})["user"]["role"]=="admin"
 assert admin.call("admin.members")["total"]==2
 assert admin.call("admin.overview")["members"]==2
+assert admin.call("admin.support.tickets")["tickets"][0]["id"]==ticket["id"]
+admin.call("admin.support.status",{"ticketId":ticket["id"],"status":"resolved"})
+assert admin.call("admin.support.tickets")["tickets"][0]["status"]=="resolved"
 assert len(admin.call("admin.plans")["plans"])==5
 assert isinstance(admin.call("admin.audit")["actions"],list)
 assert admin.call("admin.member.details",expected=422)["error"]

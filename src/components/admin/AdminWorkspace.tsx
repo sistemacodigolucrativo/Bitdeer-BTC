@@ -1,17 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { AuthUser, Plan, api } from '../../services/api';
-import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard } from 'lucide-react';
+import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headphones } from 'lucide-react';
 
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
 type MemberDetails = {member: Member & {phone: string;wallet_address:string}; contracts:Array<{id:number;plan_id:string;started_at:number;expires_at:number}>;orders:Array<{id:number;plan_id:string;status:string}>;balanceUsd:string;bonusSatoshis:number};
 type Order = {id:number; user_id:number; login:string; plan_id:string; status:string; created_at:number;btc_sats:number;quote_source:string;payment_ref?:string|null};
+type Ticket = {id:number;user_id:number;login:string;subject:string;message:string;
+  status:'open'|'resolved';notification_status:'pending'|'accepted'|'failed';created_at:number};
 export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({user,onLogout}) => {
-  const [section,setSection]=useState<'overview'|'members'|'plans'|'orders'|'settings'|'audit'>('overview');
+  const [section,setSection]=useState<'overview'|'members'|'plans'|'orders'|'settings'|'audit'|'tickets'>('overview');
   const [overview,setOverview]=useState({members:0,active:0,suspended:0,archived:0,activeVip:0,pendingOrders:0,approvedOrders:0});
   const [audit,setAudit]=useState<Array<{id:number;admin_id:number;action:string;target_user_id:number|null;created_at:number}>>([]);
   const [members,setMembers]=useState<Member[]>([]);
   const [plans,setPlans]=useState<Plan[]>([]);
   const [orders,setOrders]=useState<Order[]>([]);
+  const [tickets,setTickets]=useState<Ticket[]>([]);
   const [filter,setFilter]=useState('');
   const [statusFilter,setStatusFilter]=useState('');
   const [offset,setOffset]=useState(0);
@@ -39,6 +42,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       setMembers(m.members);setTotal(m.total);setPlans(p.plans);setOrders(o.orders);setEmail(s.email);
       api<{actions:typeof audit}>('admin.audit').then(x=>setAudit(x.actions)).catch(()=>{});
       api<typeof overview>('admin.overview').then(setOverview).catch(()=>{});
+      api<{tickets:Ticket[]}>('admin.support.tickets').then(x=>setTickets(x.tickets)).catch(()=>{});
     } catch(e) {setNotice((e as Error).message);}
   }
   useEffect(()=>{void refresh()},[offset]);
@@ -52,13 +56,13 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   return <div className="h-full w-full bg-[#121526] text-white flex flex-col md:flex-row overflow-hidden">
     <aside className="md:w-52 bg-[#171b2d] border-r border-[#2b3350] p-4 flex md:flex-col gap-2 flex-wrap">
       <div className="hidden md:block font-bold text-xl pb-6">Bitdeer BTC <span className="block text-xs text-slate-400">Administrador {user.login}</span></div>
-      {([['overview','Visão geral',LayoutDashboard],['members','Membros',Users],['plans','Planos VIP',CreditCard],['orders','Pedidos',CreditCard],['settings','Configurações',Settings],['audit','Auditoria',Users]] as const).map(([k,label,Icon])=>
+      {([['overview','Visão geral',LayoutDashboard],['members','Membros',Users],['plans','Planos VIP',CreditCard],['orders','Pedidos',CreditCard],['settings','Configurações',Settings],['audit','Auditoria',Users],['tickets','Suporte',Headphones]] as const).map(([k,label,Icon])=>
         <button key={k} onClick={()=>setSection(k)} className={'flex items-center gap-2 rounded-xl px-3 py-2 text-sm '+(section===k?'bg-indigo-600':'hover:bg-slate-800')}><Icon size={16}/>{label}</button>)}
       <button className="flex items-center gap-2 rounded-xl p-2 text-sm" onClick={onLogout}><LogOut size={16}/> Sair</button>
     </aside>
     <main className="flex-1 overflow-auto p-4 md:p-7 space-y-4">
       <div className="flex justify-between items-center"><h1 className="text-xl font-bold">
-        {section==='overview'?'Visão geral':section==='members'?'Gerenciamento de membros':section==='plans'?'Catálogo VIP':section==='orders'?'Pedidos pendentes':section==='audit'?'Auditoria administrativa':'Configurações'}
+        {section==='overview'?'Visão geral':section==='members'?'Gerenciamento de membros':section==='plans'?'Catálogo VIP':section==='orders'?'Pedidos pendentes':section==='audit'?'Auditoria administrativa':section==='tickets'?'Tickets de suporte':'Configurações'}
       </h1><button aria-label="Atualizar" onClick={()=>void refresh()}><RefreshCw size={18}/></button></div>
       {notice && <p role="status" className="bg-[#292a40] p-3 rounded-lg text-amber-300 text-sm">{notice}</p>}
       {section==='overview' && <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -230,6 +234,23 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
               void change('admin.order.approve',{orderId:o.id,paymentConfirmed:true,paymentReference:txid.trim()});
             }
           }}>Confirmar pagamento e ativar</button>}
+        </article>)}
+      </div>}
+      {section==='tickets' && <div className="space-y-3">
+        {tickets.length===0 && <p className="text-sm text-slate-400">Nenhum ticket registrado.</p>}
+        {tickets.map(t=><article key={t.id} className="p-4 rounded-xl bg-[#1b2137] border border-[#2b3350] space-y-2">
+          <p className="font-bold text-sm">#{t.id} · {t.subject}</p>
+          <p className="text-xs text-slate-400">{t.login} · {t.status} · notificação: {t.notification_status}</p>
+          <p className="whitespace-pre-wrap text-sm">{t.message}</p>
+          <p className="text-xs text-slate-400">{new Date(t.created_at*1000).toLocaleString('pt-BR')}</p>
+          <div className="flex flex-wrap gap-2">
+            <button disabled={busy} className={btn} onClick={()=>void change('admin.support.status',{
+              ticketId:t.id,status:t.status==='open'?'resolved':'open'
+            })}>{t.status==='open'?'Resolver':'Reabrir'}</button>
+            <button disabled={busy} className={btn} onClick={()=>void change('admin.support.notify',{ticketId:t.id})}>
+              Solicitar envio por e-mail
+            </button>
+          </div>
         </article>)}
       </div>}
       {section==='audit' && <div className="space-y-2">

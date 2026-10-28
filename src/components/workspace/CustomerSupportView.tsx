@@ -1,65 +1,114 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Copy, Send, Trash2 } from 'lucide-react';
+import { ArrowLeft, Mail, Send, Trash2, RefreshCw } from 'lucide-react';
 import { LanguageCode } from '../../types';
 import { api } from '../../services/api';
 
-type Props = { language: LanguageCode; onBack: () => void };
-const draftKey = 'bitdeer_support_draft_v1';
-export const CustomerSupportView: React.FC<Props> = ({ language, onBack }) => {
-  const [subject, setSubject] = useState('');
-  const [context, setContext] = useState('');
-  const [recipient, setRecipient] = useState('');
-  const [notice, setNotice] = useState('');
-  const tr = language === 'en'
-    ? {title:'Customer Support', subject:'Subject', detail:'Description', open:'Open email app', copy:'Copy message', clear:'Clear draft'}
-    : language === 'es'
-    ? {title:'Soporte', subject:'Asunto', detail:'Contexto', open:'Abrir correo', copy:'Copiar mensaje', clear:'Borrar borrador'}
-    : {title:'Suporte', subject:'Assunto', detail:'Contexto', open:'Abrir aplicativo de e-mail', copy:'Copiar mensagem', clear:'Limpar rascunho'};
-  useEffect(() => {
-    try { const saved = JSON.parse(sessionStorage.getItem(draftKey) || '{}'); setSubject(saved.subject || ''); setContext(saved.context || ''); } catch { /* ignore damaged draft */ }
-    api<{email: string}>('support').then(data => setRecipient(data.email)).catch(() => setNotice('Não foi possível carregar o endereço de suporte.'));
-  }, []);
-  useEffect(() => { sessionStorage.setItem(draftKey, JSON.stringify({subject,context})); }, [subject,context]);
-  const message = 'Assunto: ' + subject.trim() + '\n\n' + context.trim();
-  function valid(): boolean {
-    if (!recipient || !subject.trim() || !context.trim() || subject.length > 120 || context.length > 2500) {
-      setNotice('Preencha assunto e contexto (até 120 e 2500 caracteres).'); return false;
-    }
-    return true;
+type Props = {language: LanguageCode; onBack: () => void};
+type Ticket = {id:number;subject:string;message:string;status:'open'|'resolved';
+  notification_status:'pending'|'accepted'|'failed';created_at:number};
+const draftKey = 'bitdeer_support_draft_v2';
+const labels = {
+  pt: {title:'Atendimento',subject:'Assunto',message:'Descreva sua solicitação',
+    submit:'Abrir ticket',refresh:'Atualizar',clear:'Limpar rascunho',
+    history:'Meus tickets',email:'Abrir e-mail para suporte'},
+  en: {title:'Support',subject:'Subject',message:'Describe your request',
+    submit:'Create ticket',refresh:'Refresh',clear:'Clear draft',
+    history:'My tickets',email:'Open support email'},
+  es: {title:'Soporte',subject:'Asunto',message:'Describa su solicitud',
+    submit:'Crear ticket',refresh:'Actualizar',clear:'Borrar borrador',
+    history:'Mis tickets',email:'Abrir correo de soporte'}
+};
+export const CustomerSupportView: React.FC<Props> = ({language,onBack}) => {
+  const tr=labels[language] || labels.pt;
+  const [subject,setSubject]=useState('');
+  const [message,setMessage]=useState('');
+  const [recipient,setRecipient]=useState('');
+  const [tickets,setTickets]=useState<Ticket[]>([]);
+  const [loading,setLoading]=useState(false);
+  const [notice,setNotice]=useState('');
+  async function refresh(){
+    try {setTickets((await api<{tickets:Ticket[]}>('support.tickets.mine')).tickets);}
+    catch(e){setNotice((e as Error).message);}
   }
-  function openMail(e: React.FormEvent) {
-    e.preventDefault();
-    if (!valid()) return;
-    const href = 'mailto:' + recipient + '?subject=' + encodeURIComponent(subject.trim()) +
-      '&body=' + encodeURIComponent(context.trim());
-    setNotice('Seu aplicativo de e-mail será aberto; confirme o envio nele.');
-    window.location.href = href;
+  useEffect(()=>{
+    try {
+      const saved=JSON.parse(sessionStorage.getItem(draftKey)||'{}');
+      setSubject(saved.subject||'');setMessage(saved.message||'');
+    } catch { /* ignored */ }
+    void refresh();
+    api<{email:string}>('support').then(d=>setRecipient(d.email)).catch(()=>{});
+  },[]);
+  useEffect(()=>{
+    sessionStorage.setItem(draftKey,JSON.stringify({subject,message}));
+  },[subject,message]);
+  async function submit(e:React.FormEvent){
+    e.preventDefault();setNotice('');
+    if(subject.trim().length<3||message.trim().length<10){setNotice('Informe assunto e descrição.');return;}
+    setLoading(true);
+    try{
+      const result=await api<{ticket:{id:number;notification_status:string}}>(
+        'support.ticket.create',{subject:subject.trim(),message:message.trim()});
+      setSubject('');setMessage('');sessionStorage.removeItem(draftKey);
+      setNotice('Ticket #'+result.ticket.id+' registrado. '+
+        (result.ticket.notification_status==='accepted'
+          ? 'Notificação entregue ao transporte de e-mail; recebimento ainda não confirmado.'
+          : 'Notificação por e-mail não confirmada; ticket registrado para atendimento.'));
+      await refresh();
+    }catch(e){setNotice((e as Error).message);}
+    finally{setLoading(false);}
   }
-  async function copyMessage() {
-    if (!valid()) return;
-    try { await navigator.clipboard.writeText('Para: ' + recipient + '\n' + message); setNotice('Mensagem copiada. Confirme o envio no seu e-mail.'); }
-    catch { setNotice('Não foi possível copiar; selecione o texto manualmente.'); }
+  function openMail(){
+    if(!recipient){setNotice('O endereço de suporte não está disponível.');return;}
+    const url='mailto:'+recipient+'?subject='+encodeURIComponent(subject.trim())+
+      '&body='+encodeURIComponent(message.trim());
+    window.location.href=url;
+    setNotice('O envio deve ser confirmado no aplicativo de e-mail.');
   }
   return <section className="w-full flex-1 flex flex-col bg-[#121626] text-white overflow-hidden">
     <header className="p-4 border-b border-[#232943] flex items-center gap-3">
       <button onClick={onBack} aria-label="Voltar"><ArrowLeft size={20}/></button>
       <h2 className="font-bold">{tr.title}</h2>
+      <button className="ml-auto" onClick={()=>void refresh()} aria-label={tr.refresh}><RefreshCw size={18}/></button>
     </header>
-    <form onSubmit={openMail} className="p-5 space-y-4 overflow-auto">
-      <p className="text-xs text-slate-400">Destino: {recipient || 'Carregando...'}</p>
-      <label className="block text-sm">{tr.subject}
-        <input required maxLength={120} value={subject} onChange={e => setSubject(e.target.value)}
-          className="block w-full mt-2 rounded-xl bg-[#1e2338] p-3 border border-[#2b3350]" />
-      </label>
-      <label className="block text-sm">{tr.detail}
-        <textarea required maxLength={2500} rows={7} value={context} onChange={e => setContext(e.target.value)}
-          className="block w-full mt-2 rounded-xl bg-[#1e2338] p-3 border border-[#2b3350]"/>
-      </label>
-      {notice && <p role="status" className="text-xs text-amber-300">{notice}</p>}
-      <button type="submit" className="w-full rounded-xl bg-indigo-600 p-3 font-semibold flex justify-center gap-2"><Send size={16}/>{tr.open}</button>
-      <button type="button" onClick={() => void copyMessage()} className="w-full rounded-xl border border-slate-600 p-3 flex justify-center gap-2"><Copy size={16}/>{tr.copy}</button>
-      <button type="button" onClick={() => {setSubject('');setContext('');sessionStorage.removeItem(draftKey);setNotice('');}}
-        className="w-full text-slate-400 text-sm flex justify-center gap-2"><Trash2 size={16}/>{tr.clear}</button>
-    </form>
+    <div className="p-4 space-y-5 overflow-y-auto">
+      <form onSubmit={e=>void submit(e)} className="space-y-3">
+        <label className="block text-sm">{tr.subject}
+          <input required minLength={3} maxLength={120} value={subject}
+            onChange={e=>setSubject(e.target.value)}
+            className="w-full block mt-2 rounded-xl bg-[#1e2338] p-3 border border-[#2b3350]"/>
+        </label>
+        <label className="block text-sm">{tr.message}
+          <textarea required minLength={10} maxLength={2500} value={message}
+            onChange={e=>setMessage(e.target.value)} rows={5}
+            className="w-full block mt-2 rounded-xl bg-[#1e2338] p-3 border border-[#2b3350]"/>
+        </label>
+        {notice && <p role="status" className="text-amber-300 text-xs">{notice}</p>}
+        <button type="submit" disabled={loading}
+          className="w-full flex items-center gap-2 justify-center rounded-xl bg-indigo-600 p-3 disabled:opacity-50">
+          <Send size={16}/>{tr.submit}
+        </button>
+        {recipient && <button type="button" onClick={openMail}
+          className="w-full flex items-center gap-2 justify-center rounded-xl border border-slate-600 p-3 text-sm">
+          <Mail size={16}/>{tr.email}
+        </button>}
+        <button type="button" className="w-full flex items-center justify-center gap-2 text-xs text-slate-400"
+          onClick={()=>{setSubject('');setMessage('');sessionStorage.removeItem(draftKey);}}>
+          <Trash2 size={15}/>{tr.clear}
+        </button>
+      </form>
+      <section className="space-y-2">
+        <h3 className="font-bold text-sm">{tr.history}</h3>
+        {!tickets.length && <p className="text-xs text-slate-400">Nenhum atendimento registrado.</p>}
+        {tickets.map(ticket=><article key={ticket.id}
+          className="bg-[#1e2338] p-3 rounded-xl text-xs border border-[#2b3350] space-y-1">
+          <strong>#{ticket.id} · {ticket.subject}</strong>
+          <p>{ticket.status==='resolved'?'Resolvido':'Aberto'} · {new Date(ticket.created_at*1000).toLocaleString('pt-BR')}</p>
+          <p className="text-slate-300 whitespace-pre-wrap">{ticket.message}</p>
+          <p className="text-slate-400">{ticket.notification_status==='accepted'
+            ? 'E-mail encaminhado ao transporte, entrega não verificada'
+            : 'Notificação por e-mail pendente ou indisponível'}</p>
+        </article>)}
+      </section>
+    </div>
   </section>;
 };
