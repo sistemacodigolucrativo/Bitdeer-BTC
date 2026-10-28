@@ -68,7 +68,7 @@ export const showcase: Miner[] = (()=>{
   return result;
 })();
 
-type Props={language:LanguageCode;onBack:()=>void;btcUsd:number|null};
+type Props={language:LanguageCode;onBack:()=>void;btcUsd?:number|null};
 export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd})=>{
   const notice=language==='en'
     ? 'Demonstration ranking with 200 fictional profiles and illustrative BTC values; these are not actual mining results.'
