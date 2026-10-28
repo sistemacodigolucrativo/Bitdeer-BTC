@@ -28,7 +28,7 @@ const regions: Array<[string,string,string,string,string,string]>=[
   ['🇺🇿','Uzbekistan','Tashkent','Sanjar|Aziz|Bekzod|Jasur|Otabek','Karimov|Ismailov|Rakhimov|Yusupov|Saidov','Samarkand|Bukhara|Andijan|Fergana|Namangan'],
   ['🇵🇭','Philippines','Manila','Jose|Miguel|Paolo|Carlo|Rafael','Reyes|Santos|Garcia|Cruz|Ramos','Cebu|Davao|Baguio|Iloilo|Quezon City'],
   ['🇲🇾','Malaysia','Kuala Lumpur','Alia|Amir|Farah|Hafiz|Nadia','Roslan|Ismail|Rahman|Zulkifli|Hassan','Penang|Ipoh|Johor Bahru|Malacca|Kota Kinabalu'],
-  ['🇲🇽','Mexico','Mexico City','Javier|Carlos|Sofia|Diego|Lucia','Torres|Ramirez|Morales|Hernandez|Flores','Guadalajara|Monterrey|Puebla|Cancun|Merida'],
+  ['🇲🇽','Mexico','Mexico City','Javier|Carlos|Sofia|Diego|Lucia','Mendoza|Ramirez|Morales|Hernandez|Flores','Guadalajara|Monterrey|Puebla|Cancun|Merida'],
   ['🇨🇦','Canada','Toronto','Oliver|Ethan|Emma|Liam|Charlotte','Bennett|Martin|Thompson|Wilson|Clark','Vancouver|Montreal|Ottawa|Calgary|Halifax'],
   ['🇬🇧','United Kingdom','London','Harry|George|Amelia|Olivia|Jack','Smith|Brown|Taylor|Evans|Walker','Manchester|Bristol|Liverpool|Leeds|York'],
   ['🇯🇵','Japan','Tokyo','Haruto|Yuto|Sakura|Ren|Hina','Tanaka|Sato|Suzuki|Kobayashi|Nakamura','Osaka|Kyoto|Nagoya|Sapporo|Kobe'],
