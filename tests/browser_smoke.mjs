@@ -77,10 +77,10 @@ try {
   await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
   await page.getByText('Solicitar saque interno').waitFor({timeout:10000});
   await page.getByRole('button',{name:'Bitcoin (BTC)'}).click();
-  await page.getByTestId('withdraw-available-card').getByText('Saldo disponível em BTC')
+  await page.getByTestId('withdraw-available-card').getByText(/Saldo disponível em BTC|Available balance in BTC|Saldo disponible en BTC/)
     .waitFor({timeout:10000});
   await page.getByRole('button',{name:'Dólar (USD)'}).click();
-  await page.getByTestId('withdraw-available-card').getByText('Saldo disponível em USD')
+  await page.getByTestId('withdraw-available-card').getByText(/Saldo disponível em USD|Available balance in USD|Saldo disponible en USD/)
     .waitFor({timeout:10000});
   await page.getByRole('button',{name:'Voltar à carteira'}).click();
   await page.locator('nav button').nth(4).click();
