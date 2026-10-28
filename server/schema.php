@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS plans (
   duration_days INTEGER NOT NULL CHECK(duration_days>=0),
   session_seconds INTEGER NOT NULL DEFAULT 0 CHECK(session_seconds>=0),
   restart_cooldown_seconds INTEGER NOT NULL DEFAULT 0 CHECK(restart_cooldown_seconds>=0),
+  withdraw_min_cents INTEGER NOT NULL DEFAULT 0 CHECK(withdraw_min_cents>=0),
+  withdraw_after_days INTEGER NOT NULL DEFAULT 0 CHECK(withdraw_after_days>=0),
   hashrate TEXT NOT NULL, server_model TEXT NOT NULL,
   available INTEGER NOT NULL DEFAULT 1, revision INTEGER NOT NULL DEFAULT 1,
   updated_at INTEGER NOT NULL
@@ -138,6 +140,25 @@ CREATE TABLE IF NOT EXISTS referral_events (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_referrals_inviter ON referral_events(inviter_id,created_at);
+CREATE TABLE IF NOT EXISTS language_preferences (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id),
+  language TEXT NOT NULL DEFAULT 'pt' CHECK(language IN ('pt','en','es'))
+);
+CREATE TABLE IF NOT EXISTS withdraw_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  plan_id TEXT NOT NULL,
+  btc_address TEXT NOT NULL,
+  usd_cents INTEGER NOT NULL CHECK(usd_cents>0),
+  btc_satoshis INTEGER NOT NULL CHECK(btc_satoshis>0),
+  quote_usd_cents INTEGER NOT NULL,
+  quote_source TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK(status IN ('pending','approved','rejected')),
+  created_at INTEGER NOT NULL, processed_at INTEGER,
+  processed_by INTEGER REFERENCES users(id), reference TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_withdraw_user ON withdraw_requests(user_id,created_at);
 CREATE TABLE IF NOT EXISTS app_settings (
   name TEXT PRIMARY KEY, value TEXT NOT NULL
 );
