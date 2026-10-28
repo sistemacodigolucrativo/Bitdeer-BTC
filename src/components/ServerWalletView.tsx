@@ -4,22 +4,22 @@ import {MemberData} from '../services/api';
 import {LanguageCode} from '../types';
 type RecordItem={start_ts:number;earned_units:number;end_ts:number;plan_id:string};
 type Props={account:MemberData|null;language:LanguageCode;accruals:RecordItem[];
-  onEdit:()=>void;onHistory:()=>void};
-export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit,onHistory})=>{
+  onEdit:()=>void;onHistory:()=>void;onWithdraw:()=>void;btcUsd:number|null;};
+export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit,onHistory,onWithdraw,btcUsd})=>{
   const locale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const t=language==='en'
     ?{title:'Wallet',balance:'Internal rewards',sats:'Internal satoshi bonuses',
       address:'BTC address registered',empty:'No address registered',edit:'Edit wallet',
-      history:'View reward history',chart:'Earned USD — last 7 days',
+      history:'View reward history',chart:'Earned USD — last 7 days',withdraw:'Withdraw',btc:'BTC equivalent (simulated)',
       caution:'These are internal records, not mined BTC or confirmed blockchain transfers.'}
     :language==='es'
     ?{title:'Billetera',balance:'Recompensas internas',sats:'Bonos internos en satoshis',
       address:'Dirección BTC registrada',empty:'Ninguna dirección registrada',edit:'Editar billetera',
-      history:'Ver historial',chart:'USD acreditados — últimos 7 días',
+      history:'Ver historial',chart:'USD acreditados — últimos 7 días',withdraw:'Retirar',btc:'Equivalente BTC (simulado)',
       caution:'Son registros internos, no BTC minados ni transferencias confirmadas.'}
     :{title:'Carteira',balance:'Recompensas internas',sats:'Bônus internos em satoshis',
       address:'Endereço BTC cadastrado',empty:'Nenhum endereço cadastrado',edit:'Editar carteira',
-      history:'Ver histórico de recompensas',chart:'USD creditados — últimos 7 dias',
+      history:'Ver histórico de recompensas',chart:'USD creditados — últimos 7 dias',withdraw:'Sacar',btc:'Equivalente BTC (simulado)',
       caution:'São registros internos, não BTC minerados ou transferências confirmadas.'};
   const days=useMemo(()=>{
     const today=new Date();today.setHours(0,0,0,0);
@@ -41,6 +41,10 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
       <div className="absolute right-0 top-0 h-28 w-28 bg-indigo-600/10 blur-2xl rounded-full"/>
       <p className="text-xs text-slate-400">{t.balance}</p>
       <p className="text-3xl font-extrabold font-mono mt-3">US$ {account?.mining.balanceUsd||'0.00000000'}</p>
+      <p className="text-xs text-slate-300 mt-3">{t.btc}:
+        <strong className="font-mono ml-2">{btcUsd && account ? (Number(account.mining.balanceUsd)/btcUsd).toFixed(8) : '—'} BTC</strong>
+      </p>
+      <button onClick={onWithdraw} className="mt-4 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold w-full">{t.withdraw}</button>
       <p className="flex gap-2 items-center text-xs text-slate-300 mt-4">
         <Coins size={18} className="text-amber-400"/>{t.sats}: {(account?.mining.bonusSatoshisBalance||0).toLocaleString(locale)}
       </p>
