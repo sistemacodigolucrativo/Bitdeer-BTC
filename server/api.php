@@ -561,6 +561,86 @@ function api_dispatch(PDO $db, string $action, string $method): never {
           'btcAmount'=>number_format($sats/100000000,8,'.',''),
           'expiresAt'=>$quote['quoted_at']+900],201);
     }
+    if ($action === 'withdraw.quote' && $method === 'GET') {
+        $actor=auth_user($db);
+        if ($actor['role']!=='member') fail(403,'Acesso restrito ao membro');
+        $quote=verified_btc_quote();
+        json_out(['btcUsd'=>number_format($quote['usd'],2,'.',''),
+          'source'=>$quote['source'],'quotedAt'=>$quote['quoted_at'],
+          'simulation'=>true]);
+    }
+    if ($action === 'withdraw.mine' && $method === 'GET') {
+        $actor=auth_user($db);
+        if ($actor['role']!=='member') fail(403,'Acesso restrito ao membro');
+        $items=query_all($db,'SELECT id,plan_id,btc_address,usd_cents,btc_satoshis,
+          quote_usd_cents,quote_source,status,created_at,processed_at
+          FROM withdraw_requests WHERE user_id=? ORDER BY id DESC LIMIT 100',[$actor['id']]);
+        json_out(['requests'=>$items,'simulation'=>true]);
+    }
+    if ($action === 'withdraw.request' && $method === 'POST') {
+        $actor=require_post_csrf($db);
+        if ($actor['role']!=='member') fail(403,'Acesso restrito ao membro');
+        $body=request_body();
+        $mode=string_field($body,'mode',4);
+        $amount=string_field($body,'amount',35);
+        if (!in_array($mode,['USD','BTC'],true)) fail(422,'Escolha USD ou BTC');
+        if ($mode==='USD' && !preg_match('/^(?:[0-9]{1,10})(?:\\.[0-9]{1,2})?$/D',$amount))
+            fail(422,'Valor USD inválido, use até duas casas decimais');
+        if ($mode==='BTC' && !preg_match('/^(?:0|[1-9][0-9]{0,3})(?:\\.[0-9]{1,8})?$/D',$amount))
+            fail(422,'Valor BTC inválido, use até oito casas decimais');
+        $quote=verified_btc_quote();
+        if ($mode==='USD') {
+            $parts=explode('.',$amount);
+            $cents=((int)$parts[0])*100 + (int)str_pad($parts[1]??'0',2,'0');
+            if ($cents<1 || $cents>100000000) fail(422,'Valor fora dos limites');
+            $sats=satoshi_payment($cents,$quote['usd']);
+        } else {
+            $parts=explode('.',$amount);
+            $sats=((int)$parts[0])*100000000 + (int)str_pad($parts[1]??'0',8,'0');
+            $cents=(int)round($sats*$quote['usd']/1000000);
+            if ($sats<1 || $cents<1 || $cents>100000000) fail(422,'Valor fora dos limites');
+        }
+        $request=atomic($db,static function() use($db,$actor,$quote,$cents,$sats): int {
+            $uid=(int)$actor['id'];
+            $at=now();
+            settle($db,$uid,$at);
+            $u=query_one($db,'SELECT created_at,wallet_address,status FROM users WHERE id=?',[$uid]);
+            if (!$u || $u['status']!=='active') fail(403,'Membro inativo');
+            $wallet=(string)$u['wallet_address'];
+            if (!btc_receive_address_valid($wallet))
+                fail(409,'Cadastre sua carteira Bitcoin antes de solicitar um saque');
+            $plan=plan_at($db,$uid,$at);
+            $snapshot=$plan['snapshot'];
+            $min=(int)($snapshot['withdraw_min_cents']??0);
+            $days=(int)($snapshot['withdraw_after_days']??0);
+            $start=(int)$u['created_at'];
+            if ($plan['id']!=='FREE') {
+                $contract=query_one($db,'SELECT started_at FROM contracts
+                  WHERE user_id=? AND started_at<=? AND expires_at>? ORDER BY id DESC LIMIT 1',
+                  [$uid,$at,$at]);
+                $start=(int)($contract['started_at']??$start);
+            }
+            if ($at<$start+$days*86400)
+                fail(409,'O plano exige aguardar o prazo mínimo antes do saque');
+            if ($cents<$min) fail(409,'Valor abaixo do mínimo de saque do plano');
+            $units=$cents*8640000;
+            $state=query_one($db,'SELECT balance_units FROM mining_state WHERE user_id=?',[$uid]);
+            if (!$state || (int)$state['balance_units']<$units)
+                fail(409,'Saldo interno insuficiente');
+            execute_sql($db,'UPDATE mining_state SET balance_units=balance_units-?,updated_at=? WHERE user_id=?',
+                [$units,$at,$uid]);
+            execute_sql($db,'INSERT INTO withdraw_requests
+              (user_id,plan_id,btc_address,usd_cents,btc_satoshis,quote_usd_cents,quote_source,status,created_at)
+              VALUES (?,?,?,?,?,?,?,"pending",?)',
+              [$uid,$plan['id'],$wallet,$cents,$sats,
+                (int)round($quote['usd']*100),$quote['source'],$at]);
+            return (int)$db->lastInsertId();
+        });
+        json_out(['id'=>$request,'status'=>'pending',
+          'usdAmount'=>number_format($cents/100,2,'.',''),
+          'btcAmount'=>number_format($sats/100000000,8,'.',''),
+          'simulation'=>true,'message'=>'Solicitação interna registrada. Nenhum BTC foi transferido.'],201);
+    }
     if ($action === 'orders.mine' && $method === 'GET') {
         $actor=auth_user($db);
         if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
