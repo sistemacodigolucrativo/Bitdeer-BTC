@@ -85,7 +85,7 @@ assert alice.call("profile")["plan"]["id"]=="FREE"
 admin=Client()
 assert admin.call("login",{"login":"adminci","password":"StrongCIpassword123!"})["user"]["role"]=="admin"
 assert admin.call("admin.members")["total"]==3
-assert admin.call("admin.overview")["members"]==2
+assert admin.call("admin.overview")["members"]==3
 # Only actual invited registrations count. The old hardcoded legacy list is not imported.
 assert guest.call("referrals.mine",expected=401)["error"]
 code=alice.call("referrals.mine")["code"]
