@@ -147,12 +147,12 @@ admin.call("admin.password.reset",{"userId":alice_user["id"],
 newsession=Client()
 newsession.call("login",{"login":"alice","password":"longpassword123"},401)
 assert newsession.call("login",{"login":"alice","password":"NewStrongPassword456!"})["user"]["id"]==alice_user["id"]
-# Explicitly exercise the intentionally disabled public installer.
+# Existing databases always lock the installer, including localhost setup.
 try:
     urllib.request.urlopen("http://127.0.0.1:8765/install/index.php",timeout=2)
-    raise AssertionError("Public installer must stay inaccessible while decision 13 is unresolved")
+    raise AssertionError("Installer must never overwrite an existing database")
 except urllib.error.HTTPError as e:
-    assert e.code == 423, ("installer",e.code)
+    assert e.code == 410, ("installer",e.code)
 
 # Free plan has a bounded server-side session and cooldown; no client timing can bypass it.
 bob=Client()
