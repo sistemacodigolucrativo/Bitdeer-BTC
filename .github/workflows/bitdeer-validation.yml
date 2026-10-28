@@ -38,3 +38,5 @@ jobs:
           echo $! >/tmp/bitdeer-php.pid
           trap 'kill $(cat /tmp/bitdeer-php.pid); cat /tmp/bitdeer-php.log' EXIT
           python3 tests/integration.py
+      - name: Isolated browser installation policies
+        run: python3 tests/installer_smoke.py
