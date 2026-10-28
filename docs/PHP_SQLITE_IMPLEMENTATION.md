@@ -70,3 +70,44 @@ consultável. A integração com o sistema antigo de resgates e sua UX permanece
 
 A CI desta branch executa lint PHP, TypeScript, build React e integração HTTP
 com banco SQLite temporário. A CI não publica nada.
+
+
+## Checkout Bitcoin centralizado (revisão atual)
+
+A antiga página pública em `/btc-checkout/` foi desativada. O fluxo
+autenticado na aba Store cria um pedido **pendente** via API. O servidor
+obtém uma cotação BTC/USD de provedores públicos, calcula a quantidade
+em satoshis, armazena preço/cotação/endereço/duração e retorna os dados
+travados do pedido. O painel mostra QR BIP21 e permite copiar os valores.
+
+O servidor não confirma pagamentos por conta própria; o administrador
+deve verificar o TXID externamente e informar o identificador da
+transação na aprovação manual. Um pedido expirado não ativa um plano
+e a taxa/versão não pode ser alterada retroativamente.
+
+A disponibilidade das APIs externas de cotação deve ser validada no
+ambiente de hospedagem. Não usar os dados de teste da CI para pagamentos.
+O endereço BTC inicial é preservado do checkout original e deve ser
+verificado pelo proprietário antes de colocar o fluxo em produção.
+
+## Regras de mineração desta revisão
+
+Os planos têm `session_seconds` e `restart_cooldown_seconds`.
+O FREE inicial tem sessão de 2h e cooldown de 2h após encerramento;
+os VIPs iniciais são contínuos, com corte na data de vencimento.
+As condições ficam armazenadas por snapshot no contrato.
+Uma alteração nos limites exige nova revisão do plano e não modifica
+contratações já vigentes.
+
+**Atenção:** essa escolha de sessão/pausa FREE é uma implementação
+provisória conforme a anotação de duas horas, não uma redefinição
+do plano original. Confirmar os detalhes com o proprietário antes
+da liberação pública.
+
+## Compatibilidade visual
+
+A navegação de cinco abas Home, Store, Reward, Wallet e Setting foi
+reintroduzida no novo workspace, mas o layout interno ainda não foi
+reconciliado pixel a pixel com os componentes React antigos.
+Esses componentes continuam no repositório e só devem ser
+reintegrados após consumir a API sem leitura de saldos de localStorage.

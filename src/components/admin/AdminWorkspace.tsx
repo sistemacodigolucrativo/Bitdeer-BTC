@@ -6,7 +6,8 @@ type Member = {id: number; login: string; display_name: string; email: string; s
 type MemberDetails = {member: Member & {phone: string;wallet_address:string}; contracts:Array<{id:number;plan_id:string;started_at:number;expires_at:number}>;orders:Array<{id:number;plan_id:string;status:string}>;balanceUsd:string;bonusSatoshis:number};
 type Order = {id:number; user_id:number; login:string; plan_id:string; status:string; created_at:number;btc_sats:number;quote_source:string;payment_ref?:string|null};
 export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({user,onLogout}) => {
-  const [section,setSection]=useState<'members'|'plans'|'orders'|'settings'>('members');
+  const [section,setSection]=useState<'members'|'plans'|'orders'|'settings'|'audit'>('members');
+  const [audit,setAudit]=useState<Array<{id:number;admin_id:number;action:string;target_user_id:number|null;created_at:number}>>([]);
   const [members,setMembers]=useState<Member[]>([]);
   const [plans,setPlans]=useState<Plan[]>([]);
   const [orders,setOrders]=useState<Order[]>([]);
@@ -29,6 +30,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         api<{email:string}>('support'),
       ]);
       setMembers(m.members);setTotal(m.total);setPlans(p.plans);setOrders(o.orders);setEmail(s.email);
+      api<{actions:typeof audit}>('admin.audit').then(x=>setAudit(x.actions)).catch(()=>{});
     } catch(e) {setNotice((e as Error).message);}
   }
   useEffect(()=>{void refresh()},[offset]);
@@ -42,13 +44,13 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   return <div className="h-full w-full bg-[#121526] text-white flex flex-col md:flex-row overflow-hidden">
     <aside className="md:w-52 bg-[#171b2d] border-r border-[#2b3350] p-4 flex md:flex-col gap-2 flex-wrap">
       <div className="hidden md:block font-bold text-xl pb-6">Bitdeer BTC <span className="block text-xs text-slate-400">Administrador {user.login}</span></div>
-      {([['members','Membros',Users],['plans','Planos VIP',CreditCard],['orders','Pedidos',CreditCard],['settings','Configurações',Settings]] as const).map(([k,label,Icon])=>
+      {([['members','Membros',Users],['plans','Planos VIP',CreditCard],['orders','Pedidos',CreditCard],['settings','Configurações',Settings],['audit','Auditoria',Users]] as const).map(([k,label,Icon])=>
         <button key={k} onClick={()=>setSection(k)} className={'flex items-center gap-2 rounded-xl px-3 py-2 text-sm '+(section===k?'bg-indigo-600':'hover:bg-slate-800')}><Icon size={16}/>{label}</button>)}
       <button className="flex items-center gap-2 rounded-xl p-2 text-sm" onClick={onLogout}><LogOut size={16}/> Sair</button>
     </aside>
     <main className="flex-1 overflow-auto p-4 md:p-7 space-y-4">
       <div className="flex justify-between items-center"><h1 className="text-xl font-bold">
-        {section==='members'?'Gerenciamento de membros':section==='plans'?'Catálogo VIP':section==='orders'?'Pedidos pendentes':'Configurações'}
+        {section==='members'?'Gerenciamento de membros':section==='plans'?'Catálogo VIP':section==='orders'?'Pedidos pendentes':section==='audit'?'Auditoria administrativa':'Configurações'}
       </h1><button aria-label="Atualizar" onClick={()=>void refresh()}><RefreshCw size={18}/></button></div>
       {notice && <p role="status" className="bg-[#292a40] p-3 rounded-lg text-amber-300 text-sm">{notice}</p>}
       {section==='members' && <>
@@ -161,6 +163,13 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
             }
           }}>Confirmar pagamento e ativar</button>}
         </article>)}
+      </div>}
+      {section==='audit' && <div className="space-y-2">
+        {audit.map(entry=><div key={entry.id} className="rounded-xl bg-[#1b2137] border border-[#2b3350] p-3 text-xs">
+          {new Date(entry.created_at*1000).toLocaleString('pt-BR')} · {entry.action}
+          · administrador #{entry.admin_id} · alvo #{entry.target_user_id ?? '-'}
+        </div>)}
+        {!audit.length && <p className="text-sm text-slate-400">Nenhuma ação registrada.</p>}
       </div>}
       {section==='settings' && <form onSubmit={e=>{e.preventDefault();void change('admin.settings',{supportEmail:email})}} className="space-y-3">
         <label className="block text-sm">E-mail de suporte

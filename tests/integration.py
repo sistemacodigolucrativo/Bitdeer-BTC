@@ -64,6 +64,7 @@ admin=Client()
 assert admin.call("login",{"login":"adminci","password":"StrongCIpassword123!"})["user"]["role"]=="admin"
 assert admin.call("admin.members")["total"]==2
 assert len(admin.call("admin.plans")["plans"])==5
+assert isinstance(admin.call("admin.audit")["actions"],list)
 assert admin.call("admin.member.details",expected=422)["error"]
 assert admin.call("admin.member.details&id="+str(alice_user["id"]))["member"]["login"]=="alice"
 admin.call("admin.order.approve",{"orderId":order["orderId"],"paymentConfirmed":False,"paymentReference":"a"*64},422)
