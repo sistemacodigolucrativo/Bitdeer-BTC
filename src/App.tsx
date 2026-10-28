@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { LanguageCode, AppScreen } from './types';
 import { storageService } from './services/storageService';
-import { AuthUser, session as backendSession, logout as backendLogout } from './services/api';
+import { AuthUser, api, session as backendSession, logout as backendLogout } from './services/api';
 import { AdminWorkspace } from './components/admin/AdminWorkspace';
 import { MemberWorkspace } from './components/MemberWorkspace';
 import { translations } from './i18n/translations';
@@ -73,12 +73,22 @@ export default function App() {
     const savedTheme = storageService.getPreferences().theme;
     return savedTheme === 'light' ? 'light' : 'dark';
   });
-  const [activeScreen, setActiveScreen] = useState<AppScreen>('language');
+  const [activeScreen, setActiveScreen] = useState<AppScreen>('login');
   const [showCongratulations, setShowCongratulations] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
   useEffect(() => {
-    backendSession().then(user => {setAuthUser(user);setActiveScreen('workspace');})
+    backendSession().then(user => {
+      setAuthUser(user);setActiveScreen('workspace');
+      if (user.role==='member') {
+        void api<{language:string}>('language.preference').then(result=>{
+          if (result.language==='pt'||result.language==='en'||result.language==='es') {
+            setLanguage(result.language);
+            storageService.savePreferences({language:result.language});
+          }
+        }).catch(()=>{});
+      }
+    })
       .catch(() => {}).finally(() => setCheckingSession(false));
   }, []);
 
@@ -100,7 +110,8 @@ export default function App() {
   const handleSelectLanguage = (newLang: LanguageCode) => {
     const validLang = normalizeLanguage(newLang);
     setLanguage(validLang);
-    storageService.savePreferences({ language: validLang });
+    storageService.savePreferences({ language: validLang, isFirstLaunch:false });
+    if(authUser?.role==='member')void api('language.preference',{language:validLang}).catch(()=>{});
   };
 
   const handleConfirmLanguage = () => {
@@ -113,13 +124,20 @@ export default function App() {
   };
 
   const handleEnterWorkspace = () => {
-    setActiveScreen('login');
+    setActiveScreen('workspace');
   };
 
   const handleLoginSuccess = (user: AuthUser) => {
     setAuthUser(user);
     setShowCongratulations(false);
-    setActiveScreen('workspace');
+    setActiveScreen(user.role==='admin'?'workspace':'language');
+    if(user.role==='member')void api<{language:string}>('language.preference')
+      .then(result=>{
+        if(result.language==='pt'||result.language==='en'||result.language==='es'){
+          setLanguage(result.language);
+          storageService.savePreferences({language:result.language});
+        }
+      }).catch(()=>{});
   };
 
   const handleProceedFromCongratulations = () => {
@@ -134,7 +152,7 @@ export default function App() {
     setLanguage(defaultLang);
     storageService.savePreferences({ language: defaultLang });
     setShowCongratulations(false);
-    setActiveScreen('language');
+    setActiveScreen('login');
   };
 
   return (
@@ -143,7 +161,7 @@ export default function App() {
         {/* Mobile App Viewport Container */}
         <main className={`w-full ${authUser?.role === 'admin' ? 'max-w-6xl' : 'max-w-[420px]'} h-[100dvh] md:h-[840px] md:rounded-3xl md:shadow-2xl ${theme === 'light' ? 'bg-white border md:border-slate-200 text-slate-800' : 'bg-[#121626] border-0 md:border md:border-[#20263f] text-slate-100'} overflow-hidden flex flex-col relative transition-colors duration-200`}>
           {checkingSession && <div className="p-8 text-center">Verificando sessão segura...</div>}
-          {/* Step 1: Language Screen */}
+          {/* Step 2: Language Screen (after member login) */}
           {!checkingSession && activeScreen === 'language' && (
             <LanguageScreen
               currentLanguage={language}
@@ -152,7 +170,7 @@ export default function App() {
             />
           )}
 
-          {/* Step 2: Onboarding Screen with Slide to Start */}
+          {/* Step 3: Mining now onboarding */}
           {!checkingSession && activeScreen === 'onboarding' && (
             <OnboardingPreviewScreen
               language={language}
@@ -161,7 +179,7 @@ export default function App() {
             />
           )}
 
-          {/* Step 3: Terminal Diagnostics Initialization */}
+          {/* Step 4: System ready diagnostics */}
           {!checkingSession && activeScreen === 'terminal' && (
             <TerminalInitScreen
               language={language}
@@ -169,8 +187,8 @@ export default function App() {
             />
           )}
 
-          {/* Step 4: Login with Google & Referral code */}
-          {activeScreen === 'login' && !showCongratulations && (
+          {/* Step 1: Login before language selection */}
+          {!checkingSession && activeScreen === 'login' && !showCongratulations && (
             <LoginScreen
               language={language}
               onLoginSuccess={handleLoginSuccess}
