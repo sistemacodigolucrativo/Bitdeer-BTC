@@ -41,6 +41,13 @@ export const MemberWorkspace: React.FC<{
   const [profile, setProfile] = useState({displayName:'',email:'',phone:'',walletAddress:''});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [btcUsd,setBtcUsd]=useState<number|null>(null);
+  const [walletStep,setWalletStep]=useState<'none'|'register'|'amount'>('none');
+  const [walletDraft,setWalletDraft]=useState('');
+  const [withdrawMode,setWithdrawMode]=useState<'BTC'|'USD'>('USD');
+  const [withdrawAmount,setWithdrawAmount]=useState('');
+  type WithdrawRequest={id:number;usd_cents:number;btc_satoshis:number;status:string;created_at:number};
+  const [withdrawHistory,setWithdrawHistory]=useState<WithdrawRequest[]>([]);
   useEffect(() => {
     if (!checkout) {setCheckoutQr('');return;}
     const bip21='bitcoin:'+checkout.btcAddress+'?amount='+checkout.btcAmount;
@@ -59,6 +66,39 @@ export const MemberWorkspace: React.FC<{
       const data = await api<MemberData>('profile');
       setAccount(data); setProfile(data.profile);
     } catch(e) { setNotice((e as Error).message); }
+  }
+  useEffect(() => {
+    const quote=()=>void api<{btcUsd:string}>('withdraw.quote')
+      .then(x=>setBtcUsd(Number(x.btcUsd))).catch(()=>setBtcUsd(null));
+    quote();
+    const timer=window.setInterval(quote,90000);
+    return ()=>window.clearInterval(timer);
+  }, []);
+  useEffect(()=>{
+    if(page==='wallet')void api<{requests:WithdrawRequest[]}>('withdraw.mine')
+      .then(x=>setWithdrawHistory(x.requests)).catch(()=>{});
+  },[page]);
+  async function saveWalletForWithdrawal(){
+    setBusy(true);setNotice('');
+    try{
+      await api('profile.update',{...profile,walletAddress:walletDraft});
+      await reload();
+      setWalletStep('none');
+      setNotice(words.saved);
+    }catch(e){setNotice((e as Error).message);}
+    finally{setBusy(false);}
+  }
+  async function submitWithdrawal(){
+    setBusy(true);setNotice('');
+    try{
+      const result=await api<{id:number;message:string}>('withdraw.request',{mode:withdrawMode,amount:withdrawAmount});
+      await reload();
+      const history=await api<{requests:WithdrawRequest[]}>('withdraw.mine');
+      setWithdrawHistory(history.requests);
+      setWalletStep('none');setWithdrawAmount('');
+      setNotice(result.message);
+    }catch(e){setNotice((e as Error).message);}
+    finally{setBusy(false);}
   }
   useEffect(() => {
     void reload();
@@ -104,14 +144,58 @@ export const MemberWorkspace: React.FC<{
       page==='referrals' ? <ReferralHistoryView language={language} onBack={()=>setPage('settings')}/> :
       <div className="flex-1 overflow-auto p-5 space-y-4">
         {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
-        {page==='home' && <ServerHomeView account={account} language={language} busy={busy}
+        {page==='home' && <ServerHomeView account={account} language={language} btcUsd={btcUsd} busy={busy}
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
           onRefresh={()=>void reload()} onRewards={()=>setPage('reward')}
           onHistory={()=>setPage('history')}/>}
         {page==='reward' && <ServerRewardView account={account} language={language} busy={busy}
           onClaim={()=>void act('rewards.claim')} onHistory={()=>setPage('history')}/>}
-        {page==='wallet' && <ServerWalletView account={account} language={language}
-          accruals={ledger.accruals} onEdit={()=>setPage('profile')} onHistory={()=>setPage('history')}/>}
+        {page==='wallet' && <>
+          <ServerWalletView account={account} language={language} btcUsd={btcUsd}
+            accruals={ledger.accruals} onEdit={()=>setPage('profile')} onHistory={()=>setPage('history')}
+            onWithdraw={()=>{
+              setWalletDraft(account?.profile.walletAddress??'');
+              setWalletStep(account?.profile.walletAddress?'amount':'register');
+              setWithdrawAmount('');
+            }}/>
+          {walletStep!=='none' && <section className="bg-[#1b2137] border border-indigo-500 rounded-2xl p-4 space-y-3">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold">{walletStep==='register'?'Cadastrar carteira Bitcoin':'Solicitar saque interno'}</h3>
+              <button onClick={()=>setWalletStep('none')} className="text-xs underline">Fechar</button>
+            </div>
+            {walletStep==='register' ? <form className="space-y-3" onSubmit={e=>{e.preventDefault();void saveWalletForWithdrawal();}}>
+              <label className="block text-sm">Endereço de recebimento BTC
+                <input required value={walletDraft} onChange={e=>setWalletDraft(e.target.value)}
+                  placeholder="bc1..." className="w-full mt-2 bg-[#11182c] rounded-lg p-3 font-mono text-xs"/>
+              </label>
+              <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">Salvar carteira</button>
+            </form> : <form className="space-y-3" onSubmit={e=>{e.preventDefault();void submitWithdrawal();}}>
+              <p className="text-xs text-slate-300 break-all">Carteira: {account?.profile.walletAddress}</p>
+              <p className="text-xs text-slate-400">Cotação indicativa: {btcUsd?('US$ '+btcUsd.toFixed(2)+'/BTC'):'indisponível'}. O servidor atualiza a cotação ao registrar o pedido.</p>
+              <p className="text-xs text-slate-400">Saque mínimo: US$ {account?.plan.withdrawMinUsd??'0.00'}.
+                Prazo do plano: {account?.plan.withdrawAfterDays??0} dia(s).</p>
+              <div className="flex gap-2">
+                <button type="button" className={'flex-1 p-2 rounded-lg '+(withdrawMode==='USD'?'bg-indigo-600':'bg-[#11182c]')}
+                  onClick={()=>{setWithdrawMode('USD');setWithdrawAmount('');}}>Dólar (USD)</button>
+                <button type="button" className={'flex-1 p-2 rounded-lg '+(withdrawMode==='BTC'?'bg-indigo-600':'bg-[#11182c]')}
+                  onClick={()=>{setWithdrawMode('BTC');setWithdrawAmount('');}}>Bitcoin (BTC)</button>
+              </div>
+              <label className="block text-sm">Valor solicitado ({withdrawMode})
+                <input required type="number" min="0.00000001" step={withdrawMode==='BTC'?'0.00000001':'0.01'}
+                  value={withdrawAmount} onChange={e=>setWithdrawAmount(e.target.value)}
+                  className="w-full mt-2 bg-[#11182c] rounded-lg p-3"/>
+              </label>
+              <p className="text-xs text-amber-300">A solicitação movimenta apenas o saldo interno simulado. Não transfere BTC real e permanece pendente de conferência administrativa.</p>
+              <button disabled={busy || !btcUsd} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">Registrar solicitação</button>
+            </form>}
+          </section>}
+          {withdrawHistory.length>0 && <section className="bg-[#171b2d] rounded-2xl p-4 space-y-2">
+            <h3 className="font-bold text-sm">Solicitações de saque</h3>
+            {withdrawHistory.map(x=><p key={x.id} className="text-xs border-b border-[#2b3350] pb-2">
+              #{x.id} · US$ {(x.usd_cents/100).toFixed(2)} · {(x.btc_satoshis/1e8).toFixed(8)} BTC simulado · {x.status}
+            </p>)}
+          </section>}
+        </>}
         {page==='settings' && <section className="space-y-3">
           <h2 className="text-lg font-bold">{words.settings}</h2>
           <p className="text-xs text-slate-400">{words.account}: {user.login} · {language==='en'?'User ID':language==='es'?'ID de usuario':'ID do usuário'} #{user.id}</p>
@@ -182,7 +266,8 @@ export const MemberWorkspace: React.FC<{
           <h2 className="text-lg font-bold">{words.profile}</h2>
           {(['displayName','email','phone','walletAddress'] as const).map(k=><label key={k} className="block text-sm text-slate-300">
             {({displayName:words.name,email:words.optionalEmail,phone:words.phone,walletAddress:words.btcWallet} as const)[k]}
-            <input value={profile[k]} onChange={e=>setProfile(p=>({...p,[k]:e.target.value}))}
+            <input type={k==='email'?'email':k==='phone'?'tel':'text'} autoComplete={k==='email'?'email':k==='phone'?'tel':'off'}
+              value={profile[k]} onChange={e=>setProfile(p=>({...p,[k]:e.target.value}))}
               className="mt-1 w-full bg-[#1b2137] border border-[#2b3350] p-3 rounded-xl text-white"/>
           </label>)}
           <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3">{words.update}</button>
