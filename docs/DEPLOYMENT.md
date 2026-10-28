@@ -12,35 +12,37 @@ private/data é a pasta destinada ao banco SQLite e NÃO deve ser pública.
    (ou configuração equivalente do Nginx/PHP-FPM).
 2. Descompacte o ZIP e aponte a raiz pública do domínio EXCLUSIVAMENTE para
    public_html. A pasta private deve estar fora do alcance do navegador.
-3. Configure as variáveis de ambiente do processo PHP com CAMINHOS ABSOLUTOS:
-   BITDEER_SERVER_DIR=/caminho/bitdeer/private/server
-   BITDEER_DB_PATH=/caminho/bitdeer/private/data/bitdeer.sqlite
-4. Sem configurar chaves de instalação, o instalador de primeira execução
-   funciona somente por conexão local ao servidor (origem e host loopback).
-   Para acessá-lo remotamente com segurança, use encaminhamento SSH
-   de porta para a interface local do servidor. O domínio público sozinho
-   NÃO fica autorizado a criar o primeiro administrador; isso impediria
-   que uma pessoa desconhecida assumisse o site antes do proprietário.
-   Por exemplo, direcione uma porta local ao serviço da hospedagem e
-   acesse http://localhost:PORTA/install (apenas pelo túnel protegido).
-   A reinstalação é bloqueada assim que o SQLite existir.
-5. Alternativamente, o instalador aceita as políticas
-   A (chave privada fornecida), B (chave definida pelo proprietário no
-   servidor) e C (chave privada e restrição IP). NENHUMA é escolhida
-   automaticamente. Para habilitar conscientemente:
-   BITDEER_INSTALL_POLICY=A, B ou C
-   BITDEER_INSTALL_KEY_HASH=HASH_DE_UMA_CHAVE_FORTE_ALEATORIA
-   A política C exige também BITDEER_INSTALL_ALLOWED_IPS com IPs separados
-   por vírgula, conferidos contra REMOTE_ADDR.
-6. Para gerar o hash da chave de instalação:
-   php -r 'echo password_hash($argv[1], PASSWORD_DEFAULT), PHP_EOL;' 'SUA_CHAVE_ALEATORIA_COM_NO_MINIMO_24_CARACTERES'
-   Nunca use a string de exemplo como chave real e nunca inclua chaves
-   ou senhas em arquivos do frontend, repositório ou páginas públicas.
-7. Após a proteção opcional configurada, acesse https://SEU_DOMINIO/install.
-   Informe a chave de instalação, login do administrador, senha forte e
-   e-mail de suporte. O SQLite e os planos serão criados automaticamente.
-8. A reinstalação é recusada quando a base já existe. Remova as variáveis
-   de autorização do instalador após a primeira instalação.
+3. Mantendo a estrutura do ZIP, o PHP encontra private/server e private/data
+   automaticamente. Não há MySQL nem edição manual do banco.
+   BITDEER_SERVER_DIR e BITDEER_DB_PATH são opcionais apenas quando a
+   estrutura de diretórios for alterada.
+4. Acesse https://SEU_DOMINIO/install na hospedagem com o domínio virtual
+   configurado como host canônico (HTTP_HOST deve coincidir com SERVER_NAME).
+   Sem chave pré-configurada, o instalador mostrará um desafio DNS:
+   criar TXT _bitdeer-install.SEUDOMINIO com o valor único exibido na página.
+   Publique esse TXT no provedor DNS do domínio e prossiga no mesmo navegador.
+   O código aleatório expira em 30 minutos, só vale naquela sessão e
+   a instalação é bloqueada após criar o SQLite e o administrador.
+   A verificação exige dns_get_record (DNS TXT habilitado no PHP).
+5. Instalação por acesso local/loopback continua disponível sem etapa DNS.
+   Não exponha a interface local a terceiros por proxy sem autenticação.
+   Se o servidor não identificar um host canônico confiável, o instalador
+   NÃO liberará cadastro remoto de administrador; corrija o virtual host.
+6. Formulário: login do primeiro administrador, senha e e-mail de suporte.
+   O provisionamento inicial cria as tabelas e os cinco planos.
+7. Acessos públicos à rota não comprovam domínio: só o TXT publicado
+   pelo operador DNS autoriza a primeira conta administrativa.
+   Evite reutilizar desafios entre tentativas ou manter o TXT expirado.
+   Após instalar, o /install recusa outra instalação.
+
+### Requisitos importantes
+- Raiz pública apontada somente a public_html; private permanece fora dela.
+- Conexão HTTPS válida pelo domínio do site.
+- PHP 8.2+, pdo_sqlite, mbstring, dns_get_record e acesso DNS TXT.
+- Pastas privadas graváveis e permissões restritas.
+- O assistente protege contra reinstalação, mas não substitui
+  backups e configuração do servidor.
+
 
 ## Carteira BTC e suporte
 
