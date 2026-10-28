@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { AuthUser, MemberData, Plan, api } from '../services/api';
 import { CustomerSupportView } from './workspace/CustomerSupportView';
 import { LanguageCode } from '../types';
-import { Home, Store, User, Headphones, LogOut, RefreshCw, History } from 'lucide-react';
+import { Home, Store, User, Headphones, LogOut, RefreshCw, History, Wallet, Gift, Settings } from 'lucide-react';
+import { translations } from '../i18n/translations';
 
-type Page = 'home' | 'store' | 'profile' | 'support' | 'history';
+type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history';
 export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; onLogout: () => void}> =
 ({user, language, onLogout}) => {
   const [page, setPage] = useState<Page>('home');
+  const tabNames = translations[language].tabs;
   const [account, setAccount] = useState<MemberData | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [orders, setOrders] = useState<Array<{id:number;plan_id:string;status:string}>>([]);
@@ -69,14 +71,56 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
             <button disabled={busy || !account?.mining.running} onClick={()=>void act('mining.stop')} className="flex-1 rounded-xl bg-rose-600 p-3 disabled:opacity-40">Parar</button>
             <button disabled={busy} onClick={()=>void reload()} className="p-3 rounded-xl border border-slate-600"><RefreshCw size={18}/></button>
           </div>
-          <button disabled={busy || !!(account?.mining.lastBonusAt && Date.now()/1000 < account.mining.lastBonusAt+86400)}
-            onClick={()=>void act('rewards.claim')}
-            className="w-full p-3 bg-indigo-600 rounded-xl disabled:opacity-40">
-            Resgatar bônus diário
-          </button>
           {account?.mining.sessionEndsAt && <p className="text-xs text-slate-400">Fim da sessão: {new Date(account.mining.sessionEndsAt*1000).toLocaleString('pt-BR')}</p>}
           {account?.mining.cooldownUntil && <p className="text-xs text-slate-400">Nova sessão a partir de: {new Date(account.mining.cooldownUntil*1000).toLocaleString('pt-BR')}</p>}
         </>}
+        {page==='reward' && <section className="space-y-4">
+          <h2 className="text-lg font-bold">Recompensas</h2>
+          <div className="bg-[#1b2137] rounded-2xl p-5 border border-[#2b3350] space-y-2">
+            <p className="text-xs text-slate-400">Bônus disponível a cada 24 horas</p>
+            <p className="text-2xl font-bold">US$ {account?.plan.bonusUsd ?? '0.00'}</p>
+            <p className="text-sm">+ {account?.plan.bonusSatoshis ?? 0} satoshis internos</p>
+            <p className="text-xs text-slate-400">Plano atual: {account?.plan.id || 'FREE'}</p>
+            {account?.mining.lastBonusAt &&
+              <p className="text-xs text-slate-400">Último resgate: {new Date(account.mining.lastBonusAt * 1000).toLocaleString('pt-BR')}</p>}
+            <button disabled={busy || !!(account?.mining.lastBonusAt && Date.now()/1000 < account.mining.lastBonusAt+86400)}
+              onClick={()=>void act('rewards.claim')}
+              className="w-full p-3 mt-2 bg-indigo-600 rounded-xl disabled:opacity-40">
+              Resgatar bônus diário
+            </button>
+          </div>
+          <p className="text-xs text-slate-400">Os bônus são registros internos do sistema, não depósitos automáticos em uma carteira Bitcoin.</p>
+          <button className="text-sm underline text-indigo-300" onClick={()=>setPage('history')}>Ver histórico de recompensas</button>
+        </section>}
+        {page==='wallet' && <section className="space-y-4">
+          <h2 className="text-lg font-bold">Carteira</h2>
+          <div className="p-5 bg-[#1b2137] rounded-2xl border border-[#2b3350] space-y-2">
+            <p className="text-xs text-slate-400">Saldo de recompensas (interno)</p>
+            <p className="text-3xl font-bold">US$ {account?.mining.balanceUsd || '0.00000000'}</p>
+            <p className="text-xs text-slate-400">Bônus internos em satoshis: {account?.mining.bonusSatoshisBalance || 0}</p>
+          </div>
+          <p className="text-xs text-amber-300">Os valores acima não representam saldo real de BTC nem confirmam pagamentos de mineração.</p>
+          <div className="p-4 bg-[#1b2137] rounded-2xl border border-[#2b3350]">
+            <p className="text-xs text-slate-400">Endereço BTC informado no perfil</p>
+            <p className="text-xs break-all mt-2">{account?.profile.walletAddress || 'Nenhuma carteira cadastrada'}</p>
+          </div>
+          <button className="text-sm underline text-indigo-300" onClick={()=>setPage('profile')}>Editar dados de carteira</button>
+          <button className="block text-sm underline text-indigo-300" onClick={()=>setPage('history')}>Ver histórico</button>
+        </section>}
+        {page==='settings' && <section className="space-y-3">
+          <h2 className="text-lg font-bold">Configurações</h2>
+          <p className="text-xs text-slate-400">Conta: {user.login} · Usuário ID #{user.id}</p>
+          {([
+            ['profile','Meu perfil',User],
+            ['history','Histórico',History],
+            ['support','Atendimento / Suporte',Headphones],
+          ] as const).map(([target,label,Icon]) =>
+            <button key={target} onClick={()=>setPage(target)}
+              className="w-full flex gap-3 items-center rounded-xl bg-[#1b2137] border border-[#2b3350] p-4 text-sm">
+              <Icon size={18}/>{label}</button>)}
+          <button className="w-full flex gap-3 items-center rounded-xl bg-[#1b2137] border border-[#2b3350] p-4 text-sm"
+            onClick={onLogout}><LogOut size={18}/> Encerrar sessão</button>
+        </section>}
         {page==='store' && <>
           <h2 className="font-bold text-lg">Planos de mineração</h2>
           {plans.map(p=><article key={p.id} className="rounded-2xl bg-[#1b2137] p-4 space-y-2 border border-[#2b3350]">
@@ -118,9 +162,12 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
           <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3">Atualizar</button>
         </form>}
       </div>}
-    <nav className="flex justify-around items-center p-3 h-16 border-t border-[#2b3350] bg-[#101322]">
-      {tab('home','Início',Home)}{tab('store','Planos',Store)}
-      {tab('profile','Perfil',User)}{tab('history','Histórico',History)}{tab('support','Suporte',Headphones)}
+    <nav className="w-full h-16 bg-[#101322] border-t border-[#1f253d] flex items-center justify-around px-2 z-30 select-none">
+      {tab('home',tabNames.home,Home)}
+      {tab('store',tabNames.store,Store)}
+      {tab('reward',tabNames.reward,Gift)}
+      {tab('wallet',tabNames.wallet,Wallet)}
+      {tab('settings',tabNames.setting,Settings)}
     </nav>
   </div>;
 };
