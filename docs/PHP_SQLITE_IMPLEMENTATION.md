@@ -10,24 +10,20 @@ mas seus saldos simulados em localStorage não devem ser apresentados como dados
 - React/Vite: npm install && npm run build.
 - PHP precisa servir /api/index.php; os arquivos em dist/ são estáticos.
 - SQLite deve ficar **fora da raiz pública**. Configure BITDEER_DB_PATH como caminho
-  absoluto. O padrão fica em um diretório irmão do projeto: bitdeer-private-data.
-  Verifique a configuração real da raiz pública antes de usar.
+  absoluto apenas em estruturas personalizadas. No ZIP, o banco SQLite fica
+  automaticamente em private/data, fora de public_html.
 - Nunca implemente fallback de /api ou /install para o index.html do React.
 
 ## Instalador e pendências
 
-O proprietário optou por não exigir chave adicional no fluxo simples.
-O instalador browser permite a primeira configuração SEM CHAVE, mas
-somente se o navegador acessar a interface local/loopback do servidor.
-O acesso pelo domínio público continua bloqueado sem uma política explícita,
-para não permitir que terceiros criem o primeiro administrador.
-O instalador valida CSRF, cria SQLite privado e proíbe reinstalações.
-As opções A/B/C continuam opcionais para quem precisar abrir o assistente
-pelo domínio público. Veja docs/DEPLOYMENT.md.
+O instalador aceita a primeira instalação via domínio com desafio DNS TXT
+aleatório de sessão. A prova verifica domínio canônico do servidor,
+sem chave pré-configurada, e não se confunde com visita pública à página.
+A verificação DNS real depende de um domínio operacional controlado pelo
+proprietário. O modo local sem chave permanece como alternativa.
+Ambos têm CSRF e bloqueio após instalação. Veja docs/DEPLOYMENT.md.
 
-O provisionamento CLI continua disponível apenas para testes/desenvolvimento.
-O assistente de navegador provisiona a instalação limpa pelo acesso local,
-sem configurações extras de proteção ou banco de dados.
+O provisionamento por CLI permanece disponível para testes isolados.
 
 Em um ambiente isolado, fora de produção:
 
@@ -148,3 +144,9 @@ e o estado de confirmação pode ser revogado pelo administrador.
 Tickets de suporte são registrados em support_tickets, e as
 notificações por e-mail são opt-in no servidor. Uma notificação
 aceita pelo transporte não significa entrega comprovada.
+
+## Indicações e recebimento BTC
+
+Os novos vínculos de indicação e os respectivos históricos são registrados no SQLite com código individual de membro. O benefício legado de US$ 1 por cadastro válido é crédito interno, não uma transferência BTC. As tabelas também são criadas em instalações anteriores quando o fluxo é acessado, sem excluir dados existentes. O código antigo 8ZPTC e a lista fictícia inicial não foram atribuídos a membros reais; eventual recuperação histórica depende de dados de origem verificável.
+
+TXIDs são normalizados e rejeitados quando já associados a outro pedido, independentemente de letras maiúsculas ou minúsculas. O painel permite registrar rejeições com motivo e trilha de auditoria. Os endereços BTC SegWit mainnet são verificados por checksum BIP-173/BIP-350; a confirmação da posse e da transação permanece operação humana externa.
