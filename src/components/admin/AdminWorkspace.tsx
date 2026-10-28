@@ -165,7 +165,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         <p className="text-xs text-slate-400">{total} membro(s) · exibindo até 50 por página.</p>
         <div className="space-y-3">{members.map(m=>
           <article key={m.id} className="rounded-xl p-4 bg-[#1b2137] border border-[#2b3350] flex flex-wrap gap-4 items-center justify-between">
-            <div><strong>#{m.id} {m.login}</strong><p className="text-xs text-slate-400">{m.display_name} · {m.status} · {m.plan_id}</p></div>
+            <div><strong>#{m.id} {m.login}</strong><p className="text-xs text-slate-400">{m.display_name} · {m.status==='active'?'Ativo':m.status==='suspended'?'Suspenso':'Arquivado'} · {m.plan_id}</p></div>
             <div className="flex flex-wrap gap-2">
               <button disabled={busy} className={btn} onClick={()=>
                 void api<MemberDetails>('admin.member.details',undefined,{id:m.id})
@@ -315,7 +315,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       {section==='orders' && <div className="space-y-3">
         {orders.map(o=><article key={o.id} className="p-4 rounded-xl bg-[#1b2137] border border-[#2b3350] flex gap-4 flex-wrap justify-between">
           <div><strong>Pedido #{o.id} · {o.plan_id}</strong>
-            <p className="text-xs text-slate-400">{o.login} · {o.status} · {(o.btc_sats/100000000).toFixed(8)} BTC</p>
+            <p className="text-xs text-slate-400">{o.login} · {o.status==='pending'?'Pendente':o.status==='approved'?'Aprovado':o.status==='rejected'?'Rejeitado':'Expirado'} · {(o.btc_sats/100000000).toFixed(8)} BTC</p>
             <p className="text-xs text-slate-400">Cotação: {o.quote_source || 'indisponível'}</p>
             {o.payment_ref && <p className="text-xs break-all">TXID: {o.payment_ref}</p>}
           </div>
@@ -342,7 +342,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         {tickets.length===0 && <p className="text-sm text-slate-400">Nenhum ticket registrado.</p>}
         {tickets.map(t=><article key={t.id} className="p-4 rounded-xl bg-[#1b2137] border border-[#2b3350] space-y-2">
           <p className="font-bold text-sm">#{t.id} · {t.subject}</p>
-          <p className="text-xs text-slate-400">{t.login} · {t.status} · notificação: {t.notification_status}</p>
+          <p className="text-xs text-slate-400">{t.login} · {t.status==='open'?'Aberto':'Resolvido'} · notificação: {t.notification_status==='pending'?'Pendente':t.notification_status==='accepted'?'Encaminhada':'Falhou'}</p>
           <p className="whitespace-pre-wrap text-sm">{t.message}</p>
           <p className="text-xs text-slate-400">{new Date(t.created_at*1000).toLocaleString('pt-BR')}</p>
           <div className="flex flex-wrap gap-2">

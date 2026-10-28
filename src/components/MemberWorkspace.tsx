@@ -135,7 +135,7 @@ export const MemberWorkspace: React.FC<{
       <Icon size={20}/>{label}</button>;
   return <div className="w-full h-full flex flex-col bg-[#121526] text-white">
     <div className="px-5 pt-5 pb-3 flex justify-between items-center border-b border-[#2b3350]">
-      <div><strong>Bitdeer BTC</strong><p className="text-xs text-slate-400">{user.login} · {account?.plan.id || '...'}</p></div>
+      <div><strong>Bitdeer BTC</strong><p className="text-xs text-slate-400">{account?.user.login ?? user.login} · {account?.plan.id || '...'}</p></div>
       <button onClick={onLogout} title={words.signOutTitle} aria-label={words.signOutTitle}><LogOut size={20}/></button>
     </div>
     {page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('settings')}/> :
@@ -198,7 +198,7 @@ export const MemberWorkspace: React.FC<{
         </>}
         {page==='settings' && <section className="space-y-3">
           <h2 className="text-lg font-bold">{words.settings}</h2>
-          <p className="text-xs text-slate-400">{words.account}: {user.login} · {language==='en'?'User ID':language==='es'?'ID de usuario':'ID do usuário'} #{user.id}</p>
+          <p className="text-xs text-slate-400">{words.account}: {account?.user.login ?? user.login} · {language==='en'?'User ID':language==='es'?'ID de usuario':'ID do usuário'} #{user.id}</p>
           <label className="flex items-center justify-between bg-[#1b2137] rounded-xl border border-[#2b3350] p-4 text-sm">
             <span>{language==='en'?'Language':language==='es'?'Idioma':'Idioma'}</span>
             <select value={language} onChange={e=>onChangeLanguage(e.target.value as LanguageCode)}
