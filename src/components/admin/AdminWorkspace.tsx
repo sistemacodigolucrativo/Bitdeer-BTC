@@ -127,13 +127,27 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
           <p>Plano(s) contratados: {details.contracts.length}</p>
           <p>Saldo interno: US$ {details.balanceUsd} · satoshis internos: {details.bonusSatoshis}</p>
           <p>Últimos pedidos: {details.orders.length}</p>
+          {details.contracts.length>0 && <section className="mt-4 space-y-2">
+            <h4 className="font-bold text-xs">Histórico de contratos VIP</h4>
+            {details.contracts.map(c=><div key={c.id} className="p-3 bg-[#101827] border border-[#2b3350] rounded-xl text-xs">
+              <p className="font-bold">{c.plan_id} · Contrato #{c.id}</p>
+              <p>Ativação: {new Date(c.started_at*1000).toLocaleString('pt-BR')}</p>
+              <p>Vencimento: {new Date(c.expires_at*1000).toLocaleString('pt-BR')}</p>
+            </div>)}
+          </section>}
+          {details.orders.length>0 && <section className="space-y-2">
+            <h4 className="font-bold text-xs">Últimos pedidos</h4>
+            {details.orders.map(o=><div key={o.id} className="text-xs p-2 border-b border-[#2b3350]">
+              Pedido #{o.id} · {o.plan_id} · {o.status}
+            </div>)}
+          </section>}
           <button className="text-indigo-300 underline" onClick={()=>setDetails(null)}>Fechar detalhes</button>
         </div>}
         {editingMember && <form className="rounded-xl bg-[#1b2137] p-4 space-y-3"
           onSubmit={e=>{e.preventDefault();void change('admin.member.edit',{
             userId:editingMember.id,displayName:editingMember.display_name,
-            email:editingMember.email,phone:details?.member.phone ?? '',walletAddress:details?.member.wallet_address ?? '',
-          });setEditingMember(null);}}>
+            email:editingMember.email,phone:editingMember.phone ?? '',walletAddress:editingMember.wallet_address ?? '',
+          });}}>
           <strong>Editar perfil de {editingMember.login}</strong>
           {(['display_name','email','phone','wallet_address'] as const).map(k=><label key={k} className="block text-sm">
             {({display_name:'Nome',email:'E-mail',phone:'Telefone',wallet_address:'Endereço BTC'} as const)[k]}
