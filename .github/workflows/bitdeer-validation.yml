@@ -46,6 +46,8 @@ jobs:
         run: bash scripts/package-release.sh
       - name: Verify deployable ZIP structure and PHP paths
         run: python3 tests/package_structure.py
+      - name: Exercise unpacked PHP SQLite package over HTTP
+        run: python3 tests/package_runtime_smoke.py
       - uses: actions/upload-artifact@v4
         with:
           name: bitdeer-php-sqlite-package
