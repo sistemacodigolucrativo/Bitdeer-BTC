@@ -16,16 +16,18 @@ mas seus saldos simulados em localStorage não devem ser apresentados como dados
 
 ## Instalador e pendências
 
-Decisão técnica 13 continua pendente. O instalador browser está implementado
-e suporta políticas A, B e C, mas **nenhuma política é selecionada por padrão**.
-Sem as variáveis de autorização exigidas, /install/ responde HTTP 423.
-O instalador testa chave privada e CSRF, cria SQLite em diretório privado
-e impede uma segunda instalação. Consulte docs/DEPLOYMENT.md para ativação
-somente após decisão explícita do proprietário.
+O proprietário optou por não exigir chave adicional no fluxo simples.
+O instalador browser permite a primeira configuração SEM CHAVE, mas
+somente se o navegador acessar a interface local/loopback do servidor.
+O acesso pelo domínio público continua bloqueado sem uma política explícita,
+para não permitir que terceiros criem o primeiro administrador.
+O instalador valida CSRF, cria SQLite privado e proíbe reinstalações.
+As opções A/B/C continuam opcionais para quem precisar abrir o assistente
+pelo domínio público. Veja docs/DEPLOYMENT.md.
 
 O provisionamento CLI continua disponível apenas para testes/desenvolvimento.
-O assistente de navegador agora faz o provisionamento inicial completo, mas
-só pode ser habilitado com a proteção explícita da decisão nº 13.
+O assistente de navegador provisiona a instalação limpa pelo acesso local,
+sem configurações extras de proteção ou banco de dados.
 
 Em um ambiente isolado, fora de produção:
 
@@ -70,8 +72,9 @@ fonte de verdade.
 
 ## Pendências antes de publicar
 
-- Decisão 13: definir qual política será realmente ativada na hospedagem;
-  os três modos e o bloqueio de reinstalação têm testes isolados.
+- Acessar o assistente pela interface local ao servidor ou, opcionalmente,
+  configurar chave no servidor para disponibilização por domínio público.
+  Nunca publicar criação irrestrita do primeiro administrador.
 - Suspensão VIP — opção A: o prazo de vigência do contrato continua correndo;
   novos créditos permanecem interrompidos até reativação, sem retroativos.
 - Formalização operacional dos métodos de verificação de identidade: a

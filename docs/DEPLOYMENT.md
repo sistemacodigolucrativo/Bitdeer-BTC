@@ -15,7 +15,16 @@ private/data é a pasta destinada ao banco SQLite e NÃO deve ser pública.
 3. Configure as variáveis de ambiente do processo PHP com CAMINHOS ABSOLUTOS:
    BITDEER_SERVER_DIR=/caminho/bitdeer/private/server
    BITDEER_DB_PATH=/caminho/bitdeer/private/data/bitdeer.sqlite
-4. A decisão técnica 13 continua pendente. O instalador aceita as políticas
+4. Sem configurar chaves de instalação, o instalador de primeira execução
+   funciona somente por conexão local ao servidor (origem e host loopback).
+   Para acessá-lo remotamente com segurança, use encaminhamento SSH
+   de porta para a interface local do servidor. O domínio público sozinho
+   NÃO fica autorizado a criar o primeiro administrador; isso impediria
+   que uma pessoa desconhecida assumisse o site antes do proprietário.
+   Por exemplo, direcione uma porta local ao serviço da hospedagem e
+   acesse http://localhost:PORTA/install (apenas pelo túnel protegido).
+   A reinstalação é bloqueada assim que o SQLite existir.
+5. Alternativamente, o instalador aceita as políticas
    A (chave privada fornecida), B (chave definida pelo proprietário no
    servidor) e C (chave privada e restrição IP). NENHUMA é escolhida
    automaticamente. Para habilitar conscientemente:
@@ -23,14 +32,14 @@ private/data é a pasta destinada ao banco SQLite e NÃO deve ser pública.
    BITDEER_INSTALL_KEY_HASH=HASH_DE_UMA_CHAVE_FORTE_ALEATORIA
    A política C exige também BITDEER_INSTALL_ALLOWED_IPS com IPs separados
    por vírgula, conferidos contra REMOTE_ADDR.
-5. Para gerar o hash da chave de instalação:
+6. Para gerar o hash da chave de instalação:
    php -r 'echo password_hash($argv[1], PASSWORD_DEFAULT), PHP_EOL;' 'SUA_CHAVE_ALEATORIA_COM_NO_MINIMO_24_CARACTERES'
    Nunca use a string de exemplo como chave real e nunca inclua chaves
    ou senhas em arquivos do frontend, repositório ou páginas públicas.
-6. Após a proteção configurada, acesse https://SEU_DOMINIO/install.
+7. Após a proteção opcional configurada, acesse https://SEU_DOMINIO/install.
    Informe a chave de instalação, login do administrador, senha forte e
    e-mail de suporte. O SQLite e os planos serão criados automaticamente.
-7. A reinstalação é recusada quando a base já existe. Remova as variáveis
+8. A reinstalação é recusada quando a base já existe. Remova as variáveis
    de autorização do instalador após a primeira instalação.
 
 ## Carteira BTC e suporte

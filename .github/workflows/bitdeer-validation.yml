@@ -40,6 +40,8 @@ jobs:
           python3 tests/integration.py
       - name: Isolated browser installation policies
         run: python3 tests/installer_smoke.py
+      - name: Local first-install browser smoke
+        run: python3 tests/local_installer_smoke.py
       - name: Create deployable ZIP (no publishing)
         run: bash scripts/package-release.sh
       - name: Verify deployable ZIP structure and PHP paths
