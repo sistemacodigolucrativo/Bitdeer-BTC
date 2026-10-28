@@ -18,8 +18,10 @@ type PurchaseOrder = {
   btcAmount: string; expiresAt: number;
 };
 type OrderRow = {id:number;plan_id:string;status:string;btc_address?:string;btc_sats?:number;expires_at?:number};
-export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; onLogout: () => void}> =
-({user, language, onLogout}) => {
+export const MemberWorkspace: React.FC<{
+  user: AuthUser; language: LanguageCode; onLogout: () => void;
+  onChangeLanguage: (lang:LanguageCode)=>void;
+}> = ({user, language, onLogout, onChangeLanguage}) => {
   const [page, setPage] = useState<Page>('home');
   const tabNames = translations[language].tabs;
   const words = memberTexts[language] || memberTexts.pt;
@@ -93,7 +95,7 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
       <div><strong>Bitdeer BTC</strong><p className="text-xs text-slate-400">{user.login} · {account?.plan.id || '...'}</p></div>
       <button onClick={onLogout} title={words.signOutTitle} aria-label={words.signOutTitle}><LogOut size={20}/></button>
     </div>
-    {page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('home')}/> :
+    {page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('settings')}/> :
       <div className="flex-1 overflow-auto p-5 space-y-4">
         {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
         {page==='home' && <ServerHomeView account={account} language={language} busy={busy}
@@ -107,6 +109,15 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
         {page==='settings' && <section className="space-y-3">
           <h2 className="text-lg font-bold">{words.settings}</h2>
           <p className="text-xs text-slate-400">{words.account}: {user.login} · Usuário ID #{user.id}</p>
+          <label className="flex items-center justify-between bg-[#1b2137] rounded-xl border border-[#2b3350] p-4 text-sm">
+            <span>{language==='en'?'Language':language==='es'?'Idioma':'Idioma'}</span>
+            <select value={language} onChange={e=>onChangeLanguage(e.target.value as LanguageCode)}
+              className="bg-[#11182c] rounded-lg px-3 py-2 text-xs text-white">
+              <option value="pt">Português</option>
+              <option value="en">English</option>
+              <option value="es">Español</option>
+            </select>
+          </label>
           {([
             ['profile',words.profile,User],
             ['history',words.history,History],
