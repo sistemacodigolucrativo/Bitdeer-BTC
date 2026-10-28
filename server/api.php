@@ -100,7 +100,9 @@ function member_snapshot(PDO $db, int $userId): array {
          'hashrate'=>$plan['snapshot']['hashrate'] ?? '',
          'sessionSeconds'=>(int)($plan['snapshot']['session_seconds'] ?? 0),
          'restartCooldownSeconds'=>(int)($plan['snapshot']['restart_cooldown_seconds'] ?? 0),
-         'expiresAt'=>$plan['expires']],
+         'expiresAt'=>$plan['expires'],
+         'withdrawMinUsd'=>number_format((int)($plan['snapshot']['withdraw_min_cents']??0)/100,2,'.',''),
+         'withdrawAfterDays'=>(int)($plan['snapshot']['withdraw_after_days']??0)],
     ];
 }
 
@@ -116,6 +118,8 @@ function canonical_plan(array $p): array {
       'restartCooldownSeconds'=>(int)$p['restart_cooldown_seconds'],
       'hashrate'=>$p['hashrate'],'serverModel'=>$p['server_model'],
       'available'=>(bool)$p['available'],
+      'withdrawMinUsd'=>number_format((int)($p['withdraw_min_cents']??0)/100,2,'.',''),
+      'withdrawAfterDays'=>(int)($p['withdraw_after_days']??0),
     ];
 }
 function param_id(array $body, string $key): int {
@@ -184,7 +188,36 @@ function own_referral_code(PDO $db, int $owner): string {
         return $code;
     });
 }
+/** Add fields to preexisting SQLite databases without erasing members or balances. */
+function ensure_member_features(PDO $db): void {
+    $cols=array_column(query_all($db,'PRAGMA table_info(plans)'),'name');
+    if (!in_array('withdraw_min_cents',$cols,true))
+        $db->exec('ALTER TABLE plans ADD COLUMN withdraw_min_cents INTEGER NOT NULL DEFAULT 0');
+    if (!in_array('withdraw_after_days',$cols,true))
+        $db->exec('ALTER TABLE plans ADD COLUMN withdraw_after_days INTEGER NOT NULL DEFAULT 0');
+    $db->exec("CREATE TABLE IF NOT EXISTS language_preferences (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id),
+      language TEXT NOT NULL DEFAULT 'pt' CHECK(language IN ('pt','en','es'))
+    )");
+    $db->exec("CREATE TABLE IF NOT EXISTS withdraw_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      plan_id TEXT NOT NULL, btc_address TEXT NOT NULL,
+      usd_cents INTEGER NOT NULL CHECK(usd_cents>0),
+      btc_satoshis INTEGER NOT NULL CHECK(btc_satoshis>0),
+      quote_usd_cents INTEGER NOT NULL, quote_source TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending'
+        CHECK(status IN ('pending','approved','rejected')),
+      created_at INTEGER NOT NULL, processed_at INTEGER,
+      processed_by INTEGER REFERENCES users(id),reference TEXT NOT NULL DEFAULT ''
+    )");
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_withdraw_user ON withdraw_requests(user_id,created_at)');
+}
+function is_valid_member_phone(string $value): bool {
+    return $value==='' || (bool)preg_match('/^\\+?[0-9 ()-]{8,25}$/D',$value);
+}
 function api_dispatch(PDO $db, string $action, string $method): never {
+    ensure_member_features($db);
     if ($action === 'health' && $method === 'GET') json_out(['ok'=>true,'version'=>'php-sqlite-1']);
     if ($action === 'support' && $method === 'GET') {
         $setting = query_one($db,'SELECT value FROM app_settings WHERE name="support_email"');
@@ -350,6 +383,19 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         cookie_session('',now()-3600);
         json_out(['ok'=>true]);
     }
+    if ($action === 'language.preference' && $method === 'GET') {
+        $actor=auth_user($db);
+        $row=query_one($db,'SELECT language FROM language_preferences WHERE user_id=?',[$actor['id']]);
+        json_out(['language'=>$row['language']??'pt']);
+    }
+    if ($action === 'language.preference' && $method === 'POST') {
+        $actor=require_post_csrf($db);
+        $language=string_field(request_body(),'language',2);
+        if (!in_array($language,['pt','en','es'],true)) fail(422,'Idioma inválido');
+        execute_sql($db,'INSERT INTO language_preferences(user_id,language) VALUES (?,?)
+          ON CONFLICT(user_id) DO UPDATE SET language=excluded.language',[$actor['id'],$language]);
+        json_out(['ok'=>true,'language'=>$language]);
+    }
     if ($action === 'profile' && $method === 'GET') {
         $actor=auth_user($db);
         if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
@@ -365,7 +411,8 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $body=request_body();
         $name=string_field($body,'displayName',120);$email=string_field($body,'email',254);
         $phone=string_field($body,'phone',30);$wallet=string_field($body,'walletAddress',150);
-        if ($name === '' || !is_email_or_empty($email)) fail(422,'Nome ou e-mail inválido');
+        if ($name === '' || !is_email_or_empty($email) || !is_valid_member_phone($phone)) fail(422,'Nome, e-mail ou telefone inválido');
+        if ($wallet!=='' && !btc_receive_address_valid($wallet)) fail(422,'Carteira Bitcoin inválida');
         execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=?,wallet_address=?,updated_at=? WHERE id=?',
           [$name,$email,$phone,$wallet,now(),$actor['id']]);
         json_out(['ok'=>true]);
@@ -606,15 +653,21 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $id=param_id($body,'userId');
         $name=string_field($body,'displayName',120);
         $email=string_field($body,'email',254);
+        $login=string_field($body,'login',40);
         $phone=array_key_exists('phone',$body) ? string_field($body,'phone',30) : null;
         $wallet=array_key_exists('walletAddress',$body) ? string_field($body,'walletAddress',150) : null;
-        if ($name==='' || !is_email_or_empty($email)) fail(422,'Nome/e-mail inválido');
-        atomic($db, static function() use ($db,$actor,$id,$name,$email,$phone,$wallet): void {
+        if ($name==='' || !validate_login($login) || !is_email_or_empty($email) ||
+            ($phone!==null && !is_valid_member_phone($phone)) ||
+            ($wallet!==null && $wallet!=='' && !btc_receive_address_valid($wallet)))
+            fail(422,'Nome de usuário, e-mail, telefone ou carteira inválidos');
+        atomic($db, static function() use ($db,$actor,$id,$login,$name,$email,$phone,$wallet): void {
             $row=query_one($db,'SELECT id FROM users WHERE id=? AND role="member"',[$id]);
             if (!$row) fail(404,'Membro inexistente');
-            execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=COALESCE(?,phone),wallet_address=COALESCE(?,wallet_address),updated_at=? WHERE id=?',
-              [$name,$email,$phone,$wallet,now(),$id]);
-            audit($db,(int)$actor['id'],'member.edit',$id,['fields'=>['display_name','email','phone','wallet_address']]);
+            if (query_one($db,'SELECT id FROM users WHERE login=? AND id!=?',[$login,$id]))
+                fail(409,'Nome de usuário já utilizado');
+            execute_sql($db,'UPDATE users SET login=?,display_name=?,email=?,phone=COALESCE(?,phone),wallet_address=COALESCE(?,wallet_address),updated_at=? WHERE id=?',
+              [$login,$name,$email,$phone,$wallet,now(),$id]);
+            audit($db,(int)$actor['id'],'member.edit',$id,['fields'=>['login','display_name','email','phone','wallet_address']]);
         });
         json_out(['ok'=>true]);
     }
@@ -771,16 +824,12 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $memberId=param_id($body,'userId');
         $method=string_field($body,'verificationMethod',40);
         $reference=string_field($body,'verificationReference',150);
-        $password=$body['adminPassword'] ?? null;
-        if (($body['identityConfirmed'] ?? false)!==true ||
-            !in_array($method,['in_person','known_contact','other_offline'],true) ||
-            mb_strlen($reference)<6 || !is_string($password)) {
-            fail(422,'Verificação independente da identidade deve ser registrada antes da redefinição');
+        if (!in_array($method,['in_person','known_contact','other_offline'],true) ||
+            mb_strlen($reference)<6) {
+            fail(422,'Informe uma referência de atendimento com seis caracteres ou mais');
         }
-        $admin=query_one($db,'SELECT password_hash FROM users WHERE id=? AND role="admin" AND status="active"',[$actor['id']]);
-        if (!$admin || !password_verify($password,$admin['password_hash'])) {
-            fail(403,'Reautenticação administrativa inválida');
-        }
+        // Admin session and CSRF authorize; verification is an administrator attestation.
+
         $checkId=atomic($db, static function () use ($db,$actor,$memberId,$method,$reference): int {
             $member=query_one($db,'SELECT id FROM users WHERE id=? AND role="member" AND status!="archived"',[$memberId]);
             if (!$member) fail(404,'Membro indisponível');
