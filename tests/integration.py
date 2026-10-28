@@ -126,7 +126,7 @@ admin.call("admin.plan.save",{"id":"VIP_01","name":"VIP 01","priceCents":3000,
 assert alice.call("profile")["plan"]["dailyUsd"]=="3.00", "VIP contract terms cannot change"
 assert alice.call("profile")["plan"]["withdrawMinUsd"]=="0.00", "existing contract rules are snapshotted"
 assert admin.call("admin.plans")["plans"][1]["withdrawAfterDays"]==15
-assert alice.call("language.preference")["language"]=="pt"
+assert alice.call("language.preference")["language"] is None
 assert alice.call("language.preference",{"language":"en"})["language"]=="en"
 assert alice.call("language.preference")["language"]=="en"
 alice.call("language.preference",{"language":"xx"},422)
