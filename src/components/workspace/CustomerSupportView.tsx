@@ -102,9 +102,7 @@ export const CustomerSupportView: React.FC<Props> = ({language,onBack}) => {
           <strong>#{ticket.id} · {ticket.subject}</strong>
           <p>{ticket.status==='resolved'?tr.resolved:tr.open} · {new Date(ticket.created_at*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR')}</p>
           <p className="text-slate-300 whitespace-pre-wrap">{ticket.message}</p>
-          <p className="text-slate-400">{ticket.notification_status==='accepted'
-            ? 'E-mail encaminhado ao transporte, entrega não verificada'
-            : 'Notificação por e-mail pendente ou indisponível'}</p>
+          <p className="text-slate-400">{ticket.notification_status==='accepted'?tr.accepted:tr.unconfirmed}</p>
         </article>)}
       </section>
     </div>
