@@ -4,7 +4,7 @@ import { LogOut, RefreshCw, Users, CreditCard, Settings } from 'lucide-react';
 
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
 type MemberDetails = {member: Member & {phone: string;wallet_address:string}; contracts:Array<{id:number;plan_id:string;started_at:number;expires_at:number}>;orders:Array<{id:number;plan_id:string;status:string}>;balanceUsd:string;bonusSatoshis:number};
-type Order = {id:number; user_id:number; login:string; plan_id:string; status:string; created_at:number};
+type Order = {id:number; user_id:number; login:string; plan_id:string; status:string; created_at:number;btc_sats:number;quote_source:string;payment_ref?:string|null};
 export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({user,onLogout}) => {
   const [section,setSection]=useState<'members'|'plans'|'orders'|'settings'>('members');
   const [members,setMembers]=useState<Member[]>([]);
@@ -145,10 +145,19 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       </>}
       {section==='orders' && <div className="space-y-3">
         {orders.map(o=><article key={o.id} className="p-4 rounded-xl bg-[#1b2137] border border-[#2b3350] flex gap-4 flex-wrap justify-between">
-          <div><strong>Pedido #{o.id} · {o.plan_id}</strong><p className="text-xs text-slate-400">{o.login} · {o.status}</p></div>
+          <div><strong>Pedido #{o.id} · {o.plan_id}</strong>
+            <p className="text-xs text-slate-400">{o.login} · {o.status} · {(o.btc_sats/100000000).toFixed(8)} BTC</p>
+            <p className="text-xs text-slate-400">Cotação: {o.quote_source || 'indisponível'}</p>
+            {o.payment_ref && <p className="text-xs break-all">TXID: {o.payment_ref}</p>}
+          </div>
           {o.status==='pending' && <button disabled={busy} className={btn} onClick={()=>{
-            if(window.confirm('Você verificou o pagamento deste pedido de forma independente? Apenas confirme se o pagamento foi realmente recebido.')) {
-              void change('admin.order.approve',{orderId:o.id,paymentConfirmed:true});
+            const txid = window.prompt('Informe o TXID da transferência BTC confirmada na blockchain (64 caracteres hexadecimais).');
+            if (!txid) return;
+            if(!/^[a-fA-F0-9]{64}$/.test(txid.trim())) {
+              setNotice('TXID inválido. Nenhum plano foi ativado.');return;
+            }
+            if(window.confirm('Confirma que este TXID corresponde ao valor e ao endereço do pedido e que o pagamento foi verificado independentemente?')) {
+              void change('admin.order.approve',{orderId:o.id,paymentConfirmed:true,paymentReference:txid.trim()});
             }
           }}>Confirmar pagamento e ativar</button>}
         </article>)}

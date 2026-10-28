@@ -4,15 +4,24 @@ import { CustomerSupportView } from './workspace/CustomerSupportView';
 import { LanguageCode } from '../types';
 import { Home, Store, User, Headphones, LogOut, RefreshCw, History, Wallet, Gift, Settings } from 'lucide-react';
 import { translations } from '../i18n/translations';
+import QRCode from 'qrcode';
 
 type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history';
+type PurchaseOrder = {
+  orderId: number; status: string; priceUsd: string; quoteRateUsd: string;
+  quoteSource: string; btcAddress: string; btcSatoshis: number;
+  btcAmount: string; expiresAt: number;
+};
+type OrderRow = {id:number;plan_id:string;status:string;btc_address?:string;btc_sats?:number;expires_at?:number};
 export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; onLogout: () => void}> =
 ({user, language, onLogout}) => {
   const [page, setPage] = useState<Page>('home');
   const tabNames = translations[language].tabs;
   const [account, setAccount] = useState<MemberData | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [orders, setOrders] = useState<Array<{id:number;plan_id:string;status:string}>>([]);
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [checkout, setCheckout] = useState<PurchaseOrder|null>(null);
+  const [checkoutQr, setCheckoutQr] = useState('');
   const [ledger, setLedger] = useState<{
     accruals: Array<{plan_id:string;start_ts:number;end_ts:number;earned_units:number}>;
     bonuses: Array<{plan_id:string;claimed_at:number;bonus_usd_units:number;bonus_satoshis:number}>;
@@ -20,6 +29,19 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
   const [profile, setProfile] = useState({displayName:'',email:'',phone:'',walletAddress:''});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  useEffect(() => {
+    if (!checkout) {setCheckoutQr('');return;}
+    const bip21='bitcoin:'+checkout.btcAddress+'?amount='+checkout.btcAmount;
+    let active=true;
+    QRCode.toDataURL(bip21,{width:200,margin:1})
+      .then(uri=>{if(active)setCheckoutQr(uri)})
+      .catch(()=>{if(active)setCheckoutQr('')});
+    return ()=>{active=false};
+  },[checkout]);
+  async function copy(value:string) {
+    try {await navigator.clipboard.writeText(value);setNotice('Copiado com sucesso.');}
+    catch {setNotice('Não foi possível copiar. Selecione e copie o texto.');}
+  }
   async function reload() {
     try {
       const data = await api<MemberData>('profile');
@@ -35,8 +57,11 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
   async function act(action: string, body: Record<string, unknown> = {}) {
     setBusy(true); setNotice('');
     try {
-      await api(action,body);
-      setNotice(action==='orders.create' ? 'Pedido registrado. O VIP só será ativado após confirmação manual do pagamento pelo administrador.' : 'Atualização salva.');
+      const result = await api<PurchaseOrder | {ok:boolean}>(action,body);
+      if (action==='orders.create') setCheckout(result as PurchaseOrder);
+      setNotice(action==='orders.create'
+        ? 'Pedido registrado com cotação temporária. A ativação VIP depende de conferência manual do pagamento pelo administrador.'
+        : 'Atualização salva.');
       await reload();
       if (action==='rewards.claim' || action==='mining.stop') {api<typeof ledger>('ledger').then(setLedger).catch(()=>{});}
       if (action==='orders.create') {
@@ -130,9 +155,24 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
             {p.id!=='FREE' && <button disabled={busy} onClick={()=>void act('orders.create',{planId:p.id})}
               className="w-full bg-indigo-600 rounded-xl p-3 text-sm disabled:opacity-50">Solicitar contratação (aguardar aprovação)</button>}
           </article>)}
-          <h3 className="font-bold mt-5">Solicitações</h3>
+          {checkout && <section className="bg-[#1b2137] border border-indigo-600/50 rounded-2xl p-4 space-y-3">
+            <h3 className="font-bold">Pedido #{checkout.orderId} — Aguardando pagamento</h3>
+            <p className="text-sm">Preço: US$ {checkout.priceUsd}</p>
+            <p className="text-sm">Valor exato: <strong>{checkout.btcAmount} BTC</strong> ({checkout.btcSatoshis} satoshis)</p>
+            <p className="text-xs text-slate-400">Cotação: US$ {checkout.quoteRateUsd} por BTC · {checkout.quoteSource}</p>
+            <p className="text-xs text-amber-300">Cotação válida até {new Date(checkout.expiresAt*1000).toLocaleString('pt-BR')}. Não envie pagamentos após o vencimento: solicite um novo pedido.</p>
+            {checkoutQr && <img src={checkoutQr} alt="QR do endereço e valor BTC deste pedido" className="mx-auto rounded-lg w-40 h-40"/>}
+            <p className="text-xs break-all font-mono">{checkout.btcAddress}</p>
+            <div className="flex gap-2">
+              <button className="flex-1 bg-indigo-600 rounded-xl p-2 text-xs" onClick={()=>void copy(checkout.btcAddress)}>Copiar endereço</button>
+              <button className="flex-1 bg-indigo-600 rounded-xl p-2 text-xs" onClick={()=>void copy(checkout.btcAmount)}>Copiar BTC</button>
+            </div>
+            <p className="text-xs text-slate-400">A transferência BTC não é confirmada automaticamente. O administrador deverá verificar o TXID antes de ativar o plano.</p>
+            <button className="text-indigo-300 text-xs underline" onClick={()=>setCheckout(null)}>Fechar instruções</button>
+          </section>}
+                    <h3 className="font-bold mt-5">Solicitações</h3>
           {orders.length===0 ? <p className="text-xs text-slate-400">Nenhuma solicitação registrada.</p> :
-            orders.map(o=><p className="text-sm" key={o.id}>#{o.id} · {o.plan_id} · {o.status}</p>)}
+            orders.map(o=><p className="text-sm" key={o.id}>#{o.id} · {o.plan_id} · {o.status}{o.btc_sats? ' · '+(o.btc_sats/100000000).toFixed(8)+' BTC':''}</p>)}
         </>}
         {page==='history' && <>
           <h2 className="font-bold text-lg">Histórico de recompensas</h2>
