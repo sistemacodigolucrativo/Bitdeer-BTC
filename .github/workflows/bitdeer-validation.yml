@@ -42,6 +42,8 @@ jobs:
         run: python3 tests/installer_smoke.py
       - name: Create deployable ZIP (no publishing)
         run: bash scripts/package-release.sh
+      - name: Verify deployable ZIP structure and PHP paths
+        run: python3 tests/package_structure.py
       - uses: actions/upload-artifact@v4
         with:
           name: bitdeer-php-sqlite-package
