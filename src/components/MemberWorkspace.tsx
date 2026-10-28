@@ -55,6 +55,15 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
     api<{orders: typeof orders}>('orders.mine').then(x=>setOrders(x.orders)).catch(()=>{});
     api<typeof ledger>('ledger').then(setLedger).catch(()=>{});
   }, []);
+  // Refresh server-authoritative balances and active plan across devices without
+  // overwriting any member profile form currently being edited.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      void api<MemberData>('profile').then(setAccount).catch(() => {});
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, []);
   async function act(action: string, body: Record<string, unknown> = {}) {
     setBusy(true); setNotice('');
     try {
