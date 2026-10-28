@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AuthUser, Plan, api } from '../../services/api';
 import { LogOut, RefreshCw, Users, CreditCard, Settings } from 'lucide-react';
 
-type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string};
+type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
 type MemberDetails = {member: Member & {phone: string;wallet_address:string}; contracts:Array<{id:number;plan_id:string;started_at:number;expires_at:number}>;orders:Array<{id:number;plan_id:string;status:string}>;balanceUsd:string;bonusSatoshis:number};
 type Order = {id:number; user_id:number; login:string; plan_id:string; status:string; created_at:number};
 export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({user,onLogout}) => {
@@ -31,7 +31,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       setMembers(m.members);setTotal(m.total);setPlans(p.plans);setOrders(o.orders);setEmail(s.email);
     } catch(e) {setNotice((e as Error).message);}
   }
-  useEffect(()=>{void refresh()},[]);
+  useEffect(()=>{void refresh()},[offset]);
   async function change(action:string, body:Record<string,unknown>) {
     setBusy(true);setNotice('');
     try {await api(action,body);setNotice('Alteração registrada.');await refresh();}
@@ -99,7 +99,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
           <strong>Editar perfil de {editingMember.login}</strong>
           {(['display_name','email','phone','wallet_address'] as const).map(k=><label key={k} className="block text-sm">
             {({display_name:'Nome',email:'E-mail',phone:'Telefone',wallet_address:'Endereço BTC'} as const)[k]}
-            <input className="w-full bg-[#11182c] p-3 rounded-lg mt-1" value={editingMember[k]}
+            <input className="w-full bg-[#11182c] p-3 rounded-lg mt-1" value={editingMember[k] ?? ''}
               onChange={e=>setEditingMember(m=>m?{...m,[k]:e.target.value}:m)}/>
           </label>)}
           <p className="text-xs text-slate-400">As credenciais e permissões administrativas não podem ser editadas por este formulário.</p>
