@@ -46,7 +46,7 @@ try {
   const firstUsd=await homeValue.innerText();
   await page.waitForTimeout(2500);
   const secondUsd=await homeValue.innerText();
-  const displayedUsd=s=>Number(s.match(/US\\$\\s*([\\d.]+)/)?.[1]??NaN);
+  const displayedUsd=s=>Number(s.match(/US\$\s*([\d.]+)/)?.[1]??NaN);
   if(!(displayedUsd(secondUsd)>displayedUsd(firstUsd)))throw Error('Live mining USD not increasing');
   await page.locator('nav button').nth(3).click();
   const walletBalance=page.getByTestId('wallet-live-usd');
