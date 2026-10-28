@@ -82,6 +82,23 @@ admin=Client()
 assert admin.call("login",{"login":"adminci","password":"StrongCIpassword123!"})["user"]["role"]=="admin"
 assert admin.call("admin.members")["total"]==2
 assert admin.call("admin.overview")["members"]==2
+# Only actual invited registrations count. The old hardcoded legacy list is not imported.
+assert guest.call("referrals.mine",expected=401)["error"]
+code=alice.call("referrals.mine")["code"]
+assert len(code)==10
+balance_before=float(alice.call("profile")["mining"]["balanceUsd"])
+guest.call("register",{"login":"charlie","password":"CharlieStrongPassword2026",
+  "displayName":"Charlie","inviteCode":code},201)
+assert alice.call("referrals.mine")["count"]==1
+assert alice.call("referrals.mine")["totalUsd"]=="1.00000000"
+assert len(alice.call("referrals.mine")["history"])==1
+assert float(alice.call("profile")["mining"]["balanceUsd"])==balance_before+1
+guest.call("register",{"login":"badinvite","password":"InvalidReferralPassword2026",
+  "displayName":"Test","inviteCode":"FFFFFFFFFF"},422)
+guest.call("register",{"login":"charlie","password":"CharlieStrongPassword2026",
+  "displayName":"Charlie","inviteCode":code},409)
+assert alice.call("referrals.mine")["count"]==1
+
 assert admin.call("admin.support.tickets")["tickets"][0]["id"]==ticket["id"]
 admin.call("admin.support.status",{"ticketId":ticket["id"],"status":"resolved"})
 assert admin.call("admin.support.tickets")["tickets"][0]["status"]=="resolved"
@@ -101,6 +118,18 @@ admin.call("admin.plan.save",{"id":"VIP_01","name":"VIP 01","priceCents":3000,
   "durationDays":30,"sessionSeconds":0,"restartCooldownSeconds":0,"hashrate":"+ 275 Gh/s","serverModel":"Antminer S19 Pro",
   "available":True})
 assert alice.call("profile")["plan"]["dailyUsd"]=="3.00", "VIP contract terms cannot change"
+# Reusing a TXID with different letter case must not activate a second VIP.
+bob_order_client=Client()
+bob_order_client.call("login",{"login":"bob","password":"anotherpassword123"})
+second_order=bob_order_client.call("orders.create",{"planId":"VIP_01"},201)
+admin.call("admin.order.approve",{"orderId":second_order["orderId"],
+  "paymentConfirmed":True,"paymentReference":"A"*64},409)
+admin.call("admin.order.reject",{"orderId":second_order["orderId"],
+  "reason":"Pagamento não localizado"})
+assert any(o["id"]==second_order["orderId"] and o["status"]=="rejected"
+  for o in admin.call("admin.orders")["orders"])
+assert bob_order_client.call("profile")["plan"]["id"]=="FREE"
+
 admin.call("admin.member.edit",{"userId":alice_user["id"],"displayName":"Alice Testada","email":"alice@example.org"})
 assert alice.call("profile")["profile"]["displayName"]=="Alice Testada"
 # Option A: the existing VIP contract deadline is not extended by suspension.
