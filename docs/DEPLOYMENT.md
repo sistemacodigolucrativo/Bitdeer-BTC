@@ -57,5 +57,6 @@ operacional, conformidade e eventual enquadramento regulatório antes
 de anunciar planos ou aceitar pagamentos.
 
 Esta é uma compilação para homologação; não houve deploy ou merge na main.
-A política de vencimento VIP durante suspensão ainda precisa de aprovação.
+Suspensão de membro VIP: o vencimento continua correndo (opção A).
+Não há crédito durante o período de suspensão ou crédito retroativo.
 A paridade visual completa com o frontend legado requer revisão.

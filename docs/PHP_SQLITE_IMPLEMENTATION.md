@@ -72,8 +72,8 @@ fonte de verdade.
 
 - Decisão 13: definir qual política será realmente ativada na hospedagem;
   os três modos e o bloqueio de reinstalação têm testes isolados.
-- Política sobre efeito da suspensão na data de vencimento VIP; atualmente a
-  data contratada continua correndo sem créditos durante suspensão.
+- Suspensão VIP — opção A: o prazo de vigência do contrato continua correndo;
+  novos créditos permanecem interrompidos até reativação, sem retroativos.
 - Formalização operacional dos métodos de verificação de identidade: a
   verificação manual já é registrada, mas depende de procedimento humano.
 - Reconciliar todos os componentes visuais do aplicativo legado,
