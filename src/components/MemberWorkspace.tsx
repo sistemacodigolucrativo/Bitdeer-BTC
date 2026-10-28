@@ -43,11 +43,12 @@ export const MemberWorkspace: React.FC<{
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [btcUsd,setBtcUsd]=useState<number|null>(null);
+  const [btcQuote,setBtcQuote]=useState<{source:string;quotedAt:number}|null>(null);
   const [walletStep,setWalletStep]=useState<'none'|'register'|'amount'>('none');
   const [walletDraft,setWalletDraft]=useState('');
   const [withdrawMode,setWithdrawMode]=useState<'BTC'|'USD'>('USD');
   const [withdrawAmount,setWithdrawAmount]=useState('');
-  type WithdrawRequest={id:number;usd_cents:number;btc_satoshis:number;status:string;created_at:number};
+  type WithdrawRequest={id:number;usd_cents:number;btc_satoshis:number;status:'pending'|'awaiting_vip'|'approved'|'rejected';created_at:number};
   const [withdrawHistory,setWithdrawHistory]=useState<WithdrawRequest[]>([]);
   useEffect(() => {
     if (!checkout) {setCheckoutQr('');return;}
@@ -69,10 +70,15 @@ export const MemberWorkspace: React.FC<{
     } catch(e) { setNotice((e as Error).message); }
   }
   useEffect(() => {
-    const quote=()=>void api<{btcUsd:string}>('withdraw.quote')
-      .then(x=>setBtcUsd(Number(x.btcUsd))).catch(()=>setBtcUsd(null));
+    const quote=()=>void api<{btcUsd:string;source:string;quotedAt:number}>('withdraw.quote')
+      .then(x=>{
+        const rate=Number(x.btcUsd);
+        if(!Number.isFinite(rate)||rate<=0)throw new Error('Cotação inválida');
+        setBtcUsd(rate);
+        setBtcQuote({source:x.source,quotedAt:x.quotedAt});
+      }).catch(()=>{setBtcUsd(null);setBtcQuote(null);});
     quote();
-    const timer=window.setInterval(quote,90000);
+    const timer=window.setInterval(quote,45000);
     return ()=>window.clearInterval(timer);
   }, []);
   useEffect(()=>{
@@ -161,7 +167,9 @@ export const MemberWorkspace: React.FC<{
               <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">Salvar carteira</button>
             </form> : <form className="space-y-3" onSubmit={e=>{e.preventDefault();void submitWithdrawal();}}>
               <p className="text-xs text-slate-300 break-all">Carteira: {account?.profile.walletAddress}</p>
-              <p className="text-xs text-slate-400">Cotação indicativa: {btcUsd?('US$ '+btcUsd.toFixed(2)+'/BTC'):'indisponível'}. O servidor atualiza a cotação ao registrar o pedido.</p>
+              <p className="text-xs text-slate-400">Cotação BTC/USD: {btcUsd?('US$ '+btcUsd.toFixed(2)+'/BTC'):'indisponível'}.
+              {btcQuote&&<> Fonte: {btcQuote.source} · {new Date(btcQuote.quotedAt*1000).toLocaleTimeString(dateLocale)}.</>}
+              {' '}O servidor verifica a cotação ao registrar o pedido.</p>
               <p className="text-xs text-slate-400">Saque mínimo: US$ {account?.plan.withdrawMinUsd??'0.00'}.
                 Prazo do plano: {account?.plan.withdrawAfterDays??0} dia(s).</p>
               <div className="flex gap-2">
@@ -175,7 +183,7 @@ export const MemberWorkspace: React.FC<{
                   value={withdrawAmount} onChange={e=>setWithdrawAmount(e.target.value)}
                   className="w-full mt-2 bg-[#11182c] rounded-lg p-3"/>
               </label>
-              <p className="text-xs text-amber-300">O pedido utiliza créditos internos do sistema, sem transferência automática de Bitcoin real. A solicitação permanece pendente de conferência administrativa.</p>
+              <p className="text-xs text-amber-300">Qualquer membro pode registrar uma solicitação com saldo interno suficiente. Sem VIP 01 a 04 ativo, ela ficará como "Aguardando assinatura VIP". A assinatura não garante pagamentos: não existe transferência automática de BTC real e a aprovação é administrativa.</p>
               <button disabled={busy || !btcUsd} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">Registrar solicitação</button>
             </form>}
           </section>}
@@ -204,7 +212,7 @@ export const MemberWorkspace: React.FC<{
           {withdrawHistory.length>0 && <section className="bg-[#171b2d] rounded-2xl p-4 space-y-2">
             <h3 className="font-bold text-sm">Solicitações de saque</h3>
             {withdrawHistory.map(x=><p key={x.id} className="text-xs border-b border-[#2b3350] pb-2">
-              #{x.id} · US$ {(x.usd_cents/100).toFixed(2)} · {(x.btc_satoshis/1e8).toFixed(8)} BTC (equivalência interna) · {x.status}
+              #{x.id} · US$ {(x.usd_cents/100).toFixed(2)} · {(x.btc_satoshis/1e8).toFixed(8)} BTC (equivalência interna) · {x.status==='awaiting_vip'?'Aguardando assinatura VIP':x.status==='pending'?'Aguardando análise administrativa':x.status==='approved'?'Conferido':'Rejeitado'}
             </p>)}
           </section>}
         </>}

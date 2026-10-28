@@ -5,7 +5,7 @@ import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headph
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
 type MemberDetails = {member: Member & {phone: string;wallet_address:string}; contracts:Array<{id:number;plan_id:string;started_at:number;expires_at:number}>;orders:Array<{id:number;plan_id:string;status:string}>;balanceUsd:string;bonusSatoshis:number};
 type Order = {id:number; user_id:number; login:string; plan_id:string; status:string; created_at:number;btc_sats:number;quote_source:string;payment_ref?:string|null};
-type Withdraw = {id:number;user_id:number;login:string;plan_id:string;btc_address:string;usd_cents:number;btc_satoshis:number;status:string;created_at:number;reference:string};
+type Withdraw = {id:number;user_id:number;login:string;plan_id:string;btc_address:string;usd_cents:number;btc_satoshis:number;status:'pending'|'awaiting_vip'|'approved'|'rejected';created_at:number;reference:string};
 type Ticket = {id:number;user_id:number;login:string;subject:string;message:string;
   status:'open'|'resolved';notification_status:'pending'|'accepted'|'failed';created_at:number};
 export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({user,onLogout}) => {
@@ -294,16 +294,16 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         {withdrawals.length===0&&<p className="text-xs text-slate-400">Nenhum saque registrado.</p>}
         {withdrawals.map(w=><article key={w.id} className="bg-[#1b2137] rounded-xl border border-[#2b3350] p-4 space-y-2">
           <strong>Solicitação #{w.id} · {w.login}</strong>
-          <p className="text-xs text-slate-300">Plano: {w.plan_id} · Estado: {w.status==='pending'?'Pendente':w.status==='approved'?'Conferida':'Rejeitada'}</p>
+          <p className="text-xs text-slate-300">Plano: {w.plan_id} · Estado: {w.status==='awaiting_vip'?'Aguardando assinatura VIP':w.status==='pending'?'Pendente de conferência':w.status==='approved'?'Conferida':'Rejeitada'}</p>
           <p className="text-sm">US$ {(w.usd_cents/100).toFixed(2)} · {(w.btc_satoshis/1e8).toFixed(8)} BTC (equivalência interna)</p>
           <p className="text-xs text-slate-400 break-all">{w.btc_address}</p>
-          {w.status==='pending'&&<div className="flex flex-wrap gap-2">
-            <button disabled={busy} className={btn} onClick={()=>{
+          {(w.status==='pending'||w.status==='awaiting_vip')&&<div className="flex flex-wrap gap-2">
+            {w.status==='pending'&&<button disabled={busy} className={btn} onClick={()=>{
               const reference=window.prompt('Referência da conferência externa (mínimo 6 caracteres):');
               if(!reference||reference.trim().length<6)return;
               if(window.confirm('Registrar conferência? Esta ação NÃO transmite BTC.'))
                 void change('admin.withdraw.process',{requestId:w.id,status:'approved',reference:reference.trim(),manualReviewConfirmed:true});
-            }}>Registrar conferência manual</button>
+            }}>Registrar conferência manual</button>}
             <button disabled={busy} className={btn} onClick={()=>{
               const reference=window.prompt('Motivo da rejeição (mínimo 6 caracteres):');
               if(reference&&reference.trim().length>=6)
