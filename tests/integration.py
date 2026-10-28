@@ -103,6 +103,55 @@ guest.call("register",{"login":"charlie","password":"CharlieStrongPassword2026",
   "displayName":"Charlie","inviteCode":code},409)
 assert alice.call("referrals.mine")["count"]==1
 
+# FREE members may record internal payout requests, but approval requires an active VIP tier.
+charlie=Client()
+charlie.call("login",{"login":"charlie","password":"CharlieStrongPassword2026"})
+charlie.call("profile.update",{"displayName":"Charlie","email":"","phone":"",
+  "walletAddress":walletFixture})
+charlie_uid=charlie.call("profile")["user"]["id"]
+db=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
+try:
+    # Test fixture only: make an internal balance available in this isolated CI database.
+    db.execute("UPDATE mining_state SET balance_units=864000000*10 WHERE user_id=?",(charlie_uid,))
+    db.commit()
+finally:
+    db.close()
+free_balance=charlie.call("profile")["mining"]["balanceUsd"]
+assert float(free_balance)==10.0
+free_quote=charlie.call("withdraw.quote")
+assert free_quote["btcUsd"]=="80000.00" and free_quote["source"]=="CI fixture"
+assert 0<=free_quote["validForSeconds"]<=60
+free_request=charlie.call("withdraw.request",{"mode":"USD","amount":"2.00"},201)
+assert free_request["status"]=="awaiting_vip"
+assert "VIP" in free_request["message"]
+assert charlie.call("withdraw.mine")["requests"][0]["status"]=="awaiting_vip"
+assert any(x["id"]==free_request["id"] and x["status"]=="awaiting_vip"
+           for x in admin.call("admin.withdrawals")["requests"])
+admin.call("admin.withdraw.process",{"requestId":free_request["id"],
+  "status":"approved","reference":"test-no-vip","manualReviewConfirmed":True},409)
+# The original internal balance is reserved, not deleted and not paid out.
+assert abs(float(charlie.call("profile")["mining"]["balanceUsd"])-8.0)<1e-6
+vip_checkout=charlie.call("orders.create",{"planId":"VIP_01"},201)
+admin.call("admin.order.approve",{"orderId":vip_checkout["orderId"],
+  "paymentConfirmed":True,"paymentReference":"b"*64})
+assert charlie.call("withdraw.mine")["requests"][0]["status"]=="pending"
+admin.call("admin.withdraw.process",{"requestId":free_request["id"],
+  "status":"approved","reference":"test-vip-active","manualReviewConfirmed":True})
+assert charlie.call("withdraw.mine")["requests"][0]["status"]=="approved"
+# Requests cannot be approved after VIP contract expiry, even if previously unlocked.
+new_vip_request=charlie.call("withdraw.request",{"mode":"BTC","amount":"0.00002000"},201)
+db=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
+try:
+    db.execute("UPDATE contracts SET expires_at=? WHERE user_id=?",(int(time.time())-1,charlie_uid))
+    db.commit()
+finally: db.close()
+assert charlie.call("withdraw.mine")["requests"][0]["status"]=="awaiting_vip"
+admin.call("admin.withdraw.process",{"requestId":new_vip_request["id"],
+  "status":"approved","reference":"test-vip-expired","manualReviewConfirmed":True},409)
+admin.call("admin.withdraw.process",{"requestId":new_vip_request["id"],
+  "status":"rejected","reference":"no active vip"})
+assert charlie.call("withdraw.mine")["requests"][0]["status"]=="rejected"
+
 assert admin.call("admin.support.tickets")["tickets"][0]["id"]==ticket["id"]
 admin.call("admin.support.status",{"ticketId":ticket["id"],"status":"resolved"})
 assert admin.call("admin.support.tickets")["tickets"][0]["status"]=="resolved"
