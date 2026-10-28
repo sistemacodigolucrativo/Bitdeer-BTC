@@ -62,3 +62,16 @@ A auditoria textual foi realizada nos componentes React, incluindo a tela inicia
 ### Testes adicionados
 - Registro de saque FREE, bloqueio de aprovação sem VIP, promoção do status ao ativar VIP, novo bloqueio após vencimento e preservação do estorno.
 - Browser: 200 perfis únicos, representatividade brasileira, seleção de idioma persistida localmente, gravada no SQLite e recuperada após recarregamento.
+
+
+## Revisão de interface e saldo ao vivo — 28/10/2026
+
+1. Carteira: o parágrafo amarelo com a frase "São registros internos, não BTC minerados ou transferências confirmadas" foi retirado sem reservar espaço visual. A carteira mantém a denominação **recompensas internas**, e o histórico/backend mantêm a identificação correta das unidades.
+2. Início: rótulo **Capacidade de mineração** (também traduzido EN/ES). Trata-se do parâmetro de capacidade exibido pelo plano, não de comprovação de uma máquina real.
+3. Início: a frase de projeção ficou apenas "Projeção interna entre atualizações", com versões EN/ES correspondentes. A natureza demonstrativa dos créditos continua exposta nas outras telas e documentação.
+4. **Contadores ao vivo (visuais):** a carteira e o painel inicial compartilham uma projeção de exibição calculada a cada segundo a partir de uma amostra do PHP/SQLite, reconciliada com `profile` a cada 5 segundos enquanto a página está visível. A projeção para se não houver sessão ativa, após término de sessão/contrato ou após 8 segundos sem nova amostra. O frontend nunca grava saldos, recompensas ou valor de saque. O BTC é somente equivalente USD/BTC conforme última cotação válida, arredondado a **oito casas decimais**. Por precisão de satoshi, a exibição em BTC só muda quando o equivalente acumulado alcança pelo menos 1 satoshi; isso não significa um tick on-chain por segundo.
+5. Loja: texto de legenda "Equipamento ilustrativo" retirado dos cards dos planos. O SVG continua uma representação gráfica, identificado como tal para acessibilidade e sem dados de alocação física comprovada.
+6. **Ativação VIP em 30 minutos: NÃO IMPLEMENTADA.** O checkout depende de confirmação administrativa manual, sem fila de SLA, automação ou dados de capacidade operacional que comprovem prazo máximo. Para não apresentar publicidade potencialmente falsa, o texto ficou "Ativação após conferência manual do pagamento, sem prazo máximo garantido" com versões EN/ES. Caso o operador comprove o SLA e implemente o controle de cumprimento, o texto poderá ser reavaliado.
+7. Idiomas: corrigidos rótulos PT/EN/ES nos painéis de carteira, solicitação de saque, login/cadastro, loja, Top Miners, histórico de contratos, atendimento e telas de status. Administração permanece em português conforme decisão anterior.
+
+**Liberação:** a CI valida cálculos internos sob condições controladas. Ela não prova máquinas de mineração reais, saldos BTC na blockchain, pagamentos BTC, cumprimento de SLA comercial ou produção pronta. `main`, VPS e domínio permanecem inalterados até homologação final.
