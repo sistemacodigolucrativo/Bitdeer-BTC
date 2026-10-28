@@ -32,7 +32,7 @@ function installer_page(string $title, string $message, int $status): never {
     $safeTitle=htmlspecialchars($title,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
     $safeMsg=htmlspecialchars($message,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
     echo '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>'.$safeTitle.
-        '</title><style>body{font:16px system-ui;background:#0c1120;color:#eef2ff;padding:2rem;min-height:90vh;display:grid;place-items:center}main{background:#181f32;max-width:560px;padding:2rem;border:1px solid #374151;border-radius:18px}p{line-height:1.6}</style></head>'.
+        '</title><style>body{font:16px system-ui;background:#0c1120;color:#eef2ff;padding:2rem;min-height:90vh;display:grid;place-items:center}p{white-space:pre-wrap;overflow-wrap:anywhere}main{background:#181f32;max-width:560px;padding:2rem;border:1px solid #374151;border-radius:18px}p{line-height:1.6}</style></head>'.
         '<body><main><h1>'.$safeTitle.'</h1><p>'.$safeMsg.'</p><p><a style="color:#93c5fd" href="/">Voltar ao aplicativo</a></p></main></body></html>';
     exit;
 }
@@ -88,6 +88,9 @@ if ($proofSetup && (!isset($_SESSION['setup_nonce']) || !is_string($_SESSION['se
     $_SESSION['setup_nonce']=bin2hex(random_bytes(32));
     $_SESSION['setup_issued']=time();
 }
+$detectedHost=(string)($_SERVER['HTTP_HOST']??'');
+$detectedScheme=$isSecure?'https':'http';
+$detectedUrl=$detectedHost!=='' ? $detectedScheme.'://'.$detectedHost : '';
 $error='';
 if (($_SERVER['REQUEST_METHOD']??'GET')==='POST') {
     $csrf=$_POST['csrf']??null;
@@ -102,11 +105,16 @@ if (($_SERVER['REQUEST_METHOD']??'GET')==='POST') {
     $login=$_POST['admin_login']??null;
     $pass=$_POST['admin_password']??null;
     $email=$_POST['support_email']??null;
+    $siteUrl=$_POST['site_url']??null;
+    $envType=$_POST['environment_type']??null;
     $accepted=($_POST['confirmation']??null)==='yes';
     if (!$accepted || (!$localSetup && !$proofSetup && (!is_string($secret) || strlen($secret)<24 ||
         !password_verify($secret,$hash))) ||
-        !is_string($login) || !is_string($pass) || !is_string($email)) {
+        !is_string($login) || !is_string($pass) || !is_string($email) ||
+        !is_string($siteUrl) || !is_string($envType)) {
         $error='Credenciais de instalação ou confirmação inválidas.';
+    } elseif (parse_url($siteUrl,PHP_URL_HOST)!==parse_url('http://'.$detectedHost,PHP_URL_HOST)) {
+        $error='O endereço público deve corresponder ao domínio ou IP acessado e verificado.';
     } elseif ($proofSetup && (
         time()-(int)($_SESSION['setup_issued']??0)>1800 ||
         !($dnsSetup
@@ -116,11 +124,15 @@ if (($_SERVER['REQUEST_METHOD']??'GET')==='POST') {
         $error='Prova de controle do domínio/IP ausente, incorreta ou expirada. Confira as instruções abaixo.';
     } else {
         try {
-            provision($login,$pass,$email);
+            $created=provision($login,$pass,$email,$siteUrl,$envType);
             unset($_SESSION['csrf'],$_SESSION['attempts']);
             session_destroy();
             installer_page('Instalação concluída',
-                'Banco SQLite e administrador inicial criados. O instalador está bloqueado para novas instalações. Entre pelo aplicativo.',200);
+                'SQLite e administrador criados. O instalador está bloqueado. '.
+                'Membro fundador da rede (credenciais exibidas somente agora): '.
+                'usuário '.$created['founderLogin'].' / senha '.$created['founderPassword'].
+                ' / código de indicação '.$created['founderCode'].
+                '. Guarde a senha do fundador em local seguro. Entre pelo aplicativo.',200);
         } catch (InvalidArgumentException $e) {
             $error=$e->getMessage();
         } catch (Throwable $e) {
@@ -173,6 +185,16 @@ small{color:#94a3b8}
 <input type="password" name="admin_password" required minlength="10" maxlength="256" autocomplete="new-password"></label>
 <label>E-mail de suporte
 <input type="email" name="support_email" maxlength="254" required></label>
+<label>Endereço público do sistema — detectado automaticamente
+<input type="url" name="site_url" value="<?=htmlspecialchars($detectedUrl,ENT_QUOTES,'UTF-8')?>" required
+placeholder="https://meudominio.com ou http://IP:PORTA"></label>
+<label>Ambiente de hospedagem
+<select name="environment_type" style="display:block;width:100%;box-sizing:border-box;padding:12px;background:#111827;border:1px solid #374151;color:white;border-radius:10px;margin-top:6px">
+<option value="auto">Automático / não identificado</option>
+<option value="vps">VPS</option>
+<option value="shared">Hospedagem convencional</option>
+</select></label>
+<p><small>Você pode utilizar domínio ou IP e configurar HTTP/HTTPS. O protocolo do aplicativo não substitui a configuração do certificado ou do servidor. Senhas administrativas só podem ser configuradas remotamente por HTTPS; se o site estiver em HTTP, utilize o assistente local por canal seguro.</small></p>
 <label><input type="checkbox" name="confirmation" value="yes" required>
  Confirmo que esta é a instalação inicial. Dados existentes não devem ser substituídos.</label>
 <button type="submit">Criar SQLite e administrador</button>
