@@ -6,6 +6,7 @@ import { Home, Store, User, Headphones, LogOut, RefreshCw, History, Wallet, Gift
 import { translations } from '../i18n/translations';
 import QRCode from 'qrcode';
 import { ServerHomeView } from './ServerHomeView';
+import { ServerStoreView } from './ServerStoreView';
 import { memberTexts } from '../i18n/memberTexts';
 
 type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history';
@@ -145,14 +146,8 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
             onClick={onLogout}><LogOut size={18}/> {words.signOut}</button>
         </section>}
         {page==='store' && <>
-          <h2 className="font-bold text-lg">{words.store}</h2>
-          {plans.map(p=><article key={p.id} className="rounded-2xl bg-[#1b2137] p-4 space-y-2 border border-[#2b3350]">
-            <div className="flex justify-between"><strong>{p.name}</strong><strong>US$ {p.priceUsd}</strong></div>
-            <p className="text-sm">US$ {p.dailyUsd}/{words.day} · {words.dailyBonus}: US$ {p.bonusUsd}/dia e {p.bonusSatoshis} satoshis/dia</p>
-            <p className="text-xs text-slate-400">{p.hashrate} · {p.durationDays ? p.durationDays+' '+words.days : words.free} · {p.sessionSeconds===0 ? words.continuous : words.sessionHours+' '+(p.sessionSeconds/3600)+'h'}</p>
-            {p.id!=='FREE' && <button disabled={busy} onClick={()=>void act('orders.create',{planId:p.id})}
-              className="w-full bg-indigo-600 rounded-xl p-3 text-sm disabled:opacity-50">{words.contract}</button>}
-          </article>)}
+          <ServerStoreView plans={plans} activePlanId={account?.plan.id ?? 'FREE'}
+            language={language} busy={busy} onPurchase={planId=>void act('orders.create',{planId})}/>
           {checkout && <section className="bg-[#1b2137] border border-indigo-600/50 rounded-2xl p-4 space-y-3">
             <h3 className="font-bold">Pedido #{checkout.orderId} — {words.pendingPayment}</h3>
             <p className="text-sm" >{words.price}: US$ {checkout.priceUsd}</p>
