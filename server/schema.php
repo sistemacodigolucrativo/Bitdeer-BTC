@@ -146,6 +146,8 @@ SQL);
         // Preserve the original public BTC receiving address from checkout/config.ts.
         execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("btc_address",?)',
           ['bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z']);
+        // Owner must explicitly confirm control of the BTC address.
+        execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("btc_address_confirmed","0")');
         execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("schema_version","1")');
     });
 }

@@ -378,6 +378,12 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $body=request_body();$id=string_field($body,'planId',60);
         $plan=query_one($db,'SELECT * FROM plans WHERE id=? AND available=1 AND id!="FREE"',[$id]);
         if (!$plan) fail(422,'Plano não disponível');
+        // Never expose payable QR codes until the receiving wallet has
+        // been confirmed by an administrator who controls the wallet.
+        $confirmed=query_one($db,'SELECT value FROM app_settings WHERE name="btc_address_confirmed"');
+        if (($confirmed['value'] ?? '')!=='1') {
+            fail(409,'Recebimento BTC desativado. O administrador precisa confirmar o endereço de recebimento.');
+        }
         // Do not trust a browser exchange rate or payment address.
         $quote=verified_btc_quote();
         $sats=satoshi_payment((int)$plan['price_cents'], $quote['usd']);
@@ -587,6 +593,37 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             audit($db,(int)$actor['id'],'order.approve',(int)$order['user_id'],['orderId'=>$id,'planId'=>$order['plan_id'],'paymentTxid'=>$paymentRef]);
         });
         json_out(['ok'=>true]);
+    }
+    if ($action === 'admin.payment.settings' && $method === 'GET') {
+        auth_user($db,true);
+        $addr=query_one($db,'SELECT value FROM app_settings WHERE name="btc_address"');
+        $confirmed=query_one($db,'SELECT value FROM app_settings WHERE name="btc_address_confirmed"');
+        json_out(['btcAddress'=>$addr['value']??'', 'confirmed'=>($confirmed['value']??'0')==='1']);
+    }
+    if ($action === 'admin.payment.settings' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);$body=request_body();
+        $address=string_field($body,'btcAddress',90);
+        $password=$body['adminPassword'] ?? null;
+        $confirm=$body['confirmedOwner'] ?? false;
+        if (!preg_match('/^bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,59}$/D',$address)) {
+            fail(422,'Endereço BTC inválido ou formato não suportado');
+        }
+        if (!is_string($password) || strlen($password)>256) fail(422,'Senha administrativa obrigatória');
+        $admin=query_one($db,'SELECT password_hash FROM users WHERE id=?',[$actor['id']]);
+        if (!$admin || !password_verify($password,$admin['password_hash'])) {
+            fail(403,'Senha administrativa incorreta');
+        }
+        if (!is_bool($confirm)) fail(422,'Confirmação inválida');
+        atomic($db,static function()use($db,$actor,$address,$confirm):void{
+            $old=query_one($db,'SELECT value FROM app_settings WHERE name="btc_address"');
+            execute_sql($db,'INSERT INTO app_settings(name,value) VALUES ("btc_address",?)
+                ON CONFLICT(name) DO UPDATE SET value=excluded.value',[$address]);
+            execute_sql($db,'INSERT INTO app_settings(name,value) VALUES ("btc_address_confirmed",?)
+                ON CONFLICT(name) DO UPDATE SET value=excluded.value',[$confirm?'1':'0']);
+            audit($db,(int)$actor['id'],'settings.payment',null,
+                ['addressChanged'=>($old['value']??'')!==$address,'confirmed'=>$confirm]);
+        });
+        json_out(['ok'=>true, 'confirmed'=>$confirm]);
     }
     if ($action === 'admin.settings' && $method === 'POST') {
         $actor=require_post_csrf($db,true);$body=request_body();$email=string_field($body,'supportEmail',254);

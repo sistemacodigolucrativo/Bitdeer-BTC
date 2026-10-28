@@ -21,6 +21,10 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   const [total,setTotal]=useState(0);
   const [details,setDetails]=useState<MemberDetails|null>(null);
   const [email,setEmail]=useState('');
+  const [btcAddress,setBtcAddress]=useState('');
+  const [btcConfirmed,setBtcConfirmed]=useState(false);
+  const [paymentPassword,setPaymentPassword]=useState('');
+  const [ownerConfirmation,setOwnerConfirmation]=useState(false);
   const [selected,setSelected]=useState<Plan|null>(null);
   const [notice,setNotice]=useState('');
   const [editingMember,setEditingMember]=useState<Member|null>(null);
@@ -43,6 +47,9 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       api<{actions:typeof audit}>('admin.audit').then(x=>setAudit(x.actions)).catch(()=>{});
       api<typeof overview>('admin.overview').then(setOverview).catch(()=>{});
       api<{tickets:Ticket[]}>('admin.support.tickets').then(x=>setTickets(x.tickets)).catch(()=>{});
+      api<{btcAddress:string;confirmed:boolean}>('admin.payment.settings')
+        .then(x=>{setBtcAddress(x.btcAddress);setBtcConfirmed(x.confirmed);})
+        .catch(()=>{});
     } catch(e) {setNotice((e as Error).message);}
   }
   useEffect(()=>{void refresh()},[offset]);
@@ -260,13 +267,45 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         </div>)}
         {!audit.length && <p className="text-sm text-slate-400">Nenhuma ação registrada.</p>}
       </div>}
-      {section==='settings' && <form onSubmit={e=>{e.preventDefault();void change('admin.settings',{supportEmail:email})}} className="space-y-3">
-        <label className="block text-sm">E-mail de suporte
-          <input type="email" required value={email} onChange={e=>setEmail(e.target.value)}
-            className="w-full block mt-2 bg-[#1b2137] border border-[#2b3350] p-3 rounded-xl"/>
-        </label><button disabled={busy} className={btn}>Salvar</button>
+      {section==='settings' && <section className="space-y-6">
+        <form onSubmit={e=>{e.preventDefault();void change('admin.settings',{supportEmail:email})}} className="space-y-3">
+          <label className="block text-sm">E-mail de suporte
+            <input type="email" required value={email} onChange={e=>setEmail(e.target.value)}
+              className="w-full block mt-2 bg-[#1b2137] border border-[#2b3350] p-3 rounded-xl"/>
+          </label>
+          <button disabled={busy} className={btn}>Salvar suporte</button>
+        </form>
+        <form onSubmit={e=>{
+          e.preventDefault();setBusy(true);setNotice('');
+          void api('admin.payment.settings',{
+            btcAddress,adminPassword:paymentPassword,confirmedOwner:ownerConfirmation
+          }).then(()=>{setPaymentPassword('');setOwnerConfirmation(false);
+            setNotice('Configuração de recebimento atualizada.');void refresh();})
+            .catch(error=>setNotice((error as Error).message)).finally(()=>setBusy(false));
+        }} className="space-y-3 rounded-xl bg-[#1b2137] p-4">
+          <h2 className="font-bold">Recebimento Bitcoin</h2>
+          <p className={btcConfirmed?'text-emerald-300 text-xs':'text-amber-300 text-xs'}>
+            {btcConfirmed?'Endereço confirmado administrativamente.':'Recebimento bloqueado até confirmar a posse do endereço BTC.'}
+          </p>
+          <label className="block text-sm">Endereço BTC de recebimento
+            <input required value={btcAddress} onChange={e=>{setBtcAddress(e.target.value);setBtcConfirmed(false);}}
+              className="w-full mt-2 bg-[#11182c] rounded-lg p-3 font-mono text-xs"/>
+          </label>
+          <label className="block text-sm">Sua senha de administrador
+            <input type="password" required value={paymentPassword} onChange={e=>setPaymentPassword(e.target.value)}
+              autoComplete="current-password" className="w-full mt-2 bg-[#11182c] rounded-lg p-3"/>
+          </label>
+          <label className="flex gap-2 text-xs items-start">
+            <input type="checkbox" checked={ownerConfirmation}
+              onChange={e=>setOwnerConfirmation(e.target.checked)}/>
+            Confirmo que controlo esta carteira BTC e verifiquei o endereço por um método independente.
+            A confirmação é administrativa, não uma prova criptográfica.
+          </label>
+          <button disabled={busy||!ownerConfirmation} className={btn}>Validar endereço e habilitar novos pedidos</button>
+          <p className="text-xs text-slate-400">Alterações afetam apenas novos pedidos. Pagamentos e TXIDs antigos permanecem vinculados ao endereço original.</p>
+        </form>
         <p className="text-xs text-amber-300">Instalador /install indisponível até confirmação da decisão técnica nº 13.</p>
-      </form>}
+      </section>}
     </main>
   </div>;
 };

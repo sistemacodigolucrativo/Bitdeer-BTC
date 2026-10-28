@@ -62,6 +62,16 @@ assert bonus["mining"]["bonusSatoshisBalance"]==10000
 alice.call("rewards.claim",{},409)
 assert len(alice.call("ledger")["bonuses"])==1
 alice.call("admin.members",expected=403)
+alice.call("orders.create",{"planId":"VIP_01"},409)
+paymentAdmin=Client()
+paymentAdmin.call("login",{"login":"adminci","password":"StrongCIpassword123!"})
+paymentSettings=paymentAdmin.call("admin.payment.settings")
+assert not paymentSettings["confirmed"]
+paymentAdmin.call("admin.payment.settings",{
+    "btcAddress":paymentSettings["btcAddress"],"adminPassword":"wrongpassword","confirmedOwner":True},403)
+assert paymentAdmin.call("admin.payment.settings",{
+    "btcAddress":paymentSettings["btcAddress"],"adminPassword":"StrongCIpassword123!",
+    "confirmedOwner":True})["confirmed"]
 order=alice.call("orders.create",{"planId":"VIP_01"},201)
 assert order["btcAmount"]=="0.00025000"
 assert order["quoteSource"]=="CI fixture"
