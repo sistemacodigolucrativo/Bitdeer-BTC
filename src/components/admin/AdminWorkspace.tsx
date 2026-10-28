@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { AuthUser, Plan, api } from '../../services/api';
-import { LogOut, RefreshCw, Users, CreditCard, Settings } from 'lucide-react';
+import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard } from 'lucide-react';
 
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
 type MemberDetails = {member: Member & {phone: string;wallet_address:string}; contracts:Array<{id:number;plan_id:string;started_at:number;expires_at:number}>;orders:Array<{id:number;plan_id:string;status:string}>;balanceUsd:string;bonusSatoshis:number};
 type Order = {id:number; user_id:number; login:string; plan_id:string; status:string; created_at:number;btc_sats:number;quote_source:string;payment_ref?:string|null};
 export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({user,onLogout}) => {
-  const [section,setSection]=useState<'members'|'plans'|'orders'|'settings'|'audit'>('members');
+  const [section,setSection]=useState<'overview'|'members'|'plans'|'orders'|'settings'|'audit'>('overview');
+  const [overview,setOverview]=useState({members:0,active:0,suspended:0,archived:0,activeVip:0,pendingOrders:0,approvedOrders:0});
   const [audit,setAudit]=useState<Array<{id:number;admin_id:number;action:string;target_user_id:number|null;created_at:number}>>([]);
   const [members,setMembers]=useState<Member[]>([]);
   const [plans,setPlans]=useState<Plan[]>([]);
@@ -37,6 +38,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       ]);
       setMembers(m.members);setTotal(m.total);setPlans(p.plans);setOrders(o.orders);setEmail(s.email);
       api<{actions:typeof audit}>('admin.audit').then(x=>setAudit(x.actions)).catch(()=>{});
+      api<typeof overview>('admin.overview').then(setOverview).catch(()=>{});
     } catch(e) {setNotice((e as Error).message);}
   }
   useEffect(()=>{void refresh()},[offset]);
@@ -50,15 +52,31 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   return <div className="h-full w-full bg-[#121526] text-white flex flex-col md:flex-row overflow-hidden">
     <aside className="md:w-52 bg-[#171b2d] border-r border-[#2b3350] p-4 flex md:flex-col gap-2 flex-wrap">
       <div className="hidden md:block font-bold text-xl pb-6">Bitdeer BTC <span className="block text-xs text-slate-400">Administrador {user.login}</span></div>
-      {([['members','Membros',Users],['plans','Planos VIP',CreditCard],['orders','Pedidos',CreditCard],['settings','Configurações',Settings],['audit','Auditoria',Users]] as const).map(([k,label,Icon])=>
+      {([['overview','Visão geral',LayoutDashboard],['members','Membros',Users],['plans','Planos VIP',CreditCard],['orders','Pedidos',CreditCard],['settings','Configurações',Settings],['audit','Auditoria',Users]] as const).map(([k,label,Icon])=>
         <button key={k} onClick={()=>setSection(k)} className={'flex items-center gap-2 rounded-xl px-3 py-2 text-sm '+(section===k?'bg-indigo-600':'hover:bg-slate-800')}><Icon size={16}/>{label}</button>)}
       <button className="flex items-center gap-2 rounded-xl p-2 text-sm" onClick={onLogout}><LogOut size={16}/> Sair</button>
     </aside>
     <main className="flex-1 overflow-auto p-4 md:p-7 space-y-4">
       <div className="flex justify-between items-center"><h1 className="text-xl font-bold">
-        {section==='members'?'Gerenciamento de membros':section==='plans'?'Catálogo VIP':section==='orders'?'Pedidos pendentes':section==='audit'?'Auditoria administrativa':'Configurações'}
+        {section==='overview'?'Visão geral':section==='members'?'Gerenciamento de membros':section==='plans'?'Catálogo VIP':section==='orders'?'Pedidos pendentes':section==='audit'?'Auditoria administrativa':'Configurações'}
       </h1><button aria-label="Atualizar" onClick={()=>void refresh()}><RefreshCw size={18}/></button></div>
       {notice && <p role="status" className="bg-[#292a40] p-3 rounded-lg text-amber-300 text-sm">{notice}</p>}
+      {section==='overview' && <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        {([
+          ['Membros cadastrados',overview.members],
+          ['Contas ativas',overview.active],
+          ['Suspensos',overview.suspended],
+          ['Arquivados',overview.archived],
+          ['VIPs vigentes',overview.activeVip],
+          ['Pedidos pendentes',overview.pendingOrders],
+          ['Pedidos aprovados',overview.approvedOrders],
+        ] as const).map(([label,value])=>
+          <div key={label} className="p-5 bg-[#1b2137] rounded-xl border border-[#2b3350]">
+            <p className="text-xs text-slate-400">{label}</p>
+            <strong className="text-2xl">{value}</strong>
+          </div>)}
+        <p className="col-span-full text-xs text-slate-400">Contagens obtidas do banco SQLite; não representam faturamento ou BTC confirmado na blockchain.</p>
+      </div>}
       {section==='members' && <>
         <form className="flex flex-wrap gap-2" onSubmit={e=>{e.preventDefault();setOffset(0);void refresh();}}>
           <input placeholder="Buscar por usuário, nome ou e-mail" value={filter} onChange={e=>setFilter(e.target.value)}

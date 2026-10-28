@@ -329,6 +329,22 @@ function api_dispatch(PDO $db, string $action, string $method): never {
           FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 100',[now(),$actor['id']]);
         json_out(['orders'=>$list]);
     }
+    if ($action === 'admin.overview' && $method === 'GET') {
+        auth_user($db,true);
+        $stats=query_one($db,'SELECT
+            SUM(CASE WHEN role="member" THEN 1 ELSE 0 END) AS members,
+            SUM(CASE WHEN role="member" AND status="active" THEN 1 ELSE 0 END) AS active,
+            SUM(CASE WHEN role="member" AND status="suspended" THEN 1 ELSE 0 END) AS suspended,
+            SUM(CASE WHEN role="member" AND status="archived" THEN 1 ELSE 0 END) AS archived
+            FROM users');
+        $vip=query_one($db,'SELECT COUNT(*) AS n FROM contracts WHERE started_at<=? AND expires_at>?',[now(),now()]);
+        $pending=query_one($db,'SELECT COUNT(*) AS n FROM orders WHERE status="pending" AND expires_at>?',[now()]);
+        $approved=query_one($db,'SELECT COUNT(*) AS n FROM orders WHERE status="approved"');
+        json_out(['members'=>(int)($stats['members']??0),'active'=>(int)($stats['active']??0),
+          'suspended'=>(int)($stats['suspended']??0),'archived'=>(int)($stats['archived']??0),
+          'activeVip'=>(int)($vip['n']??0),'pendingOrders'=>(int)($pending['n']??0),
+          'approvedOrders'=>(int)($approved['n']??0)]);
+    }
     if ($action === 'admin.members' && $method === 'GET') {
         auth_user($db,true);
         $q=trim(substr((string)($_GET['q'] ?? ''),0,80));
