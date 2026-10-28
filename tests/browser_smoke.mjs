@@ -40,7 +40,8 @@ try {
     .waitFor({timeout:10000});
   await page.locator('nav button').nth(4).click();
   await page.getByRole('button',{name:/Top Miners|Mejores mineros/}).click();
-  await page.getByText(/Ranking|Ranking de/).first().waitFor({timeout:10000});
+  await page.getByText('James Hudson').waitFor({timeout:10000});
+  await page.getByText(/Ranking demonstrativo|Demonstration ranking|Ranking demostrativo/i).waitFor({timeout:10000});
   await page.locator('nav button').nth(4).click();
   await page.getByRole('button',{name:/Histórico VIP|Subscriptions|Suscripciones/}).click();
   await page.getByText(/Histórico de assinaturas|Subscription history|Historial de suscripciones/).first()
@@ -48,8 +49,25 @@ try {
   await page.locator('nav button').nth(4).click();
   await page.locator('nav button').nth(3).click();
   await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
+  await page.getByText('Solicitação de Saque').waitFor({timeout:10000});
   await page.getByText('Cadastrar carteira Bitcoin').waitFor({timeout:10000});
   await page.screenshot({path:'release-build/member-mobile.png',fullPage:true});
+  await page.locator('input[placeholder="bc1..."]').fill('bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z');
+  await page.getByRole('button',{name:'Salvar carteira'}).click();
+  await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).waitFor({timeout:10000});
+  if(await page.getByRole('button',{name:/Editar carteira|Edit wallet|Editar billetera/}).count())
+    throw Error('Saved BTC wallet address card should be hidden');
+  await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
+  await page.getByText('Solicitar saque interno').waitFor({timeout:10000});
+  await page.getByRole('button',{name:'Voltar à carteira'}).click();
+  await page.locator('nav button').nth(4).click();
+  await page.getByRole('button',{name:/Meu perfil|My profile|Mi perfil/}).click();
+  const phone=page.locator('input[type="tel"]');
+  await phone.fill('31999999999');
+  if(await phone.inputValue()!=='(31) 99999-9999')throw Error('Mobile phone mask failed');
+  await phone.fill('3133333333');
+  if(await phone.inputValue()!=='(31) 3333-3333')throw Error('Landline mask failed');
+  if(await phone.getAttribute('maxlength')!=='15')throw Error('Phone maxlength is missing');
   await page.setViewportSize({width:1280,height:800});
   await page.locator('nav button').first().click();
   await page.waitForTimeout(250);
