@@ -76,6 +76,12 @@ try {
     throw Error('Saved BTC wallet address card should be hidden');
   await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
   await page.getByText('Solicitar saque interno').waitFor({timeout:10000});
+  await page.getByRole('button',{name:'Bitcoin (BTC)'}).click();
+  await page.getByTestId('withdraw-available-card').getByText('Saldo disponível em BTC')
+    .waitFor({timeout:10000});
+  await page.getByRole('button',{name:'Dólar (USD)'}).click();
+  await page.getByTestId('withdraw-available-card').getByText('Saldo disponível em USD')
+    .waitFor({timeout:10000});
   await page.getByRole('button',{name:'Voltar à carteira'}).click();
   await page.locator('nav button').nth(4).click();
   await page.getByRole('button',{name:/Meu perfil|My profile|Mi perfil/}).click();
