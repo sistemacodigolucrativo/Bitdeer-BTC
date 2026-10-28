@@ -106,9 +106,9 @@ function request_body(): array {
     }
     $raw = file_get_contents('php://input');
     if ($raw === false || strlen($raw) > 32768) fail(413, 'Conteúdo muito grande');
-    $data = json_decode($raw, true);
-    if (!is_array($data) || array_is_list($data)) fail(400, 'JSON inválido');
-    return $data;
+    $object = json_decode($raw);
+    if (!$object instanceof stdClass) fail(400, 'JSON inválido');
+    return (array) json_decode($raw, true);
 }
 
 function string_field(array $input, string $name, int $max = 255): string {
