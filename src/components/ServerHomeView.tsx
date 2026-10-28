@@ -114,22 +114,29 @@ export const ServerHomeView: React.FC<Props> = ({
       {inCooldown && <p className="mt-2 text-xs text-amber-300">{d.cooldown}: {stamp(account!.mining.cooldownUntil!)}</p>}
       {isVip && account?.plan.expiresAt && <p className="mt-2 text-xs text-slate-400">{d.vip}: {stamp(account.plan.expiresAt)}</p>}
     </section>
-    <div className="grid grid-cols-2 gap-3">
-      <div className="bg-[#171b2d] border border-[#232a43] rounded-2xl p-3 space-y-3">
-        <p className="text-[11px] text-slate-300 font-bold">{d.daily}</p>
-        <div className="flex items-center gap-2"><Gift size={19} className="text-indigo-400"/>
-          <span className="text-base font-black">US$ {account?.plan.bonusUsd ?? '0.00'} <small className="text-slate-400 text-xs">/24h</small></span>
-        </div>
-        <button onClick={onRewards} className="w-full bg-[#6366f1] px-1 py-2 rounded-xl text-xs font-bold">{d.rewards}</button>
+    <section data-testid="daily-bonus-card" aria-label={d.daily}
+      className="bg-[#171b2d] border border-[#232a43] rounded-2xl p-4 space-y-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-bold text-slate-100">{d.daily}</h3>
+        <span className="text-[11px] text-slate-400">/24h</span>
       </div>
-      <div className="bg-[#171b2d] border border-[#232a43] rounded-2xl p-3 space-y-3">
-        <p className="text-[11px] text-slate-300 font-bold">Satoshis</p>
-        <div className="flex items-center gap-2"><Coins size={19} className="text-amber-400"/>
-          <span className="font-black">{(account?.mining.bonusSatoshisBalance ?? 0).toLocaleString()}</span>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="min-w-0 rounded-xl bg-[#1e2540] p-3 space-y-2">
+          <p className="flex items-center gap-2 text-[11px] text-slate-300"><Gift size={17} className="text-indigo-400"/> USD</p>
+          <p className="text-lg font-black tabular-nums break-words">US$ {account?.plan.bonusUsd ?? '0.00'}</p>
         </div>
-        <button onClick={onRewards} className="w-full bg-[#f43f5e] px-1 py-2 rounded-xl text-xs font-bold">{d.claim}</button>
+        <div className="min-w-0 rounded-xl bg-[#1e2540] p-3 space-y-2">
+          <p className="flex items-center gap-2 text-[11px] text-slate-300"><Coins size={17} className="text-amber-400"/> Satoshis</p>
+          <p className="text-lg font-black tabular-nums break-words">
+            {(account?.plan.bonusSatoshis ?? 0).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR')}
+          </p>
+        </div>
       </div>
-    </div>
+      <button type="button" onClick={onRewards}
+        className="w-full bg-[#6366f1] hover:bg-[#4f46e5] rounded-xl py-3 font-bold text-sm">
+        {d.claim}
+      </button>
+    </section>
     <section className="bg-[#171b2d] border border-[#232a43] rounded-2xl p-4">
       <button className="w-full flex justify-between items-center text-xs font-bold" onClick={()=>setExpanded(v=>!v)}>
         <span className="flex items-center gap-2"><Info size={16}/>{d.faq}</span>
