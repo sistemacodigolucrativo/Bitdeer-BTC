@@ -120,7 +120,7 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     onboardingPreview: {
       stepTitle: 'Explore the Bitcoin reward simulator',
-      stepSubtitle: 'Track simulated internal credits, plan sessions and history from your phone.',
+      stepSubtitle: 'Track internal credits, plan sessions and history from your phone.',
       mineNowBtn: 'Mine Now'
     },
     terminal: {
@@ -129,7 +129,7 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     login: {
       title: 'BTC Cloud Mining',
-      subtitle: 'Access your account to view simulated internal reward records.',
+      subtitle: 'Access your account to view internal reward records.',
       loginLabel: 'Username',
       loginPlaceholder: 'Enter your username',
       passwordLabel: 'Password',
@@ -138,7 +138,7 @@ export const translations: Record<LanguageCode, Translations> = {
       validationError: 'Please enter a valid username and password (minimum 10 characters).',
       terms: 'Terms of Use',
       privacy: 'Privacy Policy',
-      disclaimer: 'Reward balances are internal simulation records, not confirmation of Bitcoin mining or blockchain deposits.'
+      disclaimer: 'Reward balances are internal ledger entries, not evidence of actual Bitcoin mining or blockchain deposits.'
     },
     congratulations: {
       title: 'Congratulations',
@@ -228,7 +228,7 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     onboardingPreview: {
       stepTitle: 'Explore a simulação de recompensas em Bitcoin',
-      stepSubtitle: 'Acompanhe registros internos simulados, sessões e históricos de planos pelo celular.',
+      stepSubtitle: 'Acompanhe créditos internos, sessões e históricos de planos pelo celular.',
       mineNowBtn: 'Minerar Agora'
     },
     terminal: {
@@ -237,7 +237,7 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     login: {
       title: 'BTC Cloud Mining',
-      subtitle: 'Acesse sua conta e consulte os registros internos de recompensas simuladas.',
+      subtitle: 'Acesse sua conta e consulte os registros internos de recompensas.',
       loginLabel: 'Nome de usuário',
       loginPlaceholder: 'Digite seu nome de usuário',
       passwordLabel: 'Senha',
@@ -246,7 +246,7 @@ export const translations: Record<LanguageCode, Translations> = {
       validationError: 'Informe nome de usuário e senha válidos (mínimo 10 caracteres).',
       terms: 'Termos de Uso',
       privacy: 'Política de Privacidade',
-      disclaimer: 'Os créditos exibidos são registros internos simulados, não comprovam mineração real ou depósitos em blockchain.'
+      disclaimer: 'Os créditos exibidos são registros internos, não comprovam mineração real nem depósitos em blockchain.'
     },
     congratulations: {
       title: 'Parabéns!',
@@ -336,7 +336,7 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     onboardingPreview: {
       stepTitle: 'Explora la simulación de recompensas Bitcoin',
-      stepSubtitle: 'Consulta registros internos simulados, sesiones y el historial de planes desde tu teléfono.',
+      stepSubtitle: 'Consulta créditos internos, sesiones y el historial de planes desde tu teléfono.',
       mineNowBtn: 'Minar Ahora'
     },
     terminal: {
@@ -345,7 +345,7 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     login: {
       title: 'BTC Cloud Mining',
-      subtitle: 'Accede a tu cuenta y consulta las recompensas internas simuladas.',
+      subtitle: 'Accede a tu cuenta y consulta los registros de recompensas internas.',
       loginLabel: 'Nombre de usuario',
       loginPlaceholder: 'Ingresa tu nombre de usuario',
       passwordLabel: 'Contraseña',
@@ -354,7 +354,7 @@ export const translations: Record<LanguageCode, Translations> = {
       validationError: 'Ingresa un usuario y una contraseña válidos (mínimo 10 caracteres).',
       terms: 'Términos de Uso',
       privacy: 'Política de Privacidade',
-      disclaimer: 'Los créditos son registros internos simulados, no demuestran minería real ni depósitos en la blockchain.'
+      disclaimer: 'Los créditos son registros internos, no demuestran minería real ni depósitos en la blockchain.'
     },
     congratulations: {
       title: '¡Felicitaciones!',

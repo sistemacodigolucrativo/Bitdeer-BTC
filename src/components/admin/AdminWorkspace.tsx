@@ -290,12 +290,12 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         </div>}
       </>}
       {section==='withdrawals' && <section className="space-y-3">
-        <p className="text-xs text-amber-300">Solicitações de saldo interno simulado. Nenhum BTC é enviado automaticamente.</p>
+        <p className="text-xs text-amber-300">Solicitações de créditos internos. Nenhum Bitcoin é enviado automaticamente.</p>
         {withdrawals.length===0&&<p className="text-xs text-slate-400">Nenhum saque registrado.</p>}
         {withdrawals.map(w=><article key={w.id} className="bg-[#1b2137] rounded-xl border border-[#2b3350] p-4 space-y-2">
           <strong>Solicitação #{w.id} · {w.login}</strong>
           <p className="text-xs text-slate-300">Plano: {w.plan_id} · Estado: {w.status==='pending'?'Pendente':w.status==='approved'?'Conferida':'Rejeitada'}</p>
-          <p className="text-sm">US$ {(w.usd_cents/100).toFixed(2)} · {(w.btc_satoshis/1e8).toFixed(8)} BTC simulado</p>
+          <p className="text-sm">US$ {(w.usd_cents/100).toFixed(2)} · {(w.btc_satoshis/1e8).toFixed(8)} BTC (equivalência interna)</p>
           <p className="text-xs text-slate-400 break-all">{w.btc_address}</p>
           {w.status==='pending'&&<div className="flex flex-wrap gap-2">
             <button disabled={busy} className={btn} onClick={()=>{

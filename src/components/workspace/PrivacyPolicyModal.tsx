@@ -31,7 +31,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
 
         {/* Content */}
         <div className="p-4 overflow-y-auto text-xs text-slate-300 space-y-3 leading-relaxed">
-          <p className="font-semibold text-white">1. Cloud-Based Simulation Technology</p>
+          <p className="font-semibold text-white">1. Cloud-Based Internal Rewards Technology</p>
           <p className="text-slate-400">
             Our platform operates exclusively through remote cloud infrastructure. Your mobile device is never utilized for hardware compute or battery-intensive proof-of-work mining.
           </p>

@@ -175,7 +175,7 @@ export const MemberWorkspace: React.FC<{
                   value={withdrawAmount} onChange={e=>setWithdrawAmount(e.target.value)}
                   className="w-full mt-2 bg-[#11182c] rounded-lg p-3"/>
               </label>
-              <p className="text-xs text-amber-300">A solicitação movimenta apenas o saldo interno simulado. Não transfere BTC real e permanece pendente de conferência administrativa.</p>
+              <p className="text-xs text-amber-300">O pedido utiliza créditos internos do sistema, sem transferência automática de Bitcoin real. A solicitação permanece pendente de conferência administrativa.</p>
               <button disabled={busy || !btcUsd} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">Registrar solicitação</button>
             </form>}
           </section>}
@@ -204,7 +204,7 @@ export const MemberWorkspace: React.FC<{
           {withdrawHistory.length>0 && <section className="bg-[#171b2d] rounded-2xl p-4 space-y-2">
             <h3 className="font-bold text-sm">Solicitações de saque</h3>
             {withdrawHistory.map(x=><p key={x.id} className="text-xs border-b border-[#2b3350] pb-2">
-              #{x.id} · US$ {(x.usd_cents/100).toFixed(2)} · {(x.btc_satoshis/1e8).toFixed(8)} BTC simulado · {x.status}
+              #{x.id} · US$ {(x.usd_cents/100).toFixed(2)} · {(x.btc_satoshis/1e8).toFixed(8)} BTC (equivalência interna) · {x.status}
             </p>)}
           </section>}
         </>}

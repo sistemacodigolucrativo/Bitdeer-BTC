@@ -219,10 +219,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         <p className="text-[10px] text-slate-400 mt-2.5 leading-tight">
           {isVipPlan
             ? (language === 'pt'
-                ? 'Plano VIP ativo: mineração simulada contínua sem limite de tempo.'
+                ? 'Plano VIP ativo: recompensas internas contínuas, conforme as regras do plano.'
                 : language === 'es'
-                ? 'Plan VIP activo: minería simulada continua sin límite de tiempo.'
-                : 'Active VIP Plan: continuous simulated mining with no time limit.')
+                ? 'Plan VIP activo: recompensas internas continuas, según las reglas del plan.'
+                : 'Active VIP plan: continuous internal rewards under the plan rules.')
             : t.miningNotice}
         </p>
       </div>
@@ -325,7 +325,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
         {faqOpen && (
           <div className="mt-3 pt-3 border-t border-[#222840] space-y-2 text-xs text-slate-400 animate-in fade-in duration-200">
-            <p><strong>1. Como funciona a sessão de mineração?</strong> No Plano FREE cada sessão dura 30 minutos contínuos. Nos planos VIP (01 a 04), a mineração simulada é contínua sem limite de tempo.</p>
+            <p><strong>1. Como funciona a sessão de mineração?</strong> No plano FREE, as sessões duram duas horas, seguidas de duas horas de intervalo. Nos planos VIP, os registros internos seguem as condições do contrato.</p>
             <p><strong>2. Como funcionam as recompensas diárias?</strong> Você possui 3 bônus diários (US$ {formattedDailyBonusUsd}, +2 Horas de Mineração e {formattedDailyBonusSatoshis} Satoshis), cada um disponível a cada 24 horas.</p>
             <p><strong>3. Meus dados ficam salvos?</strong> Sim, todo seu saldo e tempos restantes ficam salvos localmente e persistem mesmo ao fechar o app.</p>
           </div>
