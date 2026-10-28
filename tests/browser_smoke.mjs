@@ -84,24 +84,24 @@ try {
   await page.locator('nav button').nth(4).click();
   await page.locator('nav button').nth(3).click();
   await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
-  await page.getByText('Solicitação de Saque').waitFor({timeout:10000});
+  await page.getByText(/Solicitação de Saque|Withdrawal Request|Solicitud de Retiro/).waitFor({timeout:10000});
   await page.getByTestId('withdraw-available-card').waitFor({timeout:10000});
-  await page.getByText('Cadastrar carteira Bitcoin').waitFor({timeout:10000});
+  await page.getByText(/Cadastrar carteira Bitcoin|Register Bitcoin wallet|Registrar billetera Bitcoin/).waitFor({timeout:10000});
   await page.screenshot({path:'release-build/member-mobile.png',fullPage:true});
   await page.locator('input[placeholder="bc1..."]').fill('bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z');
-  await page.getByRole('button',{name:'Salvar carteira'}).click();
+  await page.getByRole('button',{name:/Salvar carteira|Save wallet|Guardar billetera/}).click();
   await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).waitFor({timeout:10000});
   if(await page.getByRole('button',{name:/Editar carteira|Edit wallet|Editar billetera/}).count())
     throw Error('Saved BTC wallet address card should be hidden');
   await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
-  await page.getByText('Solicitar saque interno').waitFor({timeout:10000});
+  await page.getByText(/Solicitar saque interno|Request internal withdrawal|Solicitar retiro interno/).waitFor({timeout:10000});
   await page.getByRole('button',{name:'Bitcoin (BTC)'}).click();
   await page.getByTestId('withdraw-available-card').getByText(/Saldo disponível em BTC|Available balance in BTC|Saldo disponible en BTC/)
     .waitFor({timeout:10000});
-  await page.getByRole('button',{name:'Dólar (USD)'}).click();
+  await page.getByRole('button',{name:/Dólar \(USD\)|Dollar \(USD\)/}).click();
   await page.getByTestId('withdraw-available-card').getByText(/Saldo disponível em USD|Available balance in USD|Saldo disponible en USD/)
     .waitFor({timeout:10000});
-  await page.getByRole('button',{name:'Voltar à carteira'}).click();
+  await page.getByRole('button',{name:/Voltar à carteira|Back to wallet|Volver a la billetera/}).click();
   await page.locator('nav button').nth(4).click();
   await page.getByRole('button',{name:/Meu perfil|My profile|Mi perfil/}).click();
   const phone=page.locator('input[type="tel"]');
