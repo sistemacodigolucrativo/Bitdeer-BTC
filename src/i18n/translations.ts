@@ -119,8 +119,8 @@ export const translations: Record<LanguageCode, Translations> = {
       pt: { name: 'Português', nativeName: 'Portuguese', region: 'Global' }
     },
     onboardingPreview: {
-      stepTitle: 'Mine Bitcoin Instantly, No Setup Needed',
-      stepSubtitle: 'One tap to start — track hashrate and earnings live from your phone.',
+      stepTitle: 'Explore the Bitcoin reward simulator',
+      stepSubtitle: 'Track simulated internal credits, plan sessions and history from your phone.',
       mineNowBtn: 'Mine Now'
     },
     terminal: {
@@ -129,16 +129,16 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     login: {
       title: 'BTC Cloud Mining',
-      subtitle: 'Securely access your account and continue your mining journey.',
-      loginLabel: 'Username or Email',
-      loginPlaceholder: 'Enter your username or email',
+      subtitle: 'Access your account to view simulated internal reward records.',
+      loginLabel: 'Username',
+      loginPlaceholder: 'Enter your username',
       passwordLabel: 'Password',
       passwordPlaceholder: 'Enter your password',
       accessBtn: 'Log In',
-      validationError: 'Please enter a valid login and password (minimum 4 characters).',
+      validationError: 'Please enter a valid username and password (minimum 10 characters).',
       terms: 'Terms of Use',
       privacy: 'Privacy Policy',
-      disclaimer: 'Our platform utilizes cloud-based mining technology. Your mobile device is not used as a mining tool'
+      disclaimer: 'Reward balances are internal simulation records, not confirmation of Bitcoin mining or blockchain deposits.'
     },
     congratulations: {
       title: 'Congratulations',
@@ -227,8 +227,8 @@ export const translations: Record<LanguageCode, Translations> = {
       pt: { name: 'Português', nativeName: 'Português', region: 'Global' }
     },
     onboardingPreview: {
-      stepTitle: 'Minere Bitcoin Instantaneamente, Sem Complicações',
-      stepSubtitle: 'Um toque para iniciar — acompanhe sua taxa de mineração e ganhos em tempo real pelo celular.',
+      stepTitle: 'Explore a simulação de recompensas em Bitcoin',
+      stepSubtitle: 'Acompanhe registros internos simulados, sessões e históricos de planos pelo celular.',
       mineNowBtn: 'Minerar Agora'
     },
     terminal: {
@@ -237,16 +237,16 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     login: {
       title: 'BTC Cloud Mining',
-      subtitle: 'Acesse sua conta com segurança e continue sua jornada de mineração.',
-      loginLabel: 'Login ou E-mail',
-      loginPlaceholder: 'Digite seu login ou e-mail',
+      subtitle: 'Acesse sua conta e consulte os registros internos de recompensas simuladas.',
+      loginLabel: 'Nome de usuário',
+      loginPlaceholder: 'Digite seu nome de usuário',
       passwordLabel: 'Senha',
       passwordPlaceholder: 'Digite sua senha',
       accessBtn: 'Acessar Conta',
-      validationError: 'Por favor, informe login e senha válidos (mínimo 4 caracteres).',
+      validationError: 'Informe nome de usuário e senha válidos (mínimo 10 caracteres).',
       terms: 'Termos de Uso',
       privacy: 'Política de Privacidade',
-      disclaimer: 'Nossa plataforma utiliza tecnologia de mineração em nuvem. Seu aparelho não é usado como ferramenta de mineração.'
+      disclaimer: 'Os créditos exibidos são registros internos simulados, não comprovam mineração real ou depósitos em blockchain.'
     },
     congratulations: {
       title: 'Parabéns!',
@@ -335,8 +335,8 @@ export const translations: Record<LanguageCode, Translations> = {
       pt: { name: 'Português', nativeName: 'Português', region: 'Global' }
     },
     onboardingPreview: {
-      stepTitle: 'Mina Bitcoin al Instante, Sin Complicaciones',
-      stepSubtitle: 'Un toque para comenzar — monitorea tu tasa de hash y ganancias en vivo desde tu teléfono.',
+      stepTitle: 'Explora la simulación de recompensas Bitcoin',
+      stepSubtitle: 'Consulta registros internos simulados, sesiones y el historial de planes desde tu teléfono.',
       mineNowBtn: 'Minar Ahora'
     },
     terminal: {
@@ -345,16 +345,16 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     login: {
       title: 'BTC Cloud Mining',
-      subtitle: 'Accede a tu cuenta de forma segura y continúa minando.',
-      loginLabel: 'Usuario o Correo',
-      loginPlaceholder: 'Ingresa tu usuario o correo',
+      subtitle: 'Accede a tu cuenta y consulta las recompensas internas simuladas.',
+      loginLabel: 'Nombre de usuario',
+      loginPlaceholder: 'Ingresa tu nombre de usuario',
       passwordLabel: 'Contraseña',
       passwordPlaceholder: 'Ingresa tu contraseña',
       accessBtn: 'Iniciar Sesión',
-      validationError: 'Por favor, ingresa usuario y contraseña válidos (mínimo 4 caracteres).',
+      validationError: 'Ingresa un usuario y una contraseña válidos (mínimo 10 caracteres).',
       terms: 'Términos de Uso',
       privacy: 'Política de Privacidade',
-      disclaimer: 'Nuestra plataforma utiliza minería en la nube. Tu dispositivo no se usa para minar.'
+      disclaimer: 'Los créditos son registros internos simulados, no demuestran minería real ni depósitos en la blockchain.'
     },
     congratulations: {
       title: '¡Felicitaciones!',
