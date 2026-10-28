@@ -100,7 +100,20 @@ admin.call("admin.plan.save",{"id":"VIP_01","name":"VIP 01","priceCents":3000,
 assert alice.call("profile")["plan"]["dailyUsd"]=="3.00", "VIP contract terms cannot change"
 admin.call("admin.member.edit",{"userId":alice_user["id"],"displayName":"Alice Testada","email":"alice@example.org"})
 assert alice.call("profile")["profile"]["displayName"]=="Alice Testada"
+# Option A: the existing VIP contract deadline is not extended by suspension.
+dbcheck=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
+try:
+    contract_end_before=dbcheck.execute("SELECT expires_at FROM contracts WHERE user_id=?",
+       (alice_user["id"],)).fetchone()[0]
+finally:
+    dbcheck.close()
 admin.call("admin.status",{"userId":alice_user["id"],"status":"suspended"})
+dbcheck=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
+try:
+    assert dbcheck.execute("SELECT expires_at FROM contracts WHERE user_id=?",
+       (alice_user["id"],)).fetchone()[0]==contract_end_before
+finally:
+    dbcheck.close()
 alice.call("profile",expected=401)
 admin.call("admin.status",{"userId":alice_user["id"],"status":"active"})
 alice.call("profile",expected=401)  # revoked, not restored
