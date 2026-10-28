@@ -131,7 +131,7 @@ try {
     throw Error('Language was reset after reload');
   // Member-facing panels must follow the selected locale, not retain PT-only copy.
   await page.locator('nav button').nth(3).click();
-  await page.getByText('Billetera',{exact:true}).waitFor({timeout:10000});
+  await page.getByRole('heading',{name:'Billetera'}).waitFor({timeout:10000});
   await page.getByRole('button',{name:'Retirar'}).click();
   await page.getByRole('heading',{name:'Solicitud de Retiro'}).waitFor({timeout:10000});
   await page.getByRole('button',{name:'Volver a la billetera'}).click();
