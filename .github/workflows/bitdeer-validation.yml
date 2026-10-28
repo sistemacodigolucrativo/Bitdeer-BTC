@@ -29,6 +29,10 @@ jobs:
           BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
           BITDEER_ALLOW_CLI_PROVISION: '1'
         run: php bin/provision.php adminci 'StrongCIpassword123!' support@example.org
+      - name: Verify initial plan baseline
+        env:
+          BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
+        run: python3 tests/baseline_plans.py
       - name: API integration regression
         env:
           BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
