@@ -47,6 +47,7 @@ alice=Client()
 alice_user=alice.call("login",{"login":"alice","password":"longpassword123"})["user"]
 assert alice_user["role"]=="member"
 assert alice.call("profile")["plan"]["id"]=="FREE"
+assert alice.call("profile")["plan"]["sessionSeconds"]==7200
 bonus=alice.call("rewards.claim",{})
 assert bonus["mining"]["bonusSatoshisBalance"]==10000
 alice.call("rewards.claim",{},409)
@@ -60,9 +61,10 @@ assert admin.call("login",{"login":"adminci","password":"StrongCIpassword123!"})
 admin.call("admin.order.approve",{"orderId":order["orderId"],"paymentConfirmed":False},422)
 admin.call("admin.order.approve",{"orderId":order["orderId"],"paymentConfirmed":True})
 assert alice.call("profile")["plan"]["dailyUsd"]=="3.00"
+assert alice.call("profile")["plan"]["sessionSeconds"]==0
 admin.call("admin.plan.save",{"id":"VIP_01","name":"VIP 01","priceCents":3000,
   "dailyCents":400,"bonusUsdCents":100,"bonusSatoshis":20000,
-  "durationDays":30,"hashrate":"+ 275 Gh/s","serverModel":"Antminer S19 Pro",
+  "durationDays":30,"sessionSeconds":0,"restartCooldownSeconds":0,"hashrate":"+ 275 Gh/s","serverModel":"Antminer S19 Pro",
   "available":True})
 assert alice.call("profile")["plan"]["dailyUsd"]=="3.00", "VIP contract terms cannot change"
 admin.call("admin.member.edit",{"userId":alice_user["id"],"displayName":"Alice Testada","email":"alice@example.org"})

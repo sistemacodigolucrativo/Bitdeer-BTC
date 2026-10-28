@@ -83,7 +83,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         <p className="text-xs text-slate-400">As alterações afetam apenas futuras contratações; contratos existentes mantêm os valores da contratação.</p>
         <button className={btn} onClick={()=>setSelected({
           id:'VIP_CUSTOM',name:'Novo Plano VIP',revision:0,priceUsd:'0.00',dailyUsd:'0.00',
-          bonusUsd:'0.00',bonusSatoshis:0,durationDays:30,hashrate:'',serverModel:'',available:false
+          bonusUsd:'0.00',bonusSatoshis:0,durationDays:30,sessionSeconds:0,restartCooldownSeconds:0,hashrate:'',serverModel:'',available:false
         })}>Criar novo plano</button>
         <div className="grid md:grid-cols-2 gap-3">{plans.map(p=><button key={p.id} onClick={()=>setSelected({...p})}
             className="text-left p-4 bg-[#1b2137] rounded-xl border border-[#2b3350]">
@@ -95,6 +95,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
             dailyCents:Math.round(Number(selected.dailyUsd)*100),
             bonusUsdCents:Math.round(Number(selected.bonusUsd)*100),
             bonusSatoshis:selected.bonusSatoshis,durationDays:selected.durationDays,
+            sessionSeconds:selected.sessionSeconds,restartCooldownSeconds:selected.restartCooldownSeconds,
             hashrate:selected.hashrate,serverModel:selected.serverModel,available:selected.available,
           });setSelected(null);
         }} className="rounded-xl p-4 bg-[#1b2137] space-y-3">
@@ -103,7 +104,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
             <input required className="w-full bg-[#11182c] p-2 rounded-lg" value={selected.id}
               onChange={e=>setSelected(p=>p?{...p,id:e.target.value.toUpperCase()}:p)}/>
           </label>}
-          {(['name','priceUsd','dailyUsd','bonusUsd','bonusSatoshis','durationDays','hashrate','serverModel'] as const).map(k=>
+          {(['name','priceUsd','dailyUsd','bonusUsd','bonusSatoshis','durationDays','sessionSeconds','restartCooldownSeconds','hashrate','serverModel'] as const).map(k=>
             <label key={k} className="block text-sm">{k}
               <input value={selected[k]} type={typeof selected[k]==='number'?'number':'text'}
                 onChange={e=>setSelected(p=>p?{...p,[k]:typeof p[k]==='number'?Number(e.target.value):e.target.value}:p)}

@@ -82,7 +82,7 @@ export const MemberWorkspace: React.FC<{user: AuthUser; language: LanguageCode; 
           {plans.map(p=><article key={p.id} className="rounded-2xl bg-[#1b2137] p-4 space-y-2 border border-[#2b3350]">
             <div className="flex justify-between"><strong>{p.name}</strong><strong>US$ {p.priceUsd}</strong></div>
             <p className="text-sm">US$ {p.dailyUsd}/dia · bônus: US$ {p.bonusUsd}/dia e {p.bonusSatoshis} satoshis/dia</p>
-            <p className="text-xs text-slate-400">{p.hashrate} · {p.durationDays ? p.durationDays+' dias' : 'gratuito'}</p>
+            <p className="text-xs text-slate-400">{p.hashrate} · {p.durationDays ? p.durationDays+' dias' : 'gratuito'} · {p.sessionSeconds===0 ? 'contínuo' : 'sessões de '+(p.sessionSeconds/3600)+'h'}</p>
             {p.id!=='FREE' && <button disabled={busy} onClick={()=>void act('orders.create',{planId:p.id})}
               className="w-full bg-indigo-600 rounded-xl p-3 text-sm disabled:opacity-50">Solicitar contratação (aguardar aprovação)</button>}
           </article>)}
