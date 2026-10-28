@@ -11,6 +11,7 @@ if ($file===false || !is_file($file)) {
     exit;
 }
 require_once $file;
+require_once __DIR__.'/ownership.php';
 
 /**
  * Supported protection policies:
@@ -43,8 +44,10 @@ $host=parse_url('http://'.(string)($_SERVER['HTTP_HOST'] ?? ''),PHP_URL_HOST);
 $localSetup=$policy==='' &&
     in_array((string)($_SERVER['REMOTE_ADDR'] ?? ''),['127.0.0.1','::1'],true) &&
     in_array($host,['localhost','127.0.0.1','::1'],true);
+$dnsDomain=($policy==='' && !$localSetup) ? install_domain() : null;
+$dnsSetup=$dnsDomain!==null;
 $hash=(string)(getenv('BITDEER_INSTALL_KEY_HASH') ?: '');
-if (!$localSetup && (!in_array($policy,['A','B','C'],true) || $hash==='' || !password_get_info($hash)['algo'])) {
+if (!$localSetup && !$dnsSetup && (!in_array($policy,['A','B','C'],true) || $hash==='' || !password_get_info($hash)['algo'])) {
     installer_page('Instalador bloqueado',
         'A decisão técnica 13 ainda não foi ativada no servidor. A instalação inicial permanece desabilitada.',423);
 }
@@ -77,6 +80,10 @@ if (!isset($_SESSION['csrf']) || !is_string($_SESSION['csrf'])) {
     $_SESSION['csrf']=bin2hex(random_bytes(32));
 }
 if (!isset($_SESSION['attempts'])) $_SESSION['attempts']=0;
+if ($dnsSetup && (!isset($_SESSION['setup_nonce']) || !is_string($_SESSION['setup_nonce']))) {
+    $_SESSION['setup_nonce']=bin2hex(random_bytes(32));
+    $_SESSION['setup_issued']=time();
+}
 $error='';
 if (($_SERVER['REQUEST_METHOD']??'GET')==='POST') {
     $csrf=$_POST['csrf']??null;
@@ -92,10 +99,15 @@ if (($_SERVER['REQUEST_METHOD']??'GET')==='POST') {
     $pass=$_POST['admin_password']??null;
     $email=$_POST['support_email']??null;
     $accepted=($_POST['confirmation']??null)==='yes';
-    if (!$accepted || (!$localSetup && (!is_string($secret) || strlen($secret)<24 ||
+    if (!$accepted || (!$localSetup && !$dnsSetup && (!is_string($secret) || strlen($secret)<24 ||
         !password_verify($secret,$hash))) ||
         !is_string($login) || !is_string($pass) || !is_string($email)) {
         $error='Credenciais de instalação ou confirmação inválidas.';
+    } elseif ($dnsSetup && (
+        time()-(int)($_SESSION['setup_issued']??0)>1800 ||
+        !install_dns_verified($dnsDomain,(string)$_SESSION['setup_nonce'])
+    )) {
+        $error='Prova de controle do domínio ausente, incorreta ou expirada. Publique o TXT abaixo e tente novamente.';
     } else {
         try {
             provision($login,$pass,$email);
@@ -129,11 +141,17 @@ small{color:#94a3b8}
 </style></head><body><main>
 <h1>Bitdeer BTC — Instalação inicial</h1>
 <p>PHP + SQLite, sem banco MySQL. A instalação é única e não importa dados antigos do navegador.</p>
-<small><?= $localSetup ? 'Instalação local de uso único — sem chave adicional' : 'Política de proteção: '.htmlspecialchars($policy,ENT_QUOTES,'UTF-8') ?></small>
+<small><?= $localSetup ? 'Instalação local — sem chave adicional' : ($dnsSetup ? 'Instalação pelo domínio com verificação DNS' : 'Política de proteção: '.htmlspecialchars($policy,ENT_QUOTES,'UTF-8')) ?></small>
+<?php if ($dnsSetup): ?>
+<p>Para provar que você controla <?=htmlspecialchars($dnsDomain,ENT_QUOTES,'UTF-8')?>, crie um registro DNS do tipo TXT na zona do seu domínio:</p>
+<p><strong>Nome:</strong> <code>_bitdeer-install</code></p>
+<p><strong>Valor TXT:</strong> <code style="overflow-wrap:anywhere"><?=htmlspecialchars('bitdeer-install='.$_SESSION['setup_nonce'],ENT_QUOTES,'UTF-8')?></code></p>
+<p><small>A confirmação é verificada pelo servidor. O código expira após 30 minutos; se expirar, inicie uma nova sessão. Ter acesso à página não autoriza criar o administrador.</small></p>
+<?php endif; ?>
 <?=$errorHtml?>
 <form method="post" autocomplete="off">
 <input type="hidden" name="csrf" value="<?=$csrf?>">
-<?php if (!$localSetup): ?>
+<?php if (!$localSetup && !$dnsSetup): ?>
 <label>Chave privada de instalação
 <input type="password" name="setup_key" required minlength="24" autocomplete="off"></label>
 <?php endif; ?>
