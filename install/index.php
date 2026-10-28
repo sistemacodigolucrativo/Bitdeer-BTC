@@ -37,8 +37,11 @@ function installer_page(string $title, string $message, int $status): never {
 }
 
 $policy=strtoupper(trim((string)(getenv('BITDEER_INSTALL_POLICY') ?: '')));
+// A simple first installation without an additional secret is permitted only
+// from the hosting server itself. Remote first-admin creation remains locked.
+$localSetup=$policy==='' && in_array((string)($_SERVER['REMOTE_ADDR'] ?? ''),['127.0.0.1','::1'],true);
 $hash=(string)(getenv('BITDEER_INSTALL_KEY_HASH') ?: '');
-if (!in_array($policy,['A','B','C'],true) || $hash==='' || !password_get_info($hash)['algo']) {
+if (!$localSetup && (!in_array($policy,['A','B','C'],true) || $hash==='' || !password_get_info($hash)['algo'])) {
     installer_page('Instalador bloqueado',
         'A decisão técnica 13 ainda não foi ativada no servidor. A instalação inicial permanece desabilitada.',423);
 }
@@ -86,8 +89,8 @@ if (($_SERVER['REQUEST_METHOD']??'GET')==='POST') {
     $pass=$_POST['admin_password']??null;
     $email=$_POST['support_email']??null;
     $accepted=($_POST['confirmation']??null)==='yes';
-    if (!$accepted || !is_string($secret) || strlen($secret)<24 ||
-        !password_verify($secret,$hash) ||
+    if (!$accepted || (!$localSetup && (!is_string($secret) || strlen($secret)<24 ||
+        !password_verify($secret,$hash))) ||
         !is_string($login) || !is_string($pass) || !is_string($email)) {
         $error='Credenciais de instalação ou confirmação inválidas.';
     } else {
@@ -123,12 +126,14 @@ small{color:#94a3b8}
 </style></head><body><main>
 <h1>Bitdeer BTC — Instalação inicial</h1>
 <p>PHP + SQLite, sem banco MySQL. A instalação é única e não importa dados antigos do navegador.</p>
-<small>Política de proteção configurada pelo operador: <?=htmlspecialchars($policy,ENT_QUOTES,'UTF-8')?></small>
+<small><?= $localSetup ? 'Instalação local de uso único — sem chave adicional' : 'Política de proteção: '.htmlspecialchars($policy,ENT_QUOTES,'UTF-8') ?></small>
 <?=$errorHtml?>
 <form method="post" autocomplete="off">
 <input type="hidden" name="csrf" value="<?=$csrf?>">
+<?php if (!$localSetup): ?>
 <label>Chave privada de instalação
 <input type="password" name="setup_key" required minlength="24" autocomplete="off"></label>
+<?php endif; ?>
 <label>Usuário administrador
 <input name="admin_login" required minlength="3" maxlength="40" autocomplete="off" pattern="[a-zA-Z0-9_.-]+"></label>
 <label>Senha inicial do administrador
@@ -139,5 +144,5 @@ small{color:#94a3b8}
  Confirmo que esta é a instalação inicial. Dados existentes não devem ser substituídos.</label>
 <button type="submit">Criar SQLite e administrador</button>
 </form>
-<p><small>Após instalar, remova as variáveis de autorização do ambiente de execução. Nunca publique senhas, chaves de instalação ou o arquivo SQLite no diretório público.</small></p>
+<p><small>Após a instalação, o assistente é bloqueado. Não exponha o SQLite ou o PHP privado ao navegador.</small></p>
 </main></body></html>
