@@ -47,7 +47,7 @@ try {
     .waitFor({timeout:10000});
   await page.locator('nav button').nth(4).click();
   await page.locator('nav button').nth(3).click();
-  await page.getByRole('button',{name:'Sacar'}).click();
+  await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
   await page.getByText('Cadastrar carteira Bitcoin').waitFor({timeout:10000});
   await page.screenshot({path:'release-build/member-mobile.png',fullPage:true});
   await page.setViewportSize({width:1280,height:800});
