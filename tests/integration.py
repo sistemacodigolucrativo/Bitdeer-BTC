@@ -43,7 +43,9 @@ assert len(guest.call("plans")["plans"]) == 5
 assert guest.call("register",{"login":"alice","password":"longpassword123","displayName":"Alice"},201)["role"]=="member"
 guest.call("register",{"login":"alice","password":"longpassword123"},409)
 guest.call("login",{"login":"alice","password":"incorrect"},401)
-assert guest.call("register",{"login":"bob","password":"anotherpassword123","role":"admin"},201)["role"]=="member", "public registration must ignore requested role"
+bob_signup=guest.call("register",{"login":"bob","password":"anotherpassword123","role":"admin"},201)
+assert bob_signup["role"]=="member", "public registration must ignore requested role"
+bob_id=bob_signup["id"]
 
 alice=Client()
 alice_user=alice.call("login",{"login":"alice","password":"longpassword123"})["user"]
@@ -67,10 +69,12 @@ paymentAdmin=Client()
 paymentAdmin.call("login",{"login":"adminci","password":"StrongCIpassword123!"})
 paymentSettings=paymentAdmin.call("admin.payment.settings")
 assert not paymentSettings["confirmed"]
+assert paymentSettings["btcAddress"]=="", "install must not preconfigure receiving wallet"
+walletFixture="bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z"
 paymentAdmin.call("admin.payment.settings",{
-    "btcAddress":paymentSettings["btcAddress"],"adminPassword":"wrongpassword","confirmedOwner":True},403)
+    "btcAddress":walletFixture,"adminPassword":"wrongpassword","confirmedOwner":True},403)
 assert paymentAdmin.call("admin.payment.settings",{
-    "btcAddress":paymentSettings["btcAddress"],"adminPassword":"StrongCIpassword123!",
+    "btcAddress":walletFixture,"adminPassword":"StrongCIpassword123!",
     "confirmedOwner":True})["confirmed"]
 order=alice.call("orders.create",{"planId":"VIP_01"},201)
 assert order["btcAmount"]=="0.00025000"
@@ -80,7 +84,7 @@ assert alice.call("profile")["plan"]["id"]=="FREE"
 
 admin=Client()
 assert admin.call("login",{"login":"adminci","password":"StrongCIpassword123!"})["user"]["role"]=="admin"
-assert admin.call("admin.members")["total"]==2
+assert admin.call("admin.members")["total"]==3
 assert admin.call("admin.overview")["members"]==2
 # Only actual invited registrations count. The old hardcoded legacy list is not imported.
 assert guest.call("referrals.mine",expected=401)["error"]
@@ -205,10 +209,10 @@ bob.call("mining.stop",{})
 bob.call("mining.start",{},409)
 bob2=Client()
 bob2.call("login",{"login":"bob","password":"anotherpassword123"})
-admin.call("admin.status",{"userId":3,"status":"suspended"})
+admin.call("admin.status",{"userId":bob_id,"status":"suspended"})
 bob.call("profile",expected=401)
 bob2.call("profile",expected=401)
-admin.call("admin.status",{"userId":3,"status":"active"})
+admin.call("admin.status",{"userId":bob_id,"status":"active"})
 bob.call("profile",expected=401)
 
 # Simulate a VIP expiry around the server clock; accrual must stop at the contract boundary.

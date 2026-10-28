@@ -56,6 +56,9 @@ with tempfile.TemporaryDirectory(prefix='bitdeer-install-') as folder:
         try:
             assert con.execute('SELECT COUNT(*) FROM users WHERE role="admin"').fetchone()[0] == 1
             assert con.execute('SELECT COUNT(*) FROM plans').fetchone()[0] == 5
+            assert con.execute('SELECT COUNT(*) FROM users WHERE role="member"').fetchone()[0] == 1
+            assert con.execute('SELECT COUNT(*) FROM referral_events').fetchone()[0] == 0
+            assert con.execute('SELECT value FROM app_settings WHERE name="btc_address"').fetchone()[0] == ''
         finally:
             con.close()
         try:

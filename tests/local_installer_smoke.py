@@ -45,6 +45,9 @@ with tempfile.TemporaryDirectory(prefix="bitdeer-local-installer-") as temp:
             assert "Instalação concluída" in response.read().decode("utf-8")
         with sqlite3.connect(path) as db:
             assert db.execute("SELECT COUNT(*) FROM users WHERE role='admin'").fetchone()[0]==1
+            assert db.execute("SELECT COUNT(*) FROM users WHERE role='member'").fetchone()[0]==1
+            assert db.execute("SELECT value FROM app_settings WHERE name='site_url'").fetchone()[0]=='http://127.0.0.1:8773'
+            assert db.execute("SELECT COUNT(*) FROM referral_events").fetchone()[0]==0
         try:
             opener.open(address,timeout=5)
             raise AssertionError("Installed instance still allowed setup")

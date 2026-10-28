@@ -17,3 +17,18 @@ if (install_domain()!=='example.org') throw new Exception('Canonical domain not 
 $_SERVER['HTTP_HOST']='untrusted.example.org';
 if (install_domain()!==null) throw new Exception('Mismatched host accepted');
 echo "PASS: wallet checksum and canonical DNS authorization checks\n";
+
+$root=sys_get_temp_dir().'/bitdeer-ip-proof-'.bin2hex(random_bytes(5));
+mkdir($root.'/.well-known',0700,true);
+$_SERVER['DOCUMENT_ROOT']=$root;
+$_SERVER['HTTP_HOST']='203.0.113.5:8443';
+if (install_ip_host()!=='203.0.113.5') throw new Exception('IP host parsing failed');
+$proof=$root.'/.well-known/bitdeer-install-'.$nonce.'.txt';
+if (install_ip_file_verified($nonce)) throw new Exception('Missing IP file accepted');
+file_put_contents($proof,'bitdeer-install='.str_repeat('b',64));
+if (install_ip_file_verified($nonce)) throw new Exception('Wrong IP proof accepted');
+file_put_contents($proof,'bitdeer-install='.$nonce);
+if (!install_ip_file_verified($nonce)) throw new Exception('Valid IP proof rejected');
+unlink($proof);
+rmdir($root.'/.well-known');
+rmdir($root);
