@@ -68,6 +68,17 @@ export const showcase: Miner[] = (()=>{
   return result;
 })();
 
+const descriptions = {
+ pt: ['Explorando tecnologias digitais','Construindo uma comunidade conectada','Aprendendo sobre blockchain',
+      'Ideias para um futuro digital','Inovação sem fronteiras','Descobrindo oportunidades',
+      'Conectados pela tecnologia'],
+ en: ['Exploring digital technologies','Building a connected community','Learning about blockchain',
+      'Ideas for a digital future','Innovation without borders','Discovering new opportunities',
+      'Connected through technology'],
+ es: ['Explorando tecnologías digitales','Construyendo una comunidad conectada','Aprendiendo sobre blockchain',
+      'Ideas para un futuro digital','Innovación sin fronteras','Descubriendo oportunidades',
+      'Conectados por la tecnología']
+} as const;
 type Props={language:LanguageCode;onBack:()=>void;btcUsd?:number|null};
 export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd})=>{
   const notice=language==='en'
@@ -102,7 +113,7 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd})=>{
             <h3 className="font-semibold text-[14px] leading-tight text-slate-100 truncate">{miner.name}</h3>
             <p className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-400 min-w-0">
               <span aria-label={miner.country} className="shrink-0 text-sm">{miner.flag}</span>
-              <span className="truncate">{miner.location} · {miner.message}</span>
+              <span className="truncate">{miner.location} · {descriptions[language][index%7]}</span>
             </p>
           </div>
           <div className="min-w-[118px] text-right shrink-0">

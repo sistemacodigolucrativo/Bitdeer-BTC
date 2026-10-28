@@ -129,6 +129,21 @@ try {
   await page.locator('nav button').nth(4).click();
   if(await page.locator('select').inputValue()!=='es')
     throw Error('Language was reset after reload');
+  // Member-facing panels must follow the selected locale, not retain PT-only copy.
+  await page.locator('nav button').nth(3).click();
+  await page.getByText('Billetera',{exact:true}).waitFor({timeout:10000});
+  await page.getByRole('button',{name:'Retirar'}).click();
+  await page.getByRole('heading',{name:'Solicitud de Retiro'}).waitFor({timeout:10000});
+  await page.getByRole('button',{name:'Volver a la billetera'}).click();
+  await page.locator('nav button').nth(4).click();
+  await page.locator('select').selectOption('en');
+  await page.locator('nav button').nth(1).click();
+  await page.getByText('Activation follows manual payment confirmation. No fixed deadline is guaranteed.')
+    .waitFor({timeout:10000});
+  await page.locator('nav button').nth(3).click();
+  await page.getByRole('button',{name:'Withdraw'}).click();
+  await page.getByRole('heading',{name:'Withdrawal Request'}).waitFor({timeout:10000});
+  await page.getByRole('button',{name:'Back to wallet'}).click();
   await ctx.close();
 
   const admin=await browser.newContext({viewport:{width:1280,height:800},baseURL:base});
