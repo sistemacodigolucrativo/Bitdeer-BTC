@@ -585,20 +585,14 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     }
     if ($action === 'contracts.mine' && $method === 'GET') {
         $actor=auth_user($db);
-        if ($actor['role'] !== 'member') fail(403,'Apenas membros');
-        $rows=query_all($db,'SELECT id,plan_id,started_at,expires_at,created_by
-            FROM contracts WHERE user_id=? ORDER BY id DESC LIMIT 100',[$actor['id']]);
-        json_out(['contracts'=>$rows]);
+        if($actor['role']!=='member')fail(403,'Apenas membros');
+        json_out(['contracts'=>history_rows($db,(int)$actor['id'],'subscription')]);
     }
     if ($action === 'ledger' && $method === 'GET') {
         $actor=auth_user($db);
-        if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
-        json_out([
-          'accruals'=>query_all($db,'SELECT plan_id,start_ts,end_ts,earned_units FROM reward_ledger
-            WHERE user_id=? ORDER BY id DESC LIMIT 100',[$actor['id']]),
-          'bonuses'=>query_all($db,'SELECT plan_id,claimed_at,bonus_usd_units,bonus_satoshis FROM bonus_claims
-            WHERE user_id=? ORDER BY id DESC LIMIT 100',[$actor['id']]),
-        ]);
+        if($actor['role']!=='member')fail(403,'Conta de membro necessária');
+        json_out(['accruals'=>history_rows($db,(int)$actor['id'],'accrual'),
+                  'bonuses'=>history_rows($db,(int)$actor['id'],'bonus')]);
     }
     if ($action === 'orders.create' && $method === 'POST') {
         $actor=require_post_csrf($db);
@@ -710,18 +704,9 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     }
     if ($action === 'withdraw.mine' && $method === 'GET') {
         $actor=auth_user($db);
-        if ($actor['role']!=='member') fail(403,'Acesso restrito ao membro');
-        $at=now();
-        $items=query_all($db,'SELECT w.id,w.plan_id,w.btc_address,w.usd_cents,w.btc_satoshis,
-          w.quote_usd_cents,w.quote_source,w.vip_state,w.created_at,w.processed_at,
-          CASE WHEN w.status="pending" AND NOT EXISTS(
-            SELECT 1 FROM contracts c WHERE c.user_id=w.user_id
-            AND c.started_at<=? AND c.expires_at>?
-            AND c.plan_id IN ("VIP_01","VIP_02","VIP_03","VIP_04"))
-          THEN "awaiting_vip" ELSE w.status END AS status
-          FROM withdraw_requests w WHERE w.user_id=?
-          ORDER BY w.id DESC LIMIT 100',[$at,$at,$actor['id']]);
-        json_out(['requests'=>$items,'simulation'=>true]);
+        if($actor['role']!=='member')fail(403,'Acesso restrito ao membro');
+        json_out(['requests'=>history_rows($db,(int)$actor['id'],'withdrawal'),
+                  'simulation'=>true]);
     }
     if ($action === 'withdraw.request' && $method === 'POST') {
         $actor=require_post_csrf($db);
@@ -794,11 +779,15 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     }
     if ($action === 'orders.mine' && $method === 'GET') {
         $actor=auth_user($db);
-        if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
-        $list=query_all($db,'SELECT id,plan_id,CASE WHEN status="pending" AND expires_at<? THEN "expired" ELSE status END AS status,
-          created_at,expires_at,btc_address,btc_sats,quote_usd_cents,quote_source, payment_ref
-          FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 100',[now(),$actor['id']]);
-        json_out(['orders'=>$list]);
+        if($actor['role']!=='member')fail(403,'Conta de membro necessária');
+        $rows=history_rows($db,(int)$actor['id'],'purchase');
+        foreach($rows as &$entry) {
+            if($entry['status']==='pending' &&
+                isset($entry['expires_at']) && (int)$entry['expires_at']<now())
+                $entry['status']='expired';
+        }
+        unset($entry);
+        json_out(['orders'=>$rows]);
     }
     if ($action === 'admin.overview' && $method === 'GET') {
         auth_user($db,true);
@@ -840,18 +829,135 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     if ($action === 'admin.member.details' && $method === 'GET') {
         auth_user($db,true);
         $id=filter_var($_GET['id'] ?? null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
-        if ($id===false || $id===null) fail(422,'Identificador inválido');
+        if($id===false||$id===null)fail(422,'Identificador inválido');
         $user=query_one($db,'SELECT id,login,role,status,display_name,email,phone,wallet_address,
             created_at,updated_at FROM users WHERE id=? AND role="member"',[$id]);
-        if (!$user) fail(404,'Membro não encontrado');
-        $contracts=query_all($db,'SELECT id,plan_id,plan_snapshot_json,started_at,expires_at
-            FROM contracts WHERE user_id=? ORDER BY id DESC LIMIT 30',[$id]);
-        $orders=query_all($db,'SELECT id,plan_id,status,created_at,expires_at,payment_ref
-            FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 30',[$id]);
+        if(!$user)fail(404,'Membro não encontrado');
         $balance=query_one($db,'SELECT balance_units,bonus_satoshis_balance FROM mining_state WHERE user_id=?',[$id]);
-        json_out(['member'=>$user,'contracts'=>$contracts,'orders'=>$orders,
+        json_out(['member'=>$user,
+            'contracts'=>history_rows($db,(int)$id,'subscription'),
+            'orders'=>history_rows($db,(int)$id,'purchase'),
             'balanceUsd'=>units_usd((int)($balance['balance_units']??0)),
             'bonusSatoshis'=>(int)($balance['bonus_satoshis_balance']??0)]);
+    }
+    if ($action === 'admin.member.history' && $method === 'GET') {
+        auth_user($db,true);
+        $id=filter_var($_GET['id']??null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
+        if(!$id)fail(422,'Membro inválido');
+        $member=query_one($db,'SELECT id FROM users WHERE id=? AND role="member"',[$id]);
+        if(!$member)fail(404,'Membro não encontrado');
+        $histories=[];
+        foreach(history_kinds() as $kind)$histories[$kind]=history_rows($db,(int)$id,$kind);
+        $balance=query_one($db,'SELECT balance_units FROM mining_state WHERE user_id=?',[$id]);
+        $plan=plan_at($db,(int)$id,now());
+        $quote=null;
+        try{$quote=verified_btc_quote($db);}catch(Throwable $e){/* quotation is optional for viewing histories */}
+        $usd=units_usd((int)($balance['balance_units']??0));
+        json_out(['histories'=>$histories,'balanceUsd'=>$usd,
+           'balanceBtc'=>$quote?number_format((float)$usd/$quote['usd'],8,'.',''):null,
+           'btcUsd'=>$quote?number_format($quote['usd'],2,'.',''):null,
+           'quoteSource'=>$quote['source']??null,
+           'planId'=>$plan['id'],'simulation'=>true]);
+    }
+    if ($action === 'admin.member.history.save' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);$body=request_body();
+        $memberId=param_id($body,'userId');
+        $kind=string_field($body,'kind',16);
+        $operation=string_field($body,'operation',8);
+        $entryId=string_field($body,'historyId',50);
+        $fields=$body['fields']??[];
+        atomic($db,static function()use($db,$actor,$memberId,$kind,$operation,$entryId,$fields):void {
+            save_history_edit($db,(int)$actor['id'],$memberId,$kind,$operation,$entryId,$fields);
+        });
+        json_out(['ok'=>true,'simulation'=>true]);
+    }
+    if ($action === 'admin.member.plan.assign' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);$body=request_body();
+        $memberId=param_id($body,'userId');$planId=string_field($body,'planId',60);
+        $result=atomic($db,static function()use($db,$actor,$memberId,$planId):array {
+            mock_history_write_allowed($db);
+            $member=query_one($db,'SELECT id,status FROM users WHERE id=? AND role="member"',[$memberId]);
+            if(!$member || $member['status']!=='active')fail(404,'Membro não está ativo');
+            $plan=query_one($db,'SELECT * FROM plans WHERE id=?',[$planId]);
+            if(!$plan)fail(422,'Plano inexistente');
+            $time=now();
+            settle($db,$memberId,$time);
+            $prior=plan_at($db,$memberId,$time);
+            if($prior['id']===$planId)fail(409,'Membro já utiliza este plano');
+            $recent=query_one($db,'SELECT id FROM contracts WHERE user_id=? AND started_at>=? AND expires_at>?',
+                [$memberId,$time,$time]);
+            if($recent)fail(409,'Alteração de plano já registrada neste segundo; tente novamente');
+            execute_sql($db,'UPDATE contracts SET expires_at=? WHERE user_id=?
+                AND started_at<? AND expires_at>?',[$time,$memberId,$time,$time]);
+            // Start a new mining session explicitly after any plan assignment.
+            execute_sql($db,'UPDATE mining_state SET running=0,session_ends_at=NULL,
+                cooldown_until=NULL,last_accrual_at=NULL,updated_at=? WHERE user_id=?',
+                [$time,$memberId]);
+            if($planId!=='FREE') {
+                $days=(int)$plan['duration_days'];
+                if($days<1||$days>3650)fail(422,'Duração VIP inválida');
+                execute_sql($db,'INSERT INTO contracts
+                    (user_id,plan_id,plan_snapshot_json,order_id,started_at,expires_at,created_by)
+                    VALUES (?,?,?,NULL,?,?,?)',
+                    [$memberId,$planId,json_encode($plan,JSON_THROW_ON_ERROR),$time,
+                     $time+$days*86400,(int)$actor['id']]);
+                if(in_array($planId,['VIP_01','VIP_02','VIP_03','VIP_04'],true))
+                    execute_sql($db,'UPDATE withdraw_requests SET vip_state="eligible"
+                        WHERE user_id=? AND status="pending"',[$memberId]);
+            }
+            audit($db,(int)$actor['id'],'member.plan.assign',$memberId,
+              ['from'=>$prior['id'],'to'=>$planId,'simulation'=>true]);
+            return ['planId'=>$planId];
+        });
+        json_out(['ok'=>true]+$result);
+    }
+    if ($action === 'admin.member.balance.adjust' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);$body=request_body();
+        $memberId=param_id($body,'userId');
+        $currency=string_field($body,'currency',3);
+        $mode=string_field($body,'mode',10);
+        $amount=string_field($body,'amount',35);
+        if(!in_array($currency,['USD','BTC'],true) ||
+           !in_array($mode,['set','add','subtract','clear'],true))fail(422,'Tipo de ajuste inválido');
+        if($mode==='clear')$amount='0';
+        if($currency==='USD') {
+            if(!preg_match('/^[0-9]{1,7}(?:\\.[0-9]{1,2})?$/D',$amount))
+                fail(422,'Valor USD inválido');
+            $parts=explode('.',$amount);
+            $cents=(int)$parts[0]*100+(int)str_pad($parts[1]??'0',2,'0');
+        } else {
+            if(!preg_match('/^(?:0|[1-9][0-9]{0,3})(?:\\.[0-9]{1,8})?$/D',$amount))
+                fail(422,'Valor BTC inválido');
+            $parts=explode('.',$amount);
+            $sats=(int)$parts[0]*100000000+(int)str_pad($parts[1]??'0',8,'0');
+        }
+        $quote=verified_btc_quote($db);
+        if($currency==='BTC')$cents=$sats===0?0:btc_satoshis_to_usd_cents($sats,$quote['usd']);
+        if($mode!=='clear' && $cents<1)fail(422,'Ajuste deve representar pelo menos US$ 0,01');
+        $delta=$cents*8640000;
+        $result=atomic($db,static function()use($db,$actor,$memberId,$currency,$mode,
+            $amount,$delta,$quote):array {
+            mock_history_write_allowed($db);
+            $member=query_one($db,'SELECT id,status FROM users WHERE id=? AND role="member"',[$memberId]);
+            if(!$member || $member['status']==='archived')fail(404,'Membro indisponível');
+            settle($db,$memberId,now());
+            $state=query_one($db,'SELECT balance_units FROM mining_state WHERE user_id=?',[$memberId]);
+            if(!$state)fail(404,'Saldo não encontrado');
+            $before=(int)$state['balance_units'];
+            $after=match($mode) {'clear'=>0,'set'=>$delta,'add'=>$before+$delta,
+                default=>$before-$delta};
+            if($after<0 || $after>8640000000000000)fail(409,'Saldo insuficiente ou limite ultrapassado');
+            execute_sql($db,'UPDATE mining_state SET balance_units=?,updated_at=? WHERE user_id=?',
+                [$after,now(),$memberId]);
+            audit($db,(int)$actor['id'],'member.balance.'.$mode,$memberId,
+              ['beforeUnits'=>$before,'afterUnits'=>$after,'currency'=>$currency,
+               'enteredAmount'=>$amount,'btcUsd'=>$quote['usd'],'quoteSource'=>$quote['source'],
+               'simulation'=>true]);
+            return ['balanceUsd'=>units_usd($after),
+               'balanceBtc'=>number_format(((float)units_usd($after))/$quote['usd'],8,'.',''),
+               'btcUsd'=>number_format($quote['usd'],2,'.','')];
+        });
+        json_out(['ok'=>true]+$result);
     }
     if ($action === 'admin.plans' && $method === 'GET') {
         auth_user($db,true);
