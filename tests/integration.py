@@ -352,4 +352,63 @@ finally:
 just_expired=newsession.call("profile")
 assert just_expired["plan"]["id"]=="FREE"
 assert not just_expired["mining"]["running"], "VIP mining must stop at expiry"
-print("PASS: registration, RBAC, checkout quote, admin reset, session revocation, FREE immediate restart and VIP expiry")
+# New support lifecycle: only admins reply, member sees the answer; soft-delete hides.
+replyTicket=newsession.call("support.ticket.create",{"subject":"Resposta no painel",
+  "message":"Solicito uma resposta de teste do suporte."},201)["ticket"]
+newsession.call("admin.support.reply",{"ticketId":replyTicket["id"],"message":"Hello"},403)
+assert admin.call("admin.support.reply",{"ticketId":replyTicket["id"],
+  "message":"Sua solicitação foi analisada."})["ticketState"]=="replied"
+member_ticket=next(t for t in newsession.call("support.tickets.mine")["tickets"]
+                   if t["id"]==replyTicket["id"])
+assert member_ticket["ticket_state"]=="replied"
+assert member_ticket["admin_reply"]=="Sua solicitação foi analisada."
+admin.call("admin.support.manage",{"ticketId":replyTicket["id"],"operation":"close"})
+admin.call("admin.support.reply",{"ticketId":replyTicket["id"],"message":"Cannot reply"},409)
+assert next(t for t in newsession.call("support.tickets.mine")["tickets"]
+    if t["id"]==replyTicket["id"])["ticket_state"]=="closed"
+admin.call("admin.support.manage",{"ticketId":replyTicket["id"],"operation":"reopen"})
+admin.call("admin.support.manage",{"ticketId":replyTicket["id"],"operation":"delete"})
+assert all(t["id"]!=replyTicket["id"] for t in newsession.call("support.tickets.mine")["tickets"])
+assert all(t["id"]!=replyTicket["id"] for t in admin.call("admin.support.tickets")["tickets"])
+
+# The same member never gets a duplicate mock row or batch; exactly 200 samples.
+all_fake=[]
+for batch in range(20):
+    page=newsession.call("mock.payments.next",{})
+    assert page["simulation"] is True
+    assert page["total"]==200 and len(page["records"])==10
+    assert page["remaining"]==200-10*(batch+1)
+    all_fake.extend(x["hash"] for x in page["records"])
+    assert all(x.startswith("SIM-") and float(x["btc"])>0
+      and float(x["valueUsd"])>0 for x in page["records"])
+assert len(all_fake)==len(set(all_fake))==200
+assert newsession.call("mock.payments.next",{})["records"]==[]
+assert newsession.call("mock.payments.next",{})["exhausted"] is True
+
+# Approval without TXID is permitted solely in the clearly marked simulation mode.
+guest.call("register",{"login":"mockvip","password":"MockVipPassword2026"},201)
+mockvip=Client()
+mockvip_user=mockvip.call("login",{"login":"mockvip","password":"MockVipPassword2026"})["user"]
+mockOrder=mockvip.call("orders.create",{"planId":"VIP_01"},201)
+admin.call("admin.order.approve",{"orderId":mockOrder["orderId"],
+  "paymentConfirmed":False,"simulationConfirmed":True},422)
+admin.call("admin.order.approve",{"orderId":mockOrder["orderId"],
+  "paymentConfirmed":True,"simulationConfirmed":True})
+assert mockvip.call("profile")["plan"]["id"]=="VIP_01"
+details=admin.call("admin.member.details&id="+str(mockvip_user["id"]))
+assert details["orders"][0]["payment_ref"] is None
+assert any(a["action"]=="order.approve.simulation" for a in admin.call("admin.audit")["actions"])
+db=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
+try:
+    db.execute('UPDATE app_settings SET value="real" WHERE name="payment_mode"')
+    db.commit()
+finally:db.close()
+guest.call("register",{"login":"realvip","password":"RealVipPassword2026"},201)
+realvip=Client()
+realvip.call("login",{"login":"realvip","password":"RealVipPassword2026"})
+realOrder=realvip.call("orders.create",{"planId":"VIP_01"},201)
+admin.call("admin.order.approve",{"orderId":realOrder["orderId"],
+  "paymentConfirmed":True,"simulationConfirmed":True},403)
+assert realvip.call("profile")["plan"]["id"]=="FREE"
+
+print("PASS: registration, RBAC, checkout quote, admin reset, session revocation, FREE immediate restart and VIP expiry, ticket replies, synthetic wallet feed and mock approval")
