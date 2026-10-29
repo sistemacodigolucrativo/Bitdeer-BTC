@@ -177,7 +177,7 @@ SQL);
         $time = now();
         // Values preserved from dailyRewards.ts and checkout/config.ts at 0d39b528.
         $plans = [
-          ['FREE','FREE',0,100,50,10000,0,7200,7200,'5.30 Gh/s','Antminer S19 (Plano Gratuito)'],
+          ['FREE','FREE',0,100,50,10000,0,7200,0,'5.30 Gh/s','Antminer S19 (Plano Gratuito)'],
           ['VIP_01','VIP 01',2000,300,100,20000,30,0,0,'+ 275 Gh/s','Antminer S19 Pro (VIP 01)'],
           ['VIP_02','VIP 02',4000,600,150,20000,30,0,0,'+ 575 Gh/s','Antminer S19 XP (VIP 02)'],
           ['VIP_03','VIP 03',6000,1200,200,20000,30,0,0,'+ 975 Gh/s','WhatsMiner M50S+ (VIP 03)'],

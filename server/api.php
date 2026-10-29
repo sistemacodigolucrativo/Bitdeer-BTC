@@ -69,11 +69,10 @@ function settle(PDO $db, int $userId, int $at): void {
     if (($finiteEnd !== null && $at >= $finiteEnd) ||
         ($contractEnd !== null && $at >= $contractEnd)) {
         $ended = $finiteEnd !== null && ($contractEnd === null || $finiteEnd <= $contractEnd);
-        $cooldown = $ended ? (int)($startPlan['snapshot']['restart_cooldown_seconds'] ?? 0) : 0;
-        $endTime = $ended ? $finiteEnd : $contractEnd;
+        // A completed session is immediately restartable (no cooldown),
+        // including users whose SQLite state previously held a wait deadline.
         execute_sql($db, 'UPDATE mining_state SET running=0,
-             cooldown_until=MAX(COALESCE(cooldown_until,0),?), updated_at=? WHERE user_id=?',
-            [$endTime + $cooldown, $at, $userId]);
+             cooldown_until=NULL, updated_at=? WHERE user_id=?', [$at,$userId]);
     }
 }
 
@@ -100,7 +99,7 @@ function member_snapshot(PDO $db, int $userId): array {
          'bonusSatoshis'=>(int)$plan['snapshot']['bonus_satoshis'],
          'hashrate'=>$plan['snapshot']['hashrate'] ?? '',
          'sessionSeconds'=>(int)($plan['snapshot']['session_seconds'] ?? 0),
-         'restartCooldownSeconds'=>(int)($plan['snapshot']['restart_cooldown_seconds'] ?? 0),
+         'restartCooldownSeconds'=>0, // Legacy field: restart is immediate, always.
          'expiresAt'=>$plan['expires'],
          'withdrawMinUsd'=>number_format((int)($plan['snapshot']['withdraw_min_cents']??0)/100,2,'.',''),
          'withdrawAfterDays'=>(int)($plan['snapshot']['withdraw_after_days']??0)],
@@ -116,7 +115,7 @@ function canonical_plan(array $p): array {
       'bonusSatoshis'=>(int)$p['bonus_satoshis'],
       'durationDays'=>(int)$p['duration_days'],
       'sessionSeconds'=>(int)$p['session_seconds'],
-      'restartCooldownSeconds'=>(int)$p['restart_cooldown_seconds'],
+      'restartCooldownSeconds'=>0, // Legacy field, no enforced waiting interval.
       'hashrate'=>$p['hashrate'],'serverModel'=>$p['server_model'],
       'available'=>(bool)$p['available'],
       'withdrawMinUsd'=>number_format((int)($p['withdraw_min_cents']??0)/100,2,'.',''),
@@ -445,7 +444,6 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             $userId=(int)$actor['id'];$time=now();settle($db,$userId,$time);
             $row=query_one($db,'SELECT * FROM mining_state WHERE user_id=?',[$userId]);
             if ((int)$row['running']===1) fail(409,'Mineração já iniciada');
-            if ((int)($row['cooldown_until'] ?? 0)>$time) fail(409,'Aguarde o intervalo entre sessões');
             $plan = plan_at($db,$userId,$time);
             $seconds = (int)($plan['snapshot']['session_seconds'] ?? 0);
             // If VIP expires first, stop at that boundary even for continuous plans.
@@ -453,7 +451,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             $sessionEnd = $seconds > 0 ? $time + $seconds : null;
             if ($expires !== null) $sessionEnd = $sessionEnd === null
                 ? $expires : min($sessionEnd, $expires);
-            execute_sql($db,'UPDATE mining_state SET running=1,last_accrual_at=?,session_ends_at=?,updated_at=? WHERE user_id=?',
+            execute_sql($db,'UPDATE mining_state SET running=1,last_accrual_at=?,session_ends_at=?,cooldown_until=NULL,updated_at=? WHERE user_id=?',
               [$time,$sessionEnd,$time,$userId]);
             return member_snapshot($db,$userId);
         });
@@ -465,10 +463,11 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $result=atomic($db, static function () use ($db,$actor): array {
             $userId=(int)$actor['id'];$time=now();settle($db,$userId,$time);
             $plan = plan_at($db,$userId,$time);
-            $cooldown = (int)($plan['snapshot']['restart_cooldown_seconds'] ?? 0);
+            // Explicit pause also allows immediate restart, without creating
+            // an artificial waiting interval or overwriting historic rewards.
             execute_sql($db,'UPDATE mining_state SET running=0,last_accrual_at=NULL,
-                  session_ends_at=NULL,cooldown_until=?,updated_at=? WHERE user_id=?',
-              [$time+$cooldown,$time,$userId]);
+                  session_ends_at=NULL,cooldown_until=NULL,updated_at=? WHERE user_id=?',
+              [$time,$userId]);
             return member_snapshot($db,$userId);
         });
         json_out($result);

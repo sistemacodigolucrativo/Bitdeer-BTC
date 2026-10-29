@@ -15,9 +15,11 @@ referência 0d39b528ad5eccf5d3fd2f8ff3c99095dd2ed82d.
 | VIP 03 | 60 | 12,00 | 2,00 | 20.000 | 30 dias |
 | VIP 04 | 80 | 28,00 | 2,50 | 20.000 | 30 dias |
 
-FREE: sessão simulada limitada a 7.200 segundos (2 horas), com
-intervalo de 7.200 segundos entre sessões. Os planos VIP têm sessão
-contínua até o vencimento contratual.
+FREE: sessão interna limitada a 7.200 segundos (2 horas). Após o término
+ou encerramento manual, o membro pode iniciar outra sessão imediatamente,
+sem intervalo obrigatório. Os planos VIP têm sessão contínua até o
+vencimento contratual. Em bancos SQLite já instalados, prazos antigos de
+cooldown são ignorados e apagados na primeira nova sessão.
 
 Todos os valores são seed da primeira instalação; alterações no painel
 administrativo afetam apenas novos contratos e renovações. O SQLite,
