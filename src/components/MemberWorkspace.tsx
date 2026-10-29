@@ -348,7 +348,6 @@ export const MemberWorkspace: React.FC<{
               <button className="flex-1 bg-indigo-600 rounded-xl p-2 text-xs" onClick={()=>void copy(checkout.btcAddress)}>{words.copyAddress}</button>
               <button className="flex-1 bg-indigo-600 rounded-xl p-2 text-xs" onClick={()=>void copy(checkout.btcAmount)}>{words.copyBtc}</button>
             </div>
-            <p className="text-xs text-slate-400">{words.txidNotice}</p>
             <button className="text-indigo-300 text-xs underline" onClick={()=>setCheckout(null)}>{words.close}</button>
           </section>}
         </>}
