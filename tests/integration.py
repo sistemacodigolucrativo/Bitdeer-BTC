@@ -401,7 +401,7 @@ assert any(a["action"]=="order.approve.simulation" for a in admin.call("admin.au
 # Admin-only member history editor: all five categories, persistence and isolation.
 memberId=mockvip_user["id"]
 newsession.call("admin.member.history&id="+str(memberId),expected=403)
-bob_order_client.call("admin.member.history.save",{"userId":memberId,
+mockvip.call("admin.member.history.save",{"userId":memberId,
   "kind":"bonus","operation":"create","fields":{}},403)
 at=int(time.time())
 history_samples={
