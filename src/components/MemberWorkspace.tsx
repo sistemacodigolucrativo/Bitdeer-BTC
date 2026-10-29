@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AuthUser, MemberData, Plan, api } from '../services/api';
 import { CustomerSupportView } from './workspace/CustomerSupportView';
 import { LanguageCode } from '../types';
-import { Home, Store, User, Headphones, LogOut, RefreshCw, History, Wallet, Gift, Settings, Trophy, ScrollText, Users, ArrowLeft } from 'lucide-react';
+import { Home, Store, User, Headphones, LogOut, Wallet, Gift, Settings, Trophy, ScrollText, ArrowLeft } from 'lucide-react';
 import { translations } from '../i18n/translations';
 import QRCode from 'qrcode';
 import { ServerHomeView } from './ServerHomeView';
@@ -12,18 +12,16 @@ import { formatBrazilianPhone, validBrazilianPhone } from '../utils/phone';
 import { projectInternalBalance } from '../utils/projectInternalBalance';
 import { ServerRewardView } from './ServerRewardView';
 import { TopMinersView } from './workspace/TopMinersView';
-import { ReferralHistoryView } from './workspace/ReferralHistoryView';
 import { SubscriptionHistoryView } from './workspace/SubscriptionHistoryView';
 import { memberTexts } from '../i18n/memberTexts';
 import { memberViewCopy } from '../i18n/memberViewCopy';
 
-type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'referrals' | 'withdraw';
+type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'withdraw';
 type PurchaseOrder = {
   orderId: number; status: string; priceUsd: string; quoteRateUsd: string;
   quoteSource: string; btcAddress: string; btcSatoshis: number;
   btcAmount: string; expiresAt: number;
 };
-type OrderRow = {id:number;plan_id:string;status:string;btc_address?:string;btc_sats?:number;expires_at?:number};
 export const MemberWorkspace: React.FC<{
   user: AuthUser; language: LanguageCode; onLogout: () => void;
   onChangeLanguage: (lang:LanguageCode)=>void;
@@ -41,7 +39,6 @@ export const MemberWorkspace: React.FC<{
     setAccount(data);
   };
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [orders, setOrders] = useState<OrderRow[]>([]);
   const [checkout, setCheckout] = useState<PurchaseOrder|null>(null);
   const [checkoutQr, setCheckoutQr] = useState('');
   const [ledger, setLedger] = useState<{
@@ -152,7 +149,6 @@ export const MemberWorkspace: React.FC<{
   useEffect(() => {
     void reload();
     api<{plans: Plan[]}>('plans').then(x=>setPlans(x.plans)).catch(e=>setNotice(String(e)));
-    api<{orders: typeof orders}>('orders.mine').then(x=>setOrders(x.orders)).catch(()=>{});
     api<typeof ledger>('ledger').then(setLedger).catch(()=>{});
   }, []);
   // Real-time display is interpolated each second between short, authoritative
@@ -189,9 +185,6 @@ export const MemberWorkspace: React.FC<{
         ? words.orderCreated : words.saved);
       await reload();
       if (action==='rewards.claim' || action==='mining.stop') {api<typeof ledger>('ledger').then(setLedger).catch(()=>{});}
-      if (action==='orders.create') {
-        const x=await api<{orders: typeof orders}>('orders.mine'); setOrders(x.orders);
-      }
     } catch(e) { setNotice((e as Error).message); }
     finally {setBusy(false);}
   }
@@ -199,11 +192,21 @@ export const MemberWorkspace: React.FC<{
     <button onClick={()=>{setPage(p);setNotice('');}} className={'flex flex-col items-center text-[11px] gap-1 '+(page===p?'text-white':'text-slate-400')}>
       <Icon size={20}/>{label}</button>;
   return <div className="w-full h-full flex flex-col bg-[#121526] text-white">
-    <div className="px-5 pt-5 pb-3 flex justify-between items-center border-b border-[#2b3350]">
+    <div className="px-5 pb-3 flex justify-between items-center border-b border-[#2b3350] shrink-0"
+      style={{paddingTop:'max(12px, env(safe-area-inset-top))'}}>
       <div><strong>Bitdeer BTC</strong><p className="text-xs text-slate-400">{account?.user.login ?? user.login} · {account?.plan.id || '...'}</p></div>
       <button onClick={onLogout} title={words.signOutTitle} aria-label={words.signOutTitle}><LogOut size={20}/></button>
     </div>
-    {page==='withdraw' ? <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
+    <nav data-testid="member-top-nav"
+      className="w-full min-h-16 shrink-0 bg-[#101322] border-b border-[#1f253d] flex items-center justify-around gap-1 px-2 py-2 z-30 select-none"
+      aria-label={language==='en'?'Primary navigation':language==='es'?'Navegación principal':'Navegação principal'}>
+      {tab('home',tabNames.home,Home)}
+      {tab('store',tabNames.store,Store)}
+      {tab('reward',tabNames.reward,Gift)}
+      {tab('wallet',tabNames.wallet,Wallet)}
+      {tab('settings',tabNames.setting,Settings)}
+    </nav>
+    {page==='withdraw' ? <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
       <button type="button" className="inline-flex gap-2 items-center text-sm text-indigo-200"
         onClick={()=>{setWalletStep('none');setPage('wallet');}}><ArrowLeft size={18}/> {tr.back}</button>
       <h2 className="text-xl font-bold">{tr.title}</h2>
@@ -265,8 +268,7 @@ export const MemberWorkspace: React.FC<{
       page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('settings')}/> :
       page==='topMiners' ? <TopMinersView language={language} btcUsd={freshBtcUsd} onBack={()=>setPage('settings')}/> :
       page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
-      page==='referrals' ? <ReferralHistoryView language={language} onBack={()=>setPage('settings')}/> :
-      <div className="flex-1 overflow-auto p-5 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
         {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
         {page==='home' && <ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} quoteStatus={quoteStatus}
           onRetryQuote={()=>{void refreshQuote();}} language={language} busy={busy}
@@ -304,12 +306,13 @@ export const MemberWorkspace: React.FC<{
               <option value="es">Español</option>
             </select>
           </label>
+          <button type="button" data-testid="settings-top-miners" onClick={()=>setPage('topMiners')}
+            className="w-full flex gap-3 items-center rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-[#231905] border border-yellow-300 p-4 font-black text-sm shadow-lg shadow-amber-900/20">
+            <Trophy size={19}/>{language==='es'?'Mejores mineros':'Top Miners'}
+          </button>
           {([
             ['profile',words.profile,User],
-            ['history',words.history,History],
-            ['referrals',language==='en'?'Referrals':language==='es'?'Referidos':'Indicações',Users],
             ['subscriptions',language==='en'?'Subscriptions':language==='es'?'Suscripciones':'Histórico VIP',ScrollText],
-            ['topMiners',language==='en'?'Top Miners':language==='es'?'Mejores mineros':'Top Miners',Trophy],
             ['support',words.support,Headphones],
           ] as const).map(([target,label,Icon]) =>
             <button key={target} onClick={()=>setPage(target)}
@@ -336,9 +339,6 @@ export const MemberWorkspace: React.FC<{
             <p className="text-xs text-slate-400">{words.txidNotice}</p>
             <button className="text-indigo-300 text-xs underline" onClick={()=>setCheckout(null)}>{words.close}</button>
           </section>}
-                    <h3 className="font-bold mt-5">{words.orders}</h3>
-          {orders.length===0 ? <p className="text-xs text-slate-400">{words.noOrders}</p> :
-            orders.map(o=><p className="text-sm" key={o.id}>#{o.id} · {o.plan_id} · {o.status}{o.btc_sats? ' · '+(o.btc_sats/100000000).toFixed(8)+' BTC':''}</p>)}
         </>}
         {page==='history' && <>
           <h2 className="font-bold text-lg">{words.rewardLog}</h2>
@@ -372,12 +372,6 @@ export const MemberWorkspace: React.FC<{
           <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3">{words.update}</button>
         </form>}
       </div>}
-    {page!=='withdraw' && <nav className="w-full h-16 bg-[#101322] border-t border-[#1f253d] flex items-center justify-around px-2 z-30 select-none">
-      {tab('home',tabNames.home,Home)}
-      {tab('store',tabNames.store,Store)}
-      {tab('reward',tabNames.reward,Gift)}
-      {tab('wallet',tabNames.wallet,Wallet)}
-      {tab('settings',tabNames.setting,Settings)}
-    </nav>}
+
   </div>;
 };
