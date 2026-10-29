@@ -123,7 +123,14 @@ try {
   await page.locator('nav button').nth(4).click();
   if(await page.getByRole('button',{name:/Indicações|Referrals|Referidos|Ver histórico|View history/}).count())
     throw Error('Redundant settings button is visible');
-  await page.getByRole('button',{name:/Top Miners|Mejores mineros/}).click();
+  const goldButton=page.getByTestId('settings-top-miners');
+  await goldButton.waitFor({timeout:10000});
+  const firstSettingsButton=await page.locator('[data-testid="settings-top-miners"]').evaluate(
+    node=>node.parentElement?.querySelectorAll('button')[0]===node);
+  if(!firstSettingsButton)throw Error('Top Miners must be first settings action');
+  const gold=await goldButton.evaluate(node=>getComputedStyle(node).backgroundImage);
+  if(!gold.includes('gradient'))throw Error('Top Miners gold styling missing');
+  await goldButton.click();
   await page.getByText('James Hudson').waitFor({timeout:10000});
   const minerCards=page.locator('[data-testid="miner-card"]');
   if(await minerCards.count()!==200)throw Error('Top Miners must show exactly 200 demonstration profiles');
@@ -133,6 +140,11 @@ try {
   if(brazilCount<60)throw Error('Top Miners must have at least 60 Brazilian profiles');
   await page.screenshot({path:'release-build/top-miners-mobile.png',fullPage:true});
   await page.getByText(/Ranking demonstrativo|Demonstration ranking|Ranking demostrativo/i).waitFor({timeout:10000});
+  const navBox=await topMenu.boundingBox();
+  await minerCards.last().scrollIntoViewIfNeeded();
+  const scrolledBox=await topMenu.boundingBox();
+  if(!navBox||!scrolledBox||Math.abs(navBox.y-scrolledBox.y)>2)
+    throw Error('Fixed header navigation moved during vertical scroll');
   await page.locator('nav button').nth(4).click();
   await page.getByRole('button',{name:/Histórico VIP|Subscriptions|Suscripciones/}).click();
   await page.getByText(/Histórico de assinaturas|Subscription history|Historial de suscripciones/).first()
