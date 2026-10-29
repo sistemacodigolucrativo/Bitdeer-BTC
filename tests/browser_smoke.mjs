@@ -179,7 +179,7 @@ try {
   }));
   await page.reload();
   await page.locator('nav button').first().click();
-  await page.getByText('BTC quote unavailable',{exact:true}).waitFor({timeout:10000});
+  await page.getByRole('status').filter({hasText:'BTC quote unavailable'}).waitFor({timeout:10000});
   await page.unroute(quotePattern);
   await page.getByRole('button',{name:'Retry'}).click();
   await page.waitForFunction(()=>document.querySelector('[data-testid="mining-live-btc"]')?.textContent?.trim()!=='— BTC',
