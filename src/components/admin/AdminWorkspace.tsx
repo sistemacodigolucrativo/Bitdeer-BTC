@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AuthUser, Plan, api } from '../../services/api';
+import { AdminMemberRecords } from './AdminMemberRecords';
 import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headphones, Menu, ChevronDown, ChevronUp } from 'lucide-react';
 
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
@@ -226,6 +227,10 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
           <button className={btn} disabled={busy}>Salvar perfil</button>
           <button type="button" className="ml-2 text-sm" onClick={()=>setEditingMember(null)}>Cancelar</button>
         </form>}
+        {editingMember && <AdminMemberRecords key={editingMember.id}
+          userId={editingMember.id} plans={plans} onChanged={()=>{void refresh();
+            void api<MemberDetails>('admin.member.details',undefined,{id:editingMember.id}).then(setDetails).catch(()=>{});
+          }}/>}
         {editingMember && <section className="rounded-xl bg-[#1b2137] p-4 space-y-3">
           <h3 className="font-bold text-sm">Redefinição administrativa de senha</h3>
           <p className="text-xs text-amber-300">Verifique a identidade do membro por meio independente antes de emitir a autorização. Não registre documentos, senhas ou dados sensíveis no campo de referência.</p>
