@@ -363,9 +363,54 @@ try {
   await ticketCard.getByRole('button',{name:'Enviar resposta'}).click();
   await ticketCard.getByText('Respondido').waitFor({timeout:10000});
   await adminPage.screenshot({path:'release-build/support-admin-reply.png',fullPage:true});
+  // The admin editor is available only for a real member; mock history is labelled.
+  await adminPage.getByRole('button',{name:'Abrir menu administrativo'}).click();
+  await adminPage.getByRole('button',{name:'Membros',exact:true}).click();
+  const memberCard=adminPage.locator('article').filter({hasText:'browsermember'}).first();
+  await memberCard.getByRole('button',{name:'Detalhes / Editar'}).click();
+  const editor=adminPage.getByTestId('admin-member-records');
+  await editor.waitFor({timeout:10000});
+  await editor.getByTestId('admin-member-balance').waitFor({timeout:10000});
+  await adminPage.screenshot({path:'release-build/admin-member-editor.png',fullPage:true});
+  await editor.getByTestId('admin-history-kind').selectOption('bonus');
+  await editor.getByRole('button',{name:'Adicionar registro'}).click();
+  await editor.getByTestId('admin-history-form').waitFor({timeout:10000});
+  await editor.getByRole('button',{name:'Salvar registro'}).click();
+  await editor.getByTestId('admin-history-rows').getByText('Registro ajustado / simulação').first().waitFor({timeout:10000});
+  const adminSession=await admin.request.get('/api/index.php?action=session');
+  const adminCsrf=(await adminSession.json()).csrfToken;
+  const membersResp=await admin.request.get('/api/index.php?action=admin.members');
+  const matching=(await membersResp.json()).members.find(x=>x.login==='browsermember');
+  if(!matching)throw Error('Browser member missing from admin members');
+  const setBalance=await admin.request.post('/api/index.php?action=admin.member.balance.adjust',{
+    headers:{'X-CSRF-Token':adminCsrf},
+    data:{userId:matching.id,currency:'USD',mode:'set',amount:'5.00'}
+  });
+  if(!setBalance.ok())throw Error('Admin balance adjustment failed: '+setBalance.status());
   await adminPage.screenshot({path:'release-build/admin-desktop.png',fullPage:true});
   if(await adminPage.getByText('Sincronizando interface...').count())throw Error('Admin React error boundary shown');
   await admin.close();
+  const withdrawal=await browser.newContext({viewport:{width:390,height:844},baseURL:base});
+  const memberAuth=await withdrawal.request.post('/api/index.php?action=login',{
+    data:{login:'browsermember',password:'BrowserMemberPassword2026'}});
+  if(memberAuth.status()!==200)throw Error('Member login for modal test');
+  const withdrawalPage=await withdrawal.newPage();
+  withdrawalPage.on('pageerror',e=>problems.push(e.message));
+  await withdrawalPage.goto('/');
+  await withdrawalPage.getByTestId('member-top-nav').waitFor({timeout:15000});
+  await withdrawalPage.locator('nav button').nth(3).click();
+  await withdrawalPage.getByRole('button',{name:'Sacar'}).click();
+  await withdrawalPage.getByTestId('withdraw-request-amount').fill('1.00');
+  await withdrawalPage.getByRole('button',{name:'Registrar solicitação'}).click();
+  const modal=withdrawalPage.getByTestId('withdraw-awaiting-vip-modal');
+  await modal.waitFor({timeout:12000});
+  await modal.getByText('US$ 1.00').waitFor({timeout:10000});
+  await withdrawalPage.screenshot({path:'release-build/withdraw-awaiting-vip-modal.png',fullPage:true});
+  await modal.getByTestId('withdraw-go-to-store').click();
+  await withdrawalPage.getByTestId('store-view').waitFor({timeout:10000});
+  if(!/VIP 01/.test(await withdrawalPage.getByTestId('store-plan-illustration').innerText()))
+    throw Error('Free member not directed to next VIP plan');
+  await withdrawal.close();
   if(problems.length)throw Error('Browser JS errors: '+problems.join('; '));
   console.log('PASS: responsive member navigation, screenshot captures, admin browser route');
 } finally {
