@@ -31,8 +31,8 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
       <ShieldCheck className="text-emerald-400 shrink-0" size={22}/>
     </div>}
     {selected && <>
-      <div data-testid="store-plan-illustration" className="bg-[#191e32] border border-[#262e49] rounded-2xl p-3 flex gap-3 items-center overflow-hidden shadow-sm">
-        <div className="relative w-[92px] h-[92px] shrink-0" aria-hidden="false">
+      <div data-testid="store-plan-illustration" className="bg-[#191e32] border border-[#262e49] rounded-2xl p-2.5 flex gap-2.5 items-center overflow-hidden shadow-sm">
+        <div className="relative w-[72px] h-[72px] shrink-0" aria-hidden="false">
           <div className="absolute inset-3 rounded-full blur-xl opacity-30" style={{backgroundColor:color}}/>
           <svg viewBox="0 0 160 160" className="relative w-full h-full drop-shadow-sm" role="img" aria-label={helper.model}>
             <polygon points="80,119 151,140 80,157 9,140" fill="#11162d" stroke={color} strokeWidth="1"/>
@@ -47,7 +47,7 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
             <circle cx="80" cy="46" r="4" fill="#34d399"/>
           </svg>
         </div>
-        <div className="min-w-0 flex-1 space-y-1">
+        <div className="min-w-0 flex-1 space-y-0.5">
           <p className="text-xs font-bold text-slate-100 break-words">{selected.name} · {selected.serverModel}</p>
           <strong className="text-base leading-tight block">US$ {selected.dailyUsd} <span className="text-[11px] text-slate-400">/ {helper.day}</span></strong>
           <p className="text-[11px] text-slate-300">{selected.durationDays} {helper.term} · {selected.hashrate}</p>
@@ -63,7 +63,7 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
           {p.name}
         </button>)}
       </div>
-      <div className="bg-[#171b2d] border border-[#262e49] rounded-2xl p-4 space-y-3 text-sm">
+      <div className="bg-[#171b2d] border border-[#262e49] rounded-2xl p-3 space-y-2 text-sm">
         <div className="flex justify-between"><span className="text-slate-400">{helper.choose}</span><strong>{selected.name}</strong></div>
         <div className="flex justify-between"><span className="text-slate-400">{t.price}</span><strong>US$ {selected.priceUsd}</strong></div>
         <div className="flex justify-between"><span className="text-slate-400">{t.currentPlan}</span><strong>{activePlanId}</strong></div>

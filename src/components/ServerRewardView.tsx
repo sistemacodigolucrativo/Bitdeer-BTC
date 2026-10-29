@@ -37,26 +37,26 @@ export const ServerRewardView:React.FC<Props>=({account,language,busy,onClaim,on
         <p className="text-[11px] text-slate-400">{t.frequency}</p></div>
       <Gift size={20} className="text-indigo-400"/>
     </header>
-    <section className="rounded-2xl border border-[#2c3551] bg-[#191e32] p-3 space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-xl bg-[#212943] p-2.5 min-w-0">
+    <div className="space-y-2" data-testid="rewards-compact-claim">
+      <div data-testid="reward-bonus-grid" className="grid grid-cols-2 gap-2">
+        <div className="rounded-xl border border-[#2c3551] bg-[#212943] p-2.5 min-w-0">
           <p className="flex gap-1 items-center text-[11px] text-slate-300"><Gift size={14} className="text-indigo-300"/>{t.usd}</p>
           <strong className="text-base font-extrabold tabular-nums">US$ {account?.plan.bonusUsd??'0.00'}</strong>
         </div>
-        <div className="rounded-xl bg-[#212943] p-2.5 min-w-0">
+        <div className="rounded-xl border border-[#2c3551] bg-[#212943] p-2.5 min-w-0">
           <p className="flex gap-1 items-center text-[11px] text-slate-300"><Coins size={14} className="text-amber-300"/>{t.sats}</p>
           <strong className="text-base font-extrabold tabular-nums">{(account?.plan.bonusSatoshis??0).toLocaleString(locale)}</strong>
         </div>
       </div>
       <button type="button" onClick={onClaim} disabled={busy||!available}
-        className="w-full py-3 px-2 rounded-xl bg-[#6366f1] hover:bg-[#4f46e5] font-bold text-xs disabled:opacity-40"
+        className="w-full py-2.5 px-2 rounded-xl bg-[#6366f1] hover:bg-[#4f46e5] font-bold text-xs disabled:opacity-40"
         data-testid="claim-daily-rewards">
         {available?t.claim:t.waiting+' '+countdown}
       </button>
-      <p className="flex items-start gap-1.5 text-[10px] text-slate-400 leading-tight">
+      <p className="flex items-start gap-1.5 text-[10px] text-slate-400 leading-tight px-1">
         <ShieldCheck size={13} className="shrink-0"/>{t.notice}
       </p>
-    </section>
+    </div>
     <button type="button" onClick={onHistory}
       className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-[#2c3551] bg-[#1b2137] font-semibold text-xs">
       {t.ledger}<ChevronRight size={16}/>
