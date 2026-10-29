@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import { Cpu, ShieldCheck, Server, Zap, Gem } from 'lucide-react';
+import { Cpu, ShieldCheck, Zap, Gem } from 'lucide-react';
 import { Plan } from '../services/api';
 import { LanguageCode } from '../types';
 import { memberTexts } from '../i18n/memberTexts';
@@ -23,23 +23,18 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
     : language==='es'
     ? {description:'Elige un plan. Tarifas y condiciones proceden del servidor.',activation:'La activación requiere la confirmación manual del pago. No se garantiza un plazo fijo.',day:'por día',model:'Ilustración del equipo',current:'Plan actual',choose:'Elegir plan',purchase:'Solicitar activación VIP',free:'Cuenta gratuita',term:'días',unavailable:'Planes aún no disponibles.'}
     : {description:'Escolha um plano. Valores e condições vêm do servidor.',activation:'Ativação após conferência manual do pagamento, sem prazo máximo garantido.',day:'por dia',model:'Representação visual do equipamento',current:'Plano atual',choose:'Escolher plano',purchase:'Solicitar ativação VIP',free:'Conta gratuita',term:'dias',unavailable:'Planos ainda não disponíveis.'};
-  return <section className="space-y-4">
-    <div className="flex justify-between items-center gap-2">
-      <div><h2 className="font-black text-xl">{t.store}</h2>
-        <p className="text-slate-400 text-xs mt-1">{helper.description}</p></div>
-      <span className="rounded-xl bg-[#252b47] text-indigo-300 p-3"><Server size={23}/></span>
-    </div>
-    {plans.find(p=>p.id==='FREE') && <div className="bg-[#171b2d] border border-[#252c45] p-3 rounded-2xl flex justify-between gap-3 items-center">
-      <div><span className="text-xs text-slate-400">{helper.free}</span>
-        <p className="font-bold">{plans.find(p=>p.id==='FREE')?.name} · US$ {plans.find(p=>p.id==='FREE')?.dailyUsd}/{t.day}</p></div>
-      {activePlanId==='FREE'&&<ShieldCheck className="text-emerald-400" size={24}/>}
+  const currentPlan=plans.find(p=>p.id===activePlanId)||plans.find(p=>p.id==='FREE');
+  return <section className="space-y-3" data-testid="store-view">
+    {currentPlan && <div data-testid="store-active-plan" className="bg-[#171b2d] border border-[#252c45] p-3 rounded-2xl flex justify-between gap-3 items-center">
+      <div className="min-w-0"><span className="text-xs text-slate-400">{helper.current}</span>
+        <p className="font-bold">{currentPlan.name} · US$ {currentPlan.dailyUsd}/{t.day}</p></div>
+      <ShieldCheck className="text-emerald-400 shrink-0" size={22}/>
     </div>}
     {selected && <>
-      <div className="bg-[#191e32] border border-[#262e49] rounded-3xl p-5 flex flex-col gap-2 items-center overflow-hidden shadow-md">
-        <div className="text-xs font-black text-slate-200 mb-1">{selected.name} · {selected.serverModel}</div>
-        <div className="relative w-44 h-44">
-          <div className="absolute inset-7 rounded-full blur-2xl opacity-40" style={{backgroundColor:color}}/>
-          <svg viewBox="0 0 160 160" className="relative w-full h-full drop-shadow-xl" role="img" aria-label={helper.model}>
+      <div data-testid="store-plan-illustration" className="bg-[#191e32] border border-[#262e49] rounded-2xl p-3 flex gap-3 items-center overflow-hidden shadow-sm">
+        <div className="relative w-[92px] h-[92px] shrink-0" aria-hidden="false">
+          <div className="absolute inset-3 rounded-full blur-xl opacity-30" style={{backgroundColor:color}}/>
+          <svg viewBox="0 0 160 160" className="relative w-full h-full drop-shadow-sm" role="img" aria-label={helper.model}>
             <polygon points="80,119 151,140 80,157 9,140" fill="#11162d" stroke={color} strokeWidth="1"/>
             <polygon points="80,16 137,45 80,74 23,45" fill="#cbd5e1" stroke={color} strokeWidth="2"/>
             {[0,1,2,3].map(i=><g key={i} transform={'translate(0 '+(i*20)+')'}>
@@ -52,14 +47,17 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
             <circle cx="80" cy="46" r="4" fill="#34d399"/>
           </svg>
         </div>
-        <strong className="text-2xl">US$ {selected.dailyUsd} <span className="text-xs text-slate-400">/ {helper.day}</span></strong>
-        <p className="text-xs text-slate-300">{selected.durationDays} {helper.term} · {selected.hashrate}</p>
-        <p className="text-xs text-slate-300">US$ {selected.bonusUsd} + {selected.bonusSatoshis.toLocaleString(locale)} satoshis /24h</p>
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-xs font-bold text-slate-100 break-words">{selected.name} · {selected.serverModel}</p>
+          <strong className="text-base leading-tight block">US$ {selected.dailyUsd} <span className="text-[11px] text-slate-400">/ {helper.day}</span></strong>
+          <p className="text-[11px] text-slate-300">{selected.durationDays} {helper.term} · {selected.hashrate}</p>
+          <p className="text-[11px] text-slate-300">US$ {selected.bonusUsd} + {selected.bonusSatoshis.toLocaleString(locale)} satoshis /24h</p>
+        </div>
       </div>
       <div className="flex flex-wrap gap-2">
         {options.map(p=><button key={p.id}
           onClick={()=>setChoice(p.id)}
-          className={'flex-1 min-w-20 rounded-xl border p-3 text-xs font-bold flex items-center justify-center gap-1 '+
+          className={'flex-1 min-w-20 rounded-xl border p-2 text-xs font-bold flex items-center justify-center gap-1 '+
            (p.id===selected.id?'border-indigo-400 bg-[#363f70]':'border-[#262e49] bg-[#171b2d]')}>
           {p.id===activePlanId?<ShieldCheck size={14}/>:p.id===selected.id?<Gem size={14}/>:<Cpu size={14}/>}
           {p.name}

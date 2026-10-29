@@ -11,7 +11,6 @@ import { AdminWorkspace } from './components/admin/AdminWorkspace';
 import { MemberWorkspace } from './components/MemberWorkspace';
 import { translations } from './i18n/translations';
 import { LanguageScreen } from './components/LanguageScreen';
-import { OnboardingPreviewScreen } from './components/OnboardingPreviewScreen';
 import { TerminalInitScreen } from './components/TerminalInitScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { CongratulationsModal } from './components/CongratulationsModal';
@@ -146,10 +145,6 @@ export default function App() {
       storageService.saveMemberLanguage(authUser.id,language);
       void api('language.preference',{language}).catch(()=>{});
     }
-    setActiveScreen('onboarding');
-  };
-
-  const handleSlideToStart = () => {
     setActiveScreen('terminal');
   };
 
@@ -160,8 +155,31 @@ export default function App() {
   const handleLoginSuccess = (user: AuthUser) => {
     setAuthUser(user);
     setShowCongratulations(false);
-    setActiveScreen(user.role==='admin'?'workspace':'language');
-    if(user.role==='member')void restoreMemberLanguage(user);
+    if(user.role==='admin'){setActiveScreen('workspace');return;}
+    const local=storageService.getMemberLanguage(user.id);
+    if(local){
+      setLanguage(local);
+      storageService.savePreferences({language:local,isFirstLaunch:false});
+      setActiveScreen('terminal');
+      void restoreMemberLanguage(user); // Keep SQLite aligned in the background.
+      return;
+    }
+    // First device sign-in: use SQLite choice if available, otherwise ask once.
+    // While checking, render neither the language picker nor an obsolete intro.
+    const revision=++choiceRevision.current;
+    setCheckingSession(true);
+    void api<{language:string|null}>('language.preference').then(({language:remote})=>{
+      if(choiceRevision.current!==revision)return;
+      if(remote==='pt'||remote==='en'||remote==='es'){
+        storageService.saveMemberLanguage(user.id,remote);
+        setLanguage(remote);
+        setActiveScreen('terminal');
+      } else {
+        setActiveScreen('language');
+      }
+    }).catch(()=>{
+      if(choiceRevision.current===revision)setActiveScreen('language');
+    }).finally(()=>setCheckingSession(false));
   };
 
   const handleProceedFromCongratulations = () => {
@@ -185,7 +203,7 @@ export default function App() {
         {/* Mobile App Viewport Container */}
         <main className={`w-full ${authUser?.role === 'admin' ? 'max-w-6xl' : 'max-w-[420px]'} h-[100dvh] md:h-[840px] md:rounded-3xl md:shadow-2xl ${theme === 'light' ? 'bg-white border md:border-slate-200 text-slate-800' : 'bg-[#121626] border-0 md:border md:border-[#20263f] text-slate-100'} overflow-hidden flex flex-col relative transition-colors duration-200`}>
           {checkingSession && <div className="p-8 text-center">{language==='en'?'Checking secure session...':language==='es'?'Verificando sesión segura...':'Verificando sessão segura...'}</div>}
-          {/* Step 2: Language Screen (after member login) */}
+          {/* First-time member language choice, skipped when saved on device or SQLite */}
           {!checkingSession && activeScreen === 'language' && (
             <LanguageScreen
               currentLanguage={language}
@@ -194,16 +212,7 @@ export default function App() {
             />
           )}
 
-          {/* Step 3: Mining now onboarding */}
-          {!checkingSession && activeScreen === 'onboarding' && (
-            <OnboardingPreviewScreen
-              language={language}
-              onBackToLanguage={() => setActiveScreen('language')}
-              onSlideToStart={handleSlideToStart}
-            />
-          )}
-
-          {/* Step 4: System ready diagnostics */}
+          {/* Mining Core immediately after login / initial language choice */}
           {!checkingSession && activeScreen === 'terminal' && (
             <TerminalInitScreen
               language={language}
