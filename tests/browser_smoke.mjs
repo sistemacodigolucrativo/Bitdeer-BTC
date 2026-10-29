@@ -96,8 +96,11 @@ try {
     document.querySelector('[data-testid="mining-live-btc"]')?.textContent?.trim()||''),null,{timeout:15000});
   const initialBtc=displayedBtc(await page.getByTestId('mining-live-btc').innerText());
   const quoteRate=80000; // The isolated PHP CI fixture, never production.
-  if(!Number.isFinite(initialBtc)||Math.abs(initialBtc-displayedUsd(secondUsd)/quoteRate)>0.000000011)
-    throw Error('Mining BTC/USD equivalents not synchronized at quoted rate');
+  const syncedUsd=displayedUsd(await homeValue.innerText());
+  if(!Number.isFinite(initialBtc)||!Number.isFinite(syncedUsd)||
+    Math.abs(initialBtc-syncedUsd/quoteRate)>0.000000011)
+    throw Error('Mining BTC/USD equivalents not synchronized at quoted rate: '+
+      JSON.stringify({btc:initialBtc,usd:syncedUsd,expected:syncedUsd/quoteRate}));
   await page.locator('nav button').nth(3).click();
   const walletBalance=page.getByTestId('wallet-live-usd');
   await walletBalance.waitFor({timeout:10000});
