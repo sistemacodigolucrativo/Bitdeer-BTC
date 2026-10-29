@@ -126,6 +126,19 @@ try {
   await page.waitForTimeout(2100);
   const secondWallet=await walletBalance.innerText();
   if(!(displayedUsd(secondWallet)>displayedUsd(firstWallet)))throw Error('Live wallet USD not increasing');
+  const feed=page.getByTestId('simulated-payments');
+  await feed.waitFor({timeout:10000});
+  await page.getByTestId('simulated-payment-row').first().waitFor({timeout:10000});
+  if(await page.getByTestId('simulated-payment-row').count()!==10)
+    throw Error('Wallet feed must display ten rows');
+  const firstIds=await page.getByTestId('simulated-payment-row').locator('p.font-mono').allTextContents();
+  await page.getByTestId('simulated-payments-next').click();
+  await page.waitForFunction(old=>
+    document.querySelector('[data-testid="simulated-payment-row"] p.font-mono')?.textContent!==old,
+    firstIds[0],{timeout:10000});
+  const secondIds=await page.getByTestId('simulated-payment-row').locator('p.font-mono').allTextContents();
+  if(secondIds.some(id=>firstIds.includes(id)))throw Error('Wallet feed repeated rows');
+  await page.screenshot({path:'release-build/wallet-feed-mobile.png',fullPage:true});
   const walletBtc=displayedBtc(await page.getByTestId('wallet-live-btc').innerText());
   if(!Number.isFinite(walletBtc)||Math.abs(walletBtc-displayedUsd(secondWallet)/quoteRate)>0.000000011)
     throw Error('Wallet BTC/USD equivalents not synchronized at quoted rate');
