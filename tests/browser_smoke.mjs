@@ -95,7 +95,12 @@ try {
   await page.waitForFunction(()=>/^\d+\.\d{8} BTC$/.test(
     document.querySelector('[data-testid="mining-live-btc"]')?.textContent?.trim()||''),null,{timeout:15000});
   const initialBtc=displayedBtc(await page.getByTestId('mining-live-btc').innerText());
-  const quoteRate=80000; // The isolated PHP CI fixture, never production.
+  // Verify against the rate the backend actually supplies to this browser;
+  // never assume a hard-coded market price or a particular CI test fixture.
+  const rateResponse=await ctx.request.get('/api/index.php?action=withdraw.quote');
+  if(!rateResponse.ok())throw Error('Backend BTC/USD quotation unavailable in browser test');
+  const quoteRate=Number((await rateResponse.json()).btcUsd);
+  if(!Number.isFinite(quoteRate)||quoteRate<=0)throw Error('Invalid backend quotation');
   const syncedUsd=displayedUsd(await homeValue.innerText());
   if(!Number.isFinite(initialBtc)||!Number.isFinite(syncedUsd)||
     Math.abs(initialBtc-syncedUsd/quoteRate)>0.000000011)
