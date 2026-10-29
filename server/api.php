@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/quote.php';
 require_once __DIR__ . '/bitcoin.php';
+require_once __DIR__ . '/member_history.php';
 
 /* The reward unit exactly matches dailyRewards.ts:
  * one USD = 864,000,000 units; USD/day (in cents) yields cents * 100 units/s.
@@ -190,6 +191,7 @@ function own_referral_code(PDO $db, int $owner): string {
 }
 /** Add fields to preexisting SQLite databases without erasing members or balances. */
 function ensure_member_features(PDO $db): void {
+    ensure_member_history_tables($db);
     $cols=array_column(query_all($db,'PRAGMA table_info(plans)'),'name');
     if (!in_array('withdraw_min_cents',$cols,true))
         $db->exec('ALTER TABLE plans ADD COLUMN withdraw_min_cents INTEGER NOT NULL DEFAULT 0');

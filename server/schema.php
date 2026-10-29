@@ -102,6 +102,18 @@ CREATE TABLE IF NOT EXISTS bonus_claims (
   UNIQUE(user_id, claimed_at)
 );
 CREATE INDEX IF NOT EXISTS idx_bonus_claims_user ON bonus_claims(user_id, claimed_at);
+CREATE TABLE IF NOT EXISTS member_history_edits (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL CHECK(kind IN ('accrual','bonus','purchase','withdrawal','subscription')),
+  source_id INTEGER,
+  payload_json TEXT NOT NULL,
+  deleted INTEGER NOT NULL DEFAULT 0 CHECK(deleted IN (0,1)),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE(user_id,kind,source_id)
+);
+CREATE INDEX IF NOT EXISTS idx_member_history_edits ON member_history_edits(user_id,kind,created_at);
 CREATE TABLE IF NOT EXISTS support_tickets (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id),
