@@ -398,6 +398,103 @@ assert mockvip.call("profile")["plan"]["id"]=="VIP_01"
 details=admin.call("admin.member.details&id="+str(mockvip_user["id"]))
 assert details["orders"][0]["payment_ref"] is None
 assert any(a["action"]=="order.approve.simulation" for a in admin.call("admin.audit")["actions"])
+# Admin-only member history editor: all five categories, persistence and isolation.
+memberId=mockvip_user["id"]
+newsession.call("admin.member.history&id="+str(memberId),expected=403)
+bob_order_client.call("admin.member.history.save",{"userId":memberId,
+  "kind":"bonus","operation":"create","fields":{}},403)
+at=int(time.time())
+history_samples={
+ "accrual":{"plan_id":"VIP_01","start_ts":at-7200,"end_ts":at-3600,"earned_units":43200000},
+ "bonus":{"plan_id":"VIP_01","claimed_at":at-7200,"bonus_usd_units":8640000,"bonus_satoshis":100},
+ "purchase":{"plan_id":"VIP_01","status":"approved","created_at":at-7200,"btc_sats":1000},
+ "withdrawal":{"plan_id":"VIP_01","status":"approved","created_at":at-7200,
+               "usd_cents":100,"btc_satoshis":1250},
+ "subscription":{"plan_id":"VIP_02","started_at":at-14400,"expires_at":at-7200}
+}
+read_kind={"accrual":("ledger","accruals"),"bonus":("ledger","bonuses"),
+           "purchase":("orders.mine","orders"),"withdrawal":("withdraw.mine","requests"),
+           "subscription":("contracts.mine","contracts")}
+for kind,fields in history_samples.items():
+    before=admin.call("admin.member.history&id="+str(memberId))["histories"][kind]
+    admin.call("admin.member.history.save",{"userId":memberId,"kind":kind,
+      "operation":"create","historyId":"","fields":fields})
+    after=admin.call("admin.member.history&id="+str(memberId))["histories"][kind]
+    created=next((x for x in after if x["historyId"].startswith("manual:")),None)
+    assert created and created["adminEdited"] is True, (kind,after)
+    assert len(after)==len(before)+1
+    member_rows=mockvip.call(read_kind[kind][0])[read_kind[kind][1]]
+    assert any(x["historyId"]==created["historyId"] for x in member_rows)
+    changed={**fields}
+    if kind=="subscription": changed["expires_at"]=at-3600
+    elif kind=="accrual": changed["earned_units"]=86400000
+    elif kind=="bonus": changed["bonus_satoshis"]=555
+    elif kind=="purchase": changed["btc_sats"]=2000
+    else: changed["usd_cents"]=200
+    admin.call("admin.member.history.save",{"userId":memberId,"kind":kind,
+      "operation":"update","historyId":created["historyId"],"fields":changed})
+    changed_key=next(k for k in changed if changed[k]!=fields[k])
+    updated=next(x for x in admin.call("admin.member.history&id="+str(memberId))["histories"][kind]
+       if x["historyId"]==created["historyId"])
+    assert updated[changed_key]==changed[changed_key]
+    admin.call("admin.member.history.save",{"userId":memberId,"kind":kind,
+      "operation":"delete","historyId":created["historyId"],"fields":{}})
+    assert all(x["historyId"]!=created["historyId"] for x in
+       admin.call("admin.member.history&id="+str(memberId))["histories"][kind])
+# Editing a native purchase changes presentation, not the receipt or actual contract.
+real_order_id=mockOrder["orderId"]
+original=next(o for o in mockvip.call("orders.mine")["orders"] if o["id"]==real_order_id)
+native_fields={"plan_id":original["plan_id"],"status":"rejected",
+  "created_at":original["created_at"],"btc_sats":original["btc_sats"]}
+admin.call("admin.member.history.save",{"userId":memberId,"kind":"purchase",
+ "operation":"update","historyId":"real:"+str(real_order_id),"fields":native_fields})
+assert next(o for o in mockvip.call("orders.mine")["orders"]
+  if o["id"]==real_order_id)["status"]=="rejected"
+db=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
+try:
+    assert db.execute("SELECT status FROM orders WHERE id=?",(real_order_id,)).fetchone()[0]=="approved"
+finally: db.close()
+assert mockvip.call("profile")["plan"]["id"]=="VIP_01"
+# History modification must not modify the real internal balance.
+balanceBefore=mockvip.call("profile")["mining"]["balanceUsd"]
+admin.call("admin.member.history.save",{"userId":memberId,"kind":"bonus",
+  "operation":"create","fields":history_samples["bonus"],"historyId":""})
+assert mockvip.call("profile")["mining"]["balanceUsd"]==balanceBefore
+# The BTC balance shown is a quote-based projection, not a second account.
+admin.call("admin.member.balance.adjust",{"userId":memberId,"currency":"USD",
+   "mode":"set","amount":"12.34"})
+assert abs(float(mockvip.call("profile")["mining"]["balanceUsd"])-12.34)<0.000001
+converted=admin.call("admin.member.history&id="+str(memberId))
+assert abs(float(converted["balanceBtc"])-12.34/80000)<0.00000001
+admin.call("admin.member.balance.adjust",{"userId":memberId,"currency":"BTC",
+   "mode":"add","amount":"0.00010000"})
+assert abs(float(mockvip.call("profile")["mining"]["balanceUsd"])-20.34)<0.000001
+admin.call("admin.member.balance.adjust",{"userId":memberId,"currency":"USD",
+   "mode":"subtract","amount":"0.34"})
+assert abs(float(mockvip.call("profile")["mining"]["balanceUsd"])-20.0)<0.000001
+admin.call("admin.member.balance.adjust",{"userId":memberId,"currency":"USD",
+   "mode":"subtract","amount":"30.00"},409)
+admin.call("admin.member.balance.adjust",{"userId":memberId,"currency":"BTC",
+   "mode":"set","amount":"0.00020000"})
+assert abs(float(mockvip.call("profile")["mining"]["balanceUsd"])-16.00)<0.000001
+admin.call("admin.member.balance.adjust",{"userId":memberId,"currency":"USD",
+   "mode":"clear","amount":"0"})
+assert float(mockvip.call("profile")["mining"]["balanceUsd"])==0
+mockvip.call("admin.member.balance.adjust",{"userId":memberId,"currency":"USD",
+   "mode":"set","amount":"100.00"},403)
+# Plan assignment snapshots catalogue and replaces an active plan without a fake purchase.
+beforeContracts=len(newsession.call("contracts.mine")["contracts"])
+admin.call("admin.member.plan.assign",{"userId":alice_user["id"],"planId":"VIP_03"})
+assert newsession.call("profile")["plan"]["id"]=="VIP_03"
+assert len(newsession.call("contracts.mine")["contracts"])==beforeContracts+1
+assert newsession.call("contracts.mine")["contracts"][0]["order_id"] is None
+admin.call("admin.member.plan.assign",{"userId":alice_user["id"],"planId":"VIP_03"},409)
+newsession.call("admin.member.plan.assign",{"userId":alice_user["id"],"planId":"VIP_04"},403)
+time.sleep(1.1)
+admin.call("admin.member.plan.assign",{"userId":alice_user["id"],"planId":"FREE"})
+assert newsession.call("profile")["plan"]["id"]=="FREE"
+assert any(a["action"]=="member.balance.clear" for a in admin.call("admin.audit")["actions"])
+
 db=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
 try:
     db.execute('UPDATE app_settings SET value="real" WHERE name="payment_mode"')
