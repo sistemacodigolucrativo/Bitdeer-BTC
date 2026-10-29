@@ -400,14 +400,14 @@ export const MemberWorkspace: React.FC<{
           {ledger.accruals.map((r,i)=><div key={i} className="p-3 bg-[#1b2137] rounded-xl text-xs">
             {r.plan_id} · {new Date(r.start_ts*1000).toLocaleString(dateLocale)} — {new Date(r.end_ts*1000).toLocaleString(dateLocale)}
             <p >{words.earnedUnits}: {r.earned_units}</p>
-            {(r as {adminEdited?:boolean}).adminEdited&&<p className="text-amber-300">Histórico demonstrativo ajustado</p>
+            {(r as {adminEdited?:boolean}).adminEdited&&<p className="text-amber-300">Histórico demonstrativo ajustado</p>}
           </div>)}
           <h3 className="text-sm font-semibold">{words.dailyBonusClaims}</h3>
           {ledger.bonuses.length===0 && <p className="text-xs text-slate-400">{words.noBonus}</p>}
           {ledger.bonuses.map((r,i)=><div key={i} className="p-3 bg-[#1b2137] rounded-xl text-xs">
             {r.plan_id} · {new Date(r.claimed_at*1000).toLocaleString(dateLocale)}
             <p>{r.bonus_satoshis} {tr.satoshis} · {r.bonus_usd_units} {tr.units}</p>
-            {(r as {adminEdited?:boolean}).adminEdited&&<p className="text-amber-300">Histórico demonstrativo ajustado</p>
+            {(r as {adminEdited?:boolean}).adminEdited&&<p className="text-amber-300">Histórico demonstrativo ajustado</p>}
           </div>)}
         </>}
         {page==='profile' && <form onSubmit={e=>{e.preventDefault();void act('profile.update',profile)}} className="space-y-3">

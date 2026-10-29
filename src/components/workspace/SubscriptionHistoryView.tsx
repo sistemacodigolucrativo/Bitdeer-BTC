@@ -42,7 +42,7 @@ export const SubscriptionHistoryView:React.FC<Props>=({language,onBack})=>{
         <p className="text-xs text-slate-400 flex gap-2"><Calendar size={14}/> {tr.start}: {new Date(x.started_at*1000).toLocaleString(loc)}</p>
         <p className="text-xs text-slate-400">{tr.end}: {new Date(x.expires_at*1000).toLocaleString(loc)}</p>
         <p className="text-xs text-amber-300">{x.expires_at>Date.now()/1000?tr.active:tr.expired}</p>
-        {x.adminEdited&&<p className="text-xs text-amber-300">{language==='en'?'Administratively edited demo history — not a verified payment':language==='es'?'Historial demostrativo editado, no pago verificado':'Histórico demonstrativo ajustado, não comprova pagamento'}</p>
+        {x.adminEdited&&<p className="text-xs text-amber-300">{language==='en'?'Administratively edited demo history — not a verified payment':language==='es'?'Historial demostrativo editado, no pago verificado':'Histórico demonstrativo ajustado, não comprova pagamento'}</p>}
       </article>)}
     </div>
   </section>;
