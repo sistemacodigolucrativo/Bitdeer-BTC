@@ -48,6 +48,11 @@ try {
   const secondUsd=await homeValue.innerText();
   const displayedUsd=s=>Number(s.match(/US\$\s*([\d.]+)/)?.[1]??NaN);
   if(!(displayedUsd(secondUsd)>displayedUsd(firstUsd)))throw Error('Live mining USD not increasing');
+  const displayedBtc=s=>Number(s.replace(' BTC','').trim());
+  const initialBtc=displayedBtc(await page.getByTestId('mining-live-btc').innerText());
+  const quoteRate=80000; // The isolated PHP CI fixture, never production.
+  if(!Number.isFinite(initialBtc)||Math.abs(initialBtc-displayedUsd(secondUsd)/quoteRate)>0.000000011)
+    throw Error('Mining BTC/USD equivalents not synchronized at quoted rate');
   await page.locator('nav button').nth(3).click();
   const walletBalance=page.getByTestId('wallet-live-usd');
   await walletBalance.waitFor({timeout:10000});
@@ -55,7 +60,20 @@ try {
   await page.waitForTimeout(2100);
   const secondWallet=await walletBalance.innerText();
   if(!(displayedUsd(secondWallet)>displayedUsd(firstWallet)))throw Error('Live wallet USD not increasing');
+  const walletBtc=displayedBtc(await page.getByTestId('wallet-live-btc').innerText());
+  if(!Number.isFinite(walletBtc)||Math.abs(walletBtc-displayedUsd(secondWallet)/quoteRate)>0.000000011)
+    throw Error('Wallet BTC/USD equivalents not synchronized at quoted rate');
   await page.locator('nav button').first().click();
+  if(await page.getByText(/Próxima sessão|Next session|Próxima sesión/).count())
+    throw Error('Legacy cooldown warning is still shown');
+  await page.getByRole('button',{name:/Mineração Ativa|Mining Active|Minería Activa/}).click();
+  await page.getByRole('button',{name:/Iniciar Mineração|Start Mining|Iniciar Minería/}).waitFor({timeout:10000});
+  if(await page.getByText(/Fim da sessão|Session ends|Fin de sesión/).count())
+    throw Error('Old session end timestamp should not remain visible after stopping');
+  const restart=page.getByRole('button',{name:/Iniciar Mineração|Start Mining|Iniciar Minería/});
+  if(await restart.isDisabled())throw Error('FREE session restart must be available immediately');
+  await restart.click();
+  await page.getByRole('button',{name:/Mineração Ativa|Mining Active|Minería Activa/}).waitFor({timeout:10000});
   for(let i=0;i<5;i++){
     await page.locator('nav button').nth(i).click();
     await page.waitForTimeout(200);
@@ -86,6 +104,13 @@ try {
   await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
   await page.getByText(/Solicitação de Saque|Withdrawal Request|Solicitud de Retiro/).waitFor({timeout:10000});
   await page.getByTestId('withdraw-available-card').waitFor({timeout:10000});
+  if(await page.locator('p.text-amber-300').filter({hasText:/Todos os membros podem registrar|All members can submit|Todos los miembros pueden registrar/}).count())
+    throw Error('Withdrawal yellow informational paragraph must be removed');
+  const cardPadding=await page.getByTestId('withdraw-available-card').evaluate(node=>{
+    const s=getComputedStyle(node);return {top:parseFloat(s.paddingTop),bottom:parseFloat(s.paddingBottom)};
+  });
+  if(cardPadding.top>15||cardPadding.bottom>15)
+    throw Error('Withdrawal balance card has not been slimmed');
   await page.getByText(/Cadastrar carteira Bitcoin|Register Bitcoin wallet|Registrar billetera Bitcoin/).waitFor({timeout:10000});
   await page.screenshot({path:'release-build/member-mobile.png',fullPage:true});
   await page.locator('input[placeholder="bc1..."]').fill('bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z');
@@ -95,6 +120,8 @@ try {
     throw Error('Saved BTC wallet address card should be hidden');
   await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
   await page.getByText(/Solicitar saque interno|Request internal withdrawal|Solicitar retiro interno/).waitFor({timeout:10000});
+  if(await page.getByText(/O servidor verifica a cotação ao registrar|The server verifies the rate when|El servidor verifica la cotización al/).count())
+    throw Error('BTC quote details should be removed from withdrawal form');
   await page.getByRole('button',{name:'Bitcoin (BTC)'}).click();
   await page.getByTestId('withdraw-available-card').getByText(/Saldo disponível em BTC|Available balance in BTC|Saldo disponible en BTC/)
     .waitFor({timeout:10000});

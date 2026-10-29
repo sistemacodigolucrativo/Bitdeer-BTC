@@ -72,7 +72,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         dailyCents:Math.round(Number(selected.dailyUsd)*100),
         bonusUsdCents:Math.round(Number(selected.bonusUsd)*100),
         bonusSatoshis:selected.bonusSatoshis,durationDays:selected.durationDays,
-        sessionSeconds:selected.sessionSeconds,restartCooldownSeconds:selected.restartCooldownSeconds,
+        sessionSeconds:selected.sessionSeconds,restartCooldownSeconds:0,
         withdrawMinCents:Math.round(Number(selected.withdrawMinUsd)*100),
         withdrawAfterDays:selected.withdrawAfterDays,
         hashrate:selected.hashrate,serverModel:selected.serverModel,available:selected.available
@@ -90,7 +90,6 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       ['bonusSatoshis','Bônus diário (satoshis internos)'],
       ['durationDays','Duração do plano (dias)'],
       ['sessionSeconds','Duração da sessão (segundos)'],
-      ['restartCooldownSeconds','Intervalo entre sessões (segundos)'],
       ['withdrawMinUsd','Valor mínimo de saque (USD)'],
       ['withdrawAfterDays','Prazo mínimo para saque (dias)'],
       ['hashrate','Capacidade ilustrativa'],['serverModel','Equipamento ilustrativo']

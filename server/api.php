@@ -820,11 +820,11 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         atomic($db, static function () use ($db,$actor,$body,$id,$name,$hashrate,$serverModel,$available,$exists): void {
             if ($exists) {
                 execute_sql($db,'UPDATE plans SET name=?,price_cents=?,daily_cents=?,bonus_usd_cents=?,bonus_satoshis=?,duration_days=?,session_seconds=?,restart_cooldown_seconds=?,withdraw_min_cents=?,withdraw_after_days=?,hashrate=?,server_model=?,available=?,revision=revision+1,updated_at=? WHERE id=?',
-                  [$name,$body['priceCents'],$body['dailyCents'],$body['bonusUsdCents'],$body['bonusSatoshis'],$body['durationDays'],$body['sessionSeconds'],$body['restartCooldownSeconds'],$body['withdrawMinCents'],$body['withdrawAfterDays'],$hashrate,$serverModel,$available,now(),$id]);
+                  [$name,$body['priceCents'],$body['dailyCents'],$body['bonusUsdCents'],$body['bonusSatoshis'],$body['durationDays'],$body['sessionSeconds'],0,$body['withdrawMinCents'],$body['withdrawAfterDays'],$hashrate,$serverModel,$available,now(),$id]);
             } else {
                 execute_sql($db,'INSERT INTO plans (id,name,price_cents,daily_cents,bonus_usd_cents,bonus_satoshis,duration_days,session_seconds,restart_cooldown_seconds,withdraw_min_cents,withdraw_after_days,hashrate,server_model,available,updated_at)
                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                  [$id,$name,$body['priceCents'],$body['dailyCents'],$body['bonusUsdCents'],$body['bonusSatoshis'],$body['durationDays'],$body['sessionSeconds'],$body['restartCooldownSeconds'],$body['withdrawMinCents'],$body['withdrawAfterDays'],$hashrate,$serverModel,$available,now()]);
+                  [$id,$name,$body['priceCents'],$body['dailyCents'],$body['bonusUsdCents'],$body['bonusSatoshis'],$body['durationDays'],$body['sessionSeconds'],0,$body['withdrawMinCents'],$body['withdrawAfterDays'],$hashrate,$serverModel,$available,now()]);
             }
             audit($db,(int)$actor['id'],'plan.save',null,['planId'=>$id,'revisionChange'=>true]);
         });

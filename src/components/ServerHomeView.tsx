@@ -146,10 +146,10 @@ export const ServerHomeView: React.FC<Props> = ({
       </button>
       {expanded && <div className="border-t border-[#232a43] mt-3 pt-3 space-y-2 text-xs text-slate-400">
         <p>{d.notice}</p><p>{language==='en'
-          ? 'FREE: '+(account?.plan.sessionSeconds || 7200)+'s per session. VIP: according to the active contract.'
+          ? 'FREE: '+(account?.plan.sessionSeconds || 7200)+'s per session, restart immediately afterward. VIP: according to the active contract.'
           : language==='es'
-          ? 'FREE: '+(account?.plan.sessionSeconds || 7200)+'s por sesión. VIP: según el contrato vigente.'
-          : 'FREE: '+(account?.plan.sessionSeconds || 7200)+'s por sessão. VIP: conforme contrato vigente.'}</p>
+          ? 'FREE: '+(account?.plan.sessionSeconds || 7200)+'s por sesión, reinicio inmediato después. VIP: según el contrato vigente.'
+          : 'FREE: '+(account?.plan.sessionSeconds || 7200)+'s por sessão, reinício imediato após encerrar. VIP: conforme contrato vigente.'}</p>
         <p>{language==='en'
           ? 'Internal rewards are calculated on the server, not stored as browser balances.'
           : language==='es'
