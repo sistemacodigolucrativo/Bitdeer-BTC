@@ -71,8 +71,13 @@ try {
   if(await bonus.getByText('USD').count()!==1||await bonus.getByText('Satoshis').count()!==1)
     throw Error('Daily bonus card must present both reward types');
   await bonus.locator('button').click();
-  await page.getByRole('button',{name:/Resgatar ambos os bônus diários|Claim both daily bonuses|Reclamar ambos bonos diarios/i})
-    .waitFor({timeout:10000});
+  const claimButton=page.getByTestId('claim-daily-rewards');
+  await claimButton.waitFor({timeout:10000});
+  if(await claimButton.isDisabled())throw Error('Initial daily bonus should be claimable');
+  await claimButton.click();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="claim-daily-rewards"]')?.hasAttribute('disabled'),null,{timeout:10000});
+  if(!(await claimButton.innerText()).match(/Próximo resgate|Next claim|Próximo reclamo/i))
+    throw Error('Claim button did not enter the 24-hour waiting state');
   await page.locator('nav button').first().click();
   // Verify visual interpolation uses backend-authoritative running state and increases
   // while mining, without writing local browser balances.
