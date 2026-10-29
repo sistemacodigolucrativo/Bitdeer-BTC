@@ -113,6 +113,28 @@ CREATE TABLE IF NOT EXISTS support_tickets (
   notification_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_support_user ON support_tickets(user_id,created_at);
+CREATE TABLE IF NOT EXISTS support_replies (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticket_id INTEGER NOT NULL REFERENCES support_tickets(id),
+  admin_id INTEGER NOT NULL REFERENCES users(id),
+  message TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ticket_replies ON support_replies(ticket_id,created_at);
+CREATE TABLE IF NOT EXISTS mock_payment_feed (
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  ordinal INTEGER NOT NULL CHECK(ordinal BETWEEN 0 AND 199),
+  fake_hash TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  usd_cents INTEGER NOT NULL,
+  btc_sats INTEGER NOT NULL,
+  occurred_at INTEGER NOT NULL,
+  PRIMARY KEY(user_id,ordinal)
+);
+CREATE TABLE IF NOT EXISTS mock_payment_cursor (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id),
+  next_ordinal INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS identity_checks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   member_id INTEGER NOT NULL REFERENCES users(id),
@@ -205,6 +227,7 @@ SQL);
         execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("btc_address","")');
         // Owner must explicitly confirm control of the BTC address.
         execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("btc_address_confirmed","0")');
+        execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("payment_mode","simulation")');
         execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("schema_version","1")');
         return ['founderLogin'=>$founderLogin,'founderPassword'=>$founderPassword,
             'founderCode'=>$founderCode];

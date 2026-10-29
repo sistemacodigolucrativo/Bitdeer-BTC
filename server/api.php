@@ -218,6 +218,30 @@ function ensure_member_features(PDO $db): void {
         $db->exec("ALTER TABLE withdraw_requests ADD COLUMN vip_state TEXT NOT NULL DEFAULT 'eligible'
             CHECK(vip_state IN ('eligible','awaiting_vip'))");
     $db->exec('CREATE INDEX IF NOT EXISTS idx_withdraw_user ON withdraw_requests(user_id,created_at)');
+    $ticketCols=array_column(query_all($db,'PRAGMA table_info(support_tickets)'),'name');
+    if(!in_array('workflow_state',$ticketCols,true))
+        $db->exec("ALTER TABLE support_tickets ADD COLUMN workflow_state TEXT NOT NULL DEFAULT 'open'
+          CHECK(workflow_state IN ('open','replied','closed','deleted'))");
+    $db->exec("CREATE TABLE IF NOT EXISTS support_replies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticket_id INTEGER NOT NULL REFERENCES support_tickets(id),
+      admin_id INTEGER NOT NULL REFERENCES users(id),
+      message TEXT NOT NULL, created_at INTEGER NOT NULL
+    )");
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_ticket_replies ON support_replies(ticket_id,created_at)');
+    $db->exec("CREATE TABLE IF NOT EXISTS mock_payment_feed (
+      user_id INTEGER NOT NULL REFERENCES users(id),ordinal INTEGER NOT NULL
+        CHECK(ordinal BETWEEN 0 AND 199),
+      fake_hash TEXT NOT NULL, display_name TEXT NOT NULL,
+      usd_cents INTEGER NOT NULL, btc_sats INTEGER NOT NULL,
+      occurred_at INTEGER NOT NULL,PRIMARY KEY(user_id,ordinal)
+    )");
+    $db->exec("CREATE TABLE IF NOT EXISTS mock_payment_cursor (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id),
+      next_ordinal INTEGER NOT NULL DEFAULT 0
+    )");
+    $db->exec('INSERT OR IGNORE INTO app_settings(name,value) VALUES ("payment_mode","simulation")');
+
 }
 /** Only the original four VIP tiers unlock review of an internal payout request. */
 function vip_eligible_at(PDO $db,int $memberId,int $at): bool {
@@ -270,14 +294,21 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     if ($action === 'support.tickets.mine' && $method === 'GET') {
         $actor=auth_user($db);
         if ($actor['role'] !== 'member') fail(403,'Apenas membros');
-        json_out(['tickets'=>query_all($db,'SELECT id,subject,message,status,notification_status,created_at
-          FROM support_tickets WHERE user_id=? ORDER BY id DESC LIMIT 100',[$actor['id']])]);
+        json_out(['tickets'=>query_all($db,'SELECT t.id,t.subject,t.message,t.status,t.notification_status,t.created_at,
+          t.workflow_state AS ticket_state,
+          (SELECT r.message FROM support_replies r WHERE r.ticket_id=t.id
+            ORDER BY r.id DESC LIMIT 1) AS admin_reply
+          FROM support_tickets t WHERE t.user_id=? AND t.workflow_state!="deleted"
+          ORDER BY t.id DESC LIMIT 100',[$actor['id']])]);
     }
     if ($action === 'admin.support.tickets' && $method === 'GET') {
         auth_user($db,true);
         json_out(['tickets'=>query_all($db,'SELECT t.id,t.user_id,u.login,t.subject,t.message,
-           t.status,t.notification_status,t.created_at,t.notification_at
-           FROM support_tickets t JOIN users u ON u.id=t.user_id ORDER BY t.id DESC LIMIT 100')]);
+           t.status,t.workflow_state AS ticket_state,t.notification_status,t.created_at,t.notification_at,
+           (SELECT r.message FROM support_replies r WHERE r.ticket_id=t.id
+            ORDER BY r.id DESC LIMIT 1) AS admin_reply
+           FROM support_tickets t JOIN users u ON u.id=t.user_id
+           WHERE t.workflow_state!="deleted" ORDER BY t.id DESC LIMIT 100')]);
     }
     if ($action === 'admin.support.status' && $method === 'POST') {
         $actor=require_post_csrf($db,true);
@@ -288,9 +319,42 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         atomic($db,static function() use($db,$actor,$id,$status):void {
             if (!query_one($db,'SELECT id FROM support_tickets WHERE id=?',[$id]))
                 fail(404,'Ticket não encontrado');
-            execute_sql($db,'UPDATE support_tickets SET status=?,updated_at=? WHERE id=?',
-                [$status,now(),$id]);
+            execute_sql($db,'UPDATE support_tickets SET status=?,workflow_state=?,updated_at=? WHERE id=? AND workflow_state!="deleted"',
+                [$status,$status==='resolved'?'closed':'open',now(),$id]);
             audit($db,(int)$actor['id'],'ticket.status',null,['ticketId'=>$id,'status'=>$status]);
+        });
+        json_out(['ok'=>true]);
+    }
+    if ($action === 'admin.support.reply' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);$body=request_body();
+        $id=param_id($body,'ticketId');$message=string_field($body,'message',2500);
+        if(mb_strlen($message)<2) fail(422,'Digite uma resposta de pelo menos dois caracteres');
+        atomic($db,static function() use($db,$actor,$id,$message):void {
+            $ticket=query_one($db,'SELECT id,workflow_state FROM support_tickets WHERE id=?',[$id]);
+            if(!$ticket) fail(404,'Ticket não encontrado');
+            if(!in_array($ticket['workflow_state'],['open','replied'],true))
+                fail(409,'Ticket fechado ou excluído. Reabra para responder');
+            $time=now();
+            execute_sql($db,'INSERT INTO support_replies(ticket_id,admin_id,message,created_at)
+                VALUES (?,?,?,?)',[$id,$actor['id'],$message,$time]);
+            execute_sql($db,'UPDATE support_tickets SET workflow_state="replied",status="open",
+                updated_at=? WHERE id=?',[$time,$id]);
+            audit($db,(int)$actor['id'],'ticket.reply',null,['ticketId'=>$id]);
+        });
+        json_out(['ok'=>true,'ticketState'=>'replied']);
+    }
+    if ($action === 'admin.support.manage' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);$body=request_body();
+        $id=param_id($body,'ticketId');$operation=string_field($body,'operation',10);
+        if(!in_array($operation,['close','reopen','delete'],true))fail(422,'Operação inválida');
+        atomic($db,static function() use($db,$actor,$id,$operation):void {
+            $ticket=query_one($db,'SELECT id,workflow_state FROM support_tickets WHERE id=?',[$id]);
+            if(!$ticket || $ticket['workflow_state']==='deleted')fail(404,'Ticket indisponível');
+            $target=$operation==='close'?'closed':($operation==='delete'?'deleted':'open');
+            $legacy=$target==='closed'?'resolved':'open';
+            execute_sql($db,'UPDATE support_tickets SET workflow_state=?,status=?,updated_at=? WHERE id=?',
+                [$target,$legacy,now(),$id]);
+            audit($db,(int)$actor['id'],'ticket.'.$operation,null,['ticketId'=>$id]);
         });
         json_out(['ok'=>true]);
     }
@@ -728,7 +792,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         if (!$user) fail(404,'Membro não encontrado');
         $contracts=query_all($db,'SELECT id,plan_id,plan_snapshot_json,started_at,expires_at
             FROM contracts WHERE user_id=? ORDER BY id DESC LIMIT 30',[$id]);
-        $orders=query_all($db,'SELECT id,plan_id,status,created_at,expires_at
+        $orders=query_all($db,'SELECT id,plan_id,status,created_at,expires_at,payment_ref
             FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 30',[$id]);
         $balance=query_one($db,'SELECT balance_units,bonus_satoshis_balance FROM mining_state WHERE user_id=?',[$id]);
         json_out(['member'=>$user,'contracts'=>$contracts,'orders'=>$orders,
@@ -832,15 +896,22 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     }
     if ($action === 'admin.order.approve' && $method === 'POST') {
         $actor=require_post_csrf($db,true);$body=request_body();$id=param_id($body,'orderId');
+        $simulation=($body['simulationConfirmed'] ?? false)===true;
         $paymentRef=strtolower(string_field($body,'paymentReference',100));
-        if (!preg_match('/^[a-fA-F0-9]{64}$/D',$paymentRef)) fail(422,'Informe o TXID BTC com 64 caracteres hexadecimais após verificar o pagamento');
-        if (($body['paymentConfirmed'] ?? false)!==true) fail(422,'Confirme explicitamente o pagamento antes da ativação');
-        atomic($db, static function () use ($db,$actor,$id,$paymentRef): void {
+        $mode=query_one($db,'SELECT value FROM app_settings WHERE name="payment_mode"');
+        if($simulation && ($mode['value']??'')!=='simulation')
+            fail(403,'Aprovação simulada indisponível no modo de pagamentos reais');
+        if(!$simulation && !preg_match('/^[a-fA-F0-9]{64}$/D',$paymentRef))
+            fail(422,'Informe o TXID BTC válido antes de confirmar pagamento real');
+        if (($body['paymentConfirmed'] ?? false)!==true) fail(422,'Confirmação administrativa obrigatória');
+        atomic($db, static function () use ($db,$actor,$id,$paymentRef,$simulation): void {
             $order=query_one($db,'SELECT * FROM orders WHERE id=?',[$id]);
             if (!$order || $order['status']!=='pending') fail(409,'Pedido inexistente ou não pendente');
             $time=now();
-            $reused=query_one($db,'SELECT id FROM orders WHERE lower(payment_ref)=? AND id!=?',[$paymentRef,$id]);
-            if ($reused) fail(409,'TXID já associado a outro pagamento');
+            if(!$simulation) {
+                $reused=query_one($db,'SELECT id FROM orders WHERE lower(payment_ref)=? AND id!=?',[$paymentRef,$id]);
+                if ($reused) fail(409,'TXID já associado a outro pagamento');
+            }
             if ((int)$order['expires_at']<$time) {
                 execute_sql($db,'UPDATE orders SET status="expired" WHERE id=?',[$id]);
                 fail(409,'Pedido expirado; nova contratação necessária');
@@ -856,13 +927,16 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             execute_sql($db,'INSERT INTO contracts(user_id,plan_id,plan_snapshot_json,order_id,started_at,expires_at,created_by) VALUES (?,?,?,?,?,?,?)',
               [$order['user_id'],$order['plan_id'],$order['snapshot_json'],$id,$time,$time+$days*86400,$actor['id']]);
             execute_sql($db,'UPDATE orders SET status="approved",approved_by=?,approved_at=?,payment_ref=? WHERE id=?',
-              [$actor['id'],$time,$paymentRef,$id]);
+              [$actor['id'],$time,$simulation?null:$paymentRef,$id]);
             if(in_array($order['plan_id'],['VIP_01','VIP_02','VIP_03','VIP_04'],true)) {
                 execute_sql($db,'UPDATE withdraw_requests SET vip_state="eligible"
                    WHERE user_id=? AND status="pending" AND vip_state="awaiting_vip"',
                    [$order['user_id']]);
             }
-            audit($db,(int)$actor['id'],'order.approve',(int)$order['user_id'],['orderId'=>$id,'planId'=>$order['plan_id'],'paymentTxid'=>$paymentRef]);
+            audit($db,(int)$actor['id'],$simulation?'order.approve.simulation':'order.approve',
+                (int)$order['user_id'],
+                ['orderId'=>$id,'planId'=>$order['plan_id'],'paymentTxid'=>$simulation?null:$paymentRef,
+                 'simulation'=>$simulation,'realPaymentVerified'=>!$simulation]);
         });
         json_out(['ok'=>true]);
     }
