@@ -399,9 +399,9 @@ try {
   await withdrawalPage.goto('/');
   await withdrawalPage.getByTestId('member-top-nav').waitFor({timeout:15000});
   await withdrawalPage.locator('nav button').nth(3).click();
-  await withdrawalPage.getByRole('button',{name:'Sacar'}).click();
+  await withdrawalPage.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
   await withdrawalPage.getByTestId('withdraw-request-amount').fill('1.00');
-  await withdrawalPage.getByRole('button',{name:'Registrar solicitação'}).click();
+  await withdrawalPage.getByRole('button',{name:/Registrar solicitação|Submit request|Register request|Registrar solicitud/}).click();
   const modal=withdrawalPage.getByTestId('withdraw-awaiting-vip-modal');
   await modal.waitFor({timeout:12000});
   await modal.getByText('US$ 1.00').waitFor({timeout:10000});
