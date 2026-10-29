@@ -75,9 +75,10 @@ try {
   await claimButton.waitFor({timeout:10000});
   if(await claimButton.isDisabled())throw Error('Initial daily bonus should be claimable');
   await claimButton.click();
-  await page.waitForFunction(()=>document.querySelector('[data-testid="claim-daily-rewards"]')?.hasAttribute('disabled'),null,{timeout:10000});
-  if(!(await claimButton.innerText()).match(/Próximo resgate|Next claim|Próximo reclamo/i))
-    throw Error('Claim button did not enter the 24-hour waiting state');
+  await page.waitForFunction(()=>/Próximo resgate|Next claim|Próximo reclamo/i.test(
+    document.querySelector('[data-testid="claim-daily-rewards"]')?.textContent||''),null,{timeout:10000});
+  if(!(await claimButton.isDisabled()))
+    throw Error('Daily bonus claim did not enforce the 24-hour wait');
   await page.locator('nav button').first().click();
   // Verify visual interpolation uses backend-authoritative running state and increases
   // while mining, without writing local browser balances.
