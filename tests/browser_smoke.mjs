@@ -152,6 +152,7 @@ try {
     throw Error('Compact reward grid must have two bonus tiles');
   await page.getByTestId('claim-daily-rewards').waitFor({timeout:10000});
   await page.getByTestId('referrals-in-rewards').waitFor({timeout:10000});
+  await page.screenshot({path:'release-build/rewards-slim-mobile.png',fullPage:true});
   await page.locator('nav button').nth(4).click();
   if(await page.getByRole('button',{name:/Indicações|Referrals|Referidos|Ver histórico|View history/}).count())
     throw Error('Redundant settings button is visible');
