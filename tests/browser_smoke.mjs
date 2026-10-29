@@ -306,6 +306,19 @@ try {
   await page.getByRole('button',{name:'Retry'}).click();
   await page.waitForFunction(()=>document.querySelector('[data-testid="mining-live-btc"]')?.textContent?.trim()!=='— BTC',
     null,{timeout:10000});
+  await page.evaluate(()=>{
+    const key='btc_mining_user_preferences_v1';
+    const data=JSON.parse(localStorage.getItem(key)||'{}');
+    localStorage.setItem(key,JSON.stringify({...data,theme:'light'}));
+  });
+  await page.reload();
+  await page.locator('nav button').nth(4).click();
+  const lightGold=await page.getByTestId('settings-top-miners').evaluate(el=>({
+    foreground:getComputedStyle(el).color,
+    background:getComputedStyle(el).backgroundImage,
+  }));
+  if(lightGold.foreground!=='rgb(35, 25, 5)'||!lightGold.background.includes('gradient'))
+    throw Error('Top Miners gold contrast incorrect in light theme');
   await ctx.close();
 
   const admin=await browser.newContext({viewport:{width:1280,height:800},baseURL:base});
