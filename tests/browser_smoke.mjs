@@ -51,6 +51,20 @@ try {
   await page.getByText('Bitdeer BTC').first().waitFor({timeout:15000});
   await page.locator('nav button').first().waitFor({timeout:15000});
   if(await page.locator('nav button').count()!==5)throw Error('Member navigation must have five tabs');
+  const topMenu=page.getByTestId('member-top-nav');
+  await topMenu.waitFor({timeout:10000});
+  await page.locator('nav button').nth(1).click();
+  const store=page.getByTestId('store-view');
+  await store.getByTestId('store-active-plan').waitFor({timeout:10000});
+  const figure=store.getByTestId('store-plan-illustration');
+  await figure.waitFor({timeout:10000});
+  if(await figure.evaluate(el=>el.getBoundingClientRect().height)>180)
+    throw Error('Store selected plan illustration is not slim');
+  if(await store.getByText(/Escolha um plano. Valores e condições|Choose a plan. Rates and conditions/).count())
+    throw Error('Store top banner is still visible');
+  if(await store.getByText(/Solicitações|Requests/,{exact:true}).count())
+    throw Error('Removed requests block is still visible');
+  await page.locator('nav button').first().click();
   const bonus=page.getByTestId('daily-bonus-card');
   await bonus.waitFor({timeout:10000});
   if(await bonus.locator('button').count()!==1)throw Error('Daily bonus must have one redeem button');
