@@ -105,10 +105,33 @@ export default function App() {
     }
   }
   useEffect(() => {
-    backendSession().then(user => {
+    backendSession().then(async user => {
       setAuthUser(user);
-      setActiveScreen('workspace');
-      void restoreMemberLanguage(user);
+      if (user.role !== 'member') {
+        setActiveScreen('workspace');
+        return;
+      }
+      const local = storageService.getMemberLanguage(user.id);
+      if (local) {
+        setLanguage(local);
+        setActiveScreen('workspace');
+        void restoreMemberLanguage(user);
+        return;
+      }
+      // A restored session without a device choice must still ask once.
+      // Only after a deliberate choice may a member bypass the picker.
+      try {
+        const {language:remote} = await api<{language:string|null}>('language.preference');
+        if (remote === 'pt' || remote === 'en' || remote === 'es') {
+          storageService.saveMemberLanguage(user.id,remote);
+          setLanguage(remote);
+          setActiveScreen('workspace');
+        } else {
+          setActiveScreen('language');
+        }
+      } catch {
+        setActiveScreen('language');
+      }
     }).catch(() => {}).finally(() => setCheckingSession(false));
   }, []);
 

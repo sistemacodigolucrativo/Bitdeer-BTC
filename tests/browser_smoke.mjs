@@ -22,6 +22,15 @@ try {
   const login=await ctx.request.post('/api/index.php?action=login',{
     data:{login:'browsermember',password:'BrowserMemberPassword2026'}});
   if(login.status()!==200)throw Error('Member login: '+login.status());
+  // Existing authenticated sessions without a saved choice must not silently
+  // assume Portuguese just because local defaults are set.
+  const restoredWithoutChoice=await ctx.newPage();
+  restoredWithoutChoice.on('pageerror',e=>problems.push(e.message));
+  await restoredWithoutChoice.goto('/');
+  await restoredWithoutChoice.getByRole('button',{name:'Português'}).waitFor({timeout:15000});
+  if(await restoredWithoutChoice.getByTestId('member-top-nav').count())
+    throw Error('Unchosen language silently bypassed during session restore');
+  await restoredWithoutChoice.close();
   const device=await browser.newContext({viewport:{width:390,height:844},baseURL:base,locale:'pt-BR'});
   const screen=await device.newPage();
   await screen.goto('/');
