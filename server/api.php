@@ -219,9 +219,11 @@ function ensure_member_features(PDO $db): void {
             CHECK(vip_state IN ('eligible','awaiting_vip'))");
     $db->exec('CREATE INDEX IF NOT EXISTS idx_withdraw_user ON withdraw_requests(user_id,created_at)');
     $ticketCols=array_column(query_all($db,'PRAGMA table_info(support_tickets)'),'name');
-    if(!in_array('workflow_state',$ticketCols,true))
+    if(!in_array('workflow_state',$ticketCols,true)) {
         $db->exec("ALTER TABLE support_tickets ADD COLUMN workflow_state TEXT NOT NULL DEFAULT 'open'
           CHECK(workflow_state IN ('open','replied','closed','deleted'))");
+        $db->exec('UPDATE support_tickets SET workflow_state="closed" WHERE status="resolved"');
+    }
     $db->exec("CREATE TABLE IF NOT EXISTS support_replies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       ticket_id INTEGER NOT NULL REFERENCES support_tickets(id),

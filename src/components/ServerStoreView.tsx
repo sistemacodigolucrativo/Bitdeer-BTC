@@ -19,10 +19,10 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
   const color=level>=4?'#fb7185':level===3?'#818cf8':level===2?'#38bdf8':'#60a5fa';
   const locale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const helper=language==='en'
-    ? {description:'Choose a plan. Rates and conditions come from the server.',activation:'Activation follows manual payment confirmation. No fixed deadline is guaranteed.',day:'per day',model:'Equipment illustration',current:'Current plan',choose:'Choose plan',purchase:'Request VIP activation',free:'Free account',term:'days',unavailable:'Plans are not available yet.'}
+    ? {description:'Choose a plan. Rates and conditions come from the server.',day:'per day',model:'Equipment illustration',current:'Current plan',choose:'Choose plan',purchase:'Request VIP activation',free:'Free account',term:'days',unavailable:'Plans are not available yet.'}
     : language==='es'
-    ? {description:'Elige un plan. Tarifas y condiciones proceden del servidor.',activation:'La activación requiere la confirmación manual del pago. No se garantiza un plazo fijo.',day:'por día',model:'Ilustración del equipo',current:'Plan actual',choose:'Elegir plan',purchase:'Solicitar activación VIP',free:'Cuenta gratuita',term:'días',unavailable:'Planes aún no disponibles.'}
-    : {description:'Escolha um plano. Valores e condições vêm do servidor.',activation:'Ativação após conferência manual do pagamento, sem prazo máximo garantido.',day:'por dia',model:'Representação visual do equipamento',current:'Plano atual',choose:'Escolher plano',purchase:'Solicitar ativação VIP',free:'Conta gratuita',term:'dias',unavailable:'Planos ainda não disponíveis.'};
+    ? {description:'Elige un plan. Tarifas y condiciones proceden del servidor.',day:'por día',model:'Ilustración del equipo',current:'Plan actual',choose:'Elegir plan',purchase:'Solicitar activación VIP',free:'Cuenta gratuita',term:'días',unavailable:'Planes aún no disponibles.'}
+    : {description:'Escolha um plano. Valores e condições vêm do servidor.',day:'por dia',model:'Representação visual do equipamento',current:'Plano atual',choose:'Escolher plano',purchase:'Solicitar ativação VIP',free:'Conta gratuita',term:'dias',unavailable:'Planos ainda não disponíveis.'};
   const currentPlan=plans.find(p=>p.id===activePlanId)||plans.find(p=>p.id==='FREE');
   return <section className="space-y-3" data-testid="store-view">
     {currentPlan && <div data-testid="store-active-plan" className="bg-[#171b2d] border border-[#252c45] p-3 rounded-2xl flex justify-between gap-3 items-center">

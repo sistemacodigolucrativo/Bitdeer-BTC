@@ -98,3 +98,16 @@ A auditoria textual foi realizada nos componentes React, incluindo a tela inicia
 8. **Validação:** testes automatizados verificam login primeira escolha/relogin, edição manual de idioma, alternância de telas, bônus único 24h, loja slim, indicador Top Miners, menu superior estável na rolagem, formato celular e desktop. Regras do backend e estados de saque inalterados.
 
 **Estado de publicação:** a modificação está somente na branch `implementation/php-sqlite-backend`; `main` e VPS não foram atualizadas, até homologação definitiva. O software não comprova BTC minerado real ou pagamentos em blockchain.
+
+## Ajustes de interface — mockup (11 itens)
+
+- Top Miners: 200 perfis fictícios com nomes brasileiros distribuídos, sobrenomes distintos e saldo BTC ilustrativo em ordem estritamente decrescente, com verificação automatizada.
+- Saque: título SOLICITAR SAQUE, carteira não reproduzida no formulário, valor total disponível em USD/BTC preenchido pelas opções de moeda; texto de blockchain removido.
+- Loja e checkout: textos adicionais de confirmação manual não são exibidos; preços e regras do servidor permanecem inalterados.
+- Início: contadores USD e BTC projetados continuamente a partir dos registros internos PHP/SQLite e cotação do servidor, sem inventar mineração real.
+- Pedidos: os detalhes administrativos do membro exibem TXID registrado ou identificam ausência de TXID no cenário simulado.
+- Aprovação VIP: sem coleta de TXID apenas em modo de simulação. O botão e a auditoria identificam explicitamente a aprovação como simulada, sem confirmar pagamento BTC real. Em modo real continua obrigatório TXID e conferência externa.
+- Suporte: resposta administrativa, status Respondido, fechamento, reabertura e exclusão lógica, com histórico preservado e mensagem acessível pelo membro. O legado resolvido é migrado para fechado.
+- Carteira: registros fictícios por membro armazenados em tabelas separadas mock_payment_*. Cada usuário tem 200 entradas sintéticas e 20 lotes distintos de 10; ao consumir tudo, não se repetem lotes nem se geram falsos pagamentos reais. Identificadores SIM- e aviso ostensivo distinguem a demonstração.
+
+As mudanças foram desenvolvidas na branch de trabalho, sem merge na main nem publicação em produção. Testes CI e screenshots verificam o ambiente de desenvolvimento; hospedagem real permanece fora do escopo da validação.
