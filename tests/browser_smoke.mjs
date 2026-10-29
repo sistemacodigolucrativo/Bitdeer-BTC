@@ -92,6 +92,8 @@ try {
   const displayedUsd=s=>Number(s.match(/US\$\s*([\d.]+)/)?.[1]??NaN);
   if(!(displayedUsd(secondUsd)>displayedUsd(firstUsd)))throw Error('Live mining USD not increasing');
   const displayedBtc=s=>Number(s.replace(' BTC','').trim());
+  await page.waitForFunction(()=>/^\\d+\\.\\d{8} BTC$/.test(
+    document.querySelector('[data-testid="mining-live-btc"]')?.textContent?.trim()||''),null,{timeout:15000});
   const initialBtc=displayedBtc(await page.getByTestId('mining-live-btc').innerText());
   const quoteRate=80000; // The isolated PHP CI fixture, never production.
   if(!Number.isFinite(initialBtc)||Math.abs(initialBtc-displayedUsd(secondUsd)/quoteRate)>0.000000011)
