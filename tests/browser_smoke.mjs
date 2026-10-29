@@ -332,6 +332,14 @@ try {
   }));
   if(lightGold.foreground!=='rgb(35, 25, 5)'||!lightGold.background.includes('gradient'))
     throw Error('Top Miners gold contrast incorrect in light theme');
+  const sessionResponse=await ctx.request.get('/api/index.php?action=session');
+  const sessionData=await sessionResponse.json();
+  const ticketResponse=await ctx.request.post('/api/index.php?action=support.ticket.create',{
+    headers:{'X-CSRF-Token':sessionData.csrfToken},
+    data:{subject:'Atendimento pelo navegador',message:'Precisamos testar o retorno do suporte no painel.'}
+  });
+  if(ticketResponse.status()!==201)throw Error('Support ticket create failed in browser');
+  const browserTicketId=(await ticketResponse.json()).ticket.id;
   await ctx.close();
 
   const admin=await browser.newContext({viewport:{width:1280,height:800},baseURL:base});
@@ -346,6 +354,15 @@ try {
   await adminPage.getByRole('button',{name:/Planos VIP/}).click();
   await adminPage.getByRole('button',{name:/FREE/}).click();
   await adminPage.getByText('Valor mínimo de saque (USD)').waitFor({timeout:10000});
+  await adminPage.getByRole('button',{name:'Abrir menu administrativo'}).click();
+  await adminPage.getByRole('button',{name:'Suporte',exact:true}).click();
+  await adminPage.getByText('#'+browserTicketId+' · Atendimento pelo navegador').waitFor({timeout:10000});
+  const ticketCard=adminPage.getByTestId('admin-ticket').filter({hasText:'Atendimento pelo navegador'});
+  await ticketCard.getByRole('button',{name:'Resolver / Responder'}).click();
+  await ticketCard.locator('textarea').fill('Resposta validada no navegador.');
+  await ticketCard.getByRole('button',{name:'Enviar resposta'}).click();
+  await ticketCard.getByText('Respondido').waitFor({timeout:10000});
+  await adminPage.screenshot({path:'release-build/support-admin-reply.png',fullPage:true});
   await adminPage.screenshot({path:'release-build/admin-desktop.png',fullPage:true});
   if(await adminPage.getByText('Sincronizando interface...').count())throw Error('Admin React error boundary shown');
   await admin.close();
