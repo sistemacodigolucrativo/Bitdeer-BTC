@@ -3,7 +3,7 @@
 import os,sqlite3
 
 expected={
- "FREE":(0,100,50,10000,0,7200,7200),
+ "FREE":(0,100,50,10000,0,7200,0),
  "VIP_01":(2000,300,100,20000,30,0,0),
  "VIP_02":(4000,600,150,20000,30,0,0),
  "VIP_03":(6000,1200,200,20000,30,0,0),
@@ -20,4 +20,4 @@ assert db.execute("SELECT COUNT(*) FROM referral_codes WHERE user_id=?",(founder
 assert db.execute("SELECT COUNT(*) FROM referral_events").fetchone()[0]==0
 assert db.execute("SELECT value FROM app_settings WHERE name='btc_address'").fetchone()[0]==''
 assert db.execute("SELECT value FROM app_settings WHERE name='environment_type'").fetchone()[0]=='auto'
-print("PASS: baseline plan catalog and FREE session limits")
+print("PASS: baseline plans and FREE unlimited immediate restarts")

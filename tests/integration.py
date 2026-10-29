@@ -289,7 +289,8 @@ try:
 except urllib.error.HTTPError as e:
     assert e.code == 410, ("installer",e.code)
 
-# Free plan has a bounded server-side session and cooldown; no client timing can bypass it.
+# FREE sessions remain server-limited to two hours but restart immediately.
+# Existing SQLite users may still have old cooldown timestamps: they must not block.
 bob=Client()
 bob.call("login",{"login":"bob","password":"anotherpassword123"})
 original_csrf=bob.csrf
@@ -298,9 +299,38 @@ bob.call("mining.start",{},403)
 bob.csrf=original_csrf
 free=bob.call("mining.start",{})
 assert free["plan"]["sessionSeconds"]==7200
+assert free["plan"]["restartCooldownSeconds"]==0
 assert 7150 <= free["mining"]["sessionEndsAt"]-int(time.time()) <= 7200
-bob.call("mining.stop",{})
-bob.call("mining.start",{},409)
+stopped=bob.call("mining.stop",{})
+assert stopped["mining"]["running"] is False
+assert stopped["mining"]["cooldownUntil"] is None
+immediate=bob.call("mining.start",{})
+assert immediate["mining"]["running"] is True
+assert immediate["mining"]["cooldownUntil"] is None
+# Simulate a database that predates the no-cooldown change.
+db=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
+try:
+    db.execute("UPDATE mining_state SET running=0,cooldown_until=? WHERE user_id=?",
+               (int(time.time())+7200,bob_id))
+    db.commit()
+finally: db.close()
+legacy=bob.call("mining.start",{})
+assert legacy["mining"]["cooldownUntil"] is None and legacy["mining"]["running"]
+# A naturally expired session must settle once and allow restart immediately.
+db=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
+try:
+    t=int(time.time())
+    db.execute("UPDATE mining_state SET running=1,last_accrual_at=?,session_ends_at=?,cooldown_until=? WHERE user_id=?",
+               (t-7200,t-1,t+7200,bob_id))
+    db.commit()
+finally: db.close()
+completed=bob.call("profile")
+assert not completed["mining"]["running"]
+assert completed["mining"]["cooldownUntil"] is None
+assert float(completed["mining"]["balanceUsd"])>0
+again=bob.call("mining.start",{})
+assert again["mining"]["running"]
+assert again["mining"]["sessionEndsAt"]>int(time.time())
 bob2=Client()
 bob2.call("login",{"login":"bob","password":"anotherpassword123"})
 admin.call("admin.status",{"userId":bob_id,"status":"suspended"})
@@ -322,4 +352,4 @@ finally:
 just_expired=newsession.call("profile")
 assert just_expired["plan"]["id"]=="FREE"
 assert not just_expired["mining"]["running"], "VIP mining must stop at expiry"
-print("PASS: registration, RBAC, checkout quote, admin reset, session revocation, free cooldown, VIP expiry")
+print("PASS: registration, RBAC, checkout quote, admin reset, session revocation, FREE immediate restart and VIP expiry")
