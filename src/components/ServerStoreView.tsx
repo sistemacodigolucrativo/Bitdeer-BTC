@@ -5,11 +5,14 @@ import { LanguageCode } from '../types';
 import { memberTexts } from '../i18n/memberTexts';
 
 type Props={plans:Plan[];activePlanId:string;busy:boolean;language:LanguageCode;
+  suggestedPlanId?:string|null;
   onPurchase:(id:string)=>void};
-export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,onPurchase})=>{
+export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,onPurchase,suggestedPlanId})=>{
   const t=memberTexts[language]||memberTexts.pt;
   const options=plans.filter(p=>p.id!=='FREE');
   const [choice,setChoice]=useState('');
+  useEffect(()=>{if(suggestedPlanId&&plans.some(p=>p.id===suggestedPlanId))
+    setChoice(suggestedPlanId);},[suggestedPlanId,plans]);
   useEffect(()=>{
     if(!choice&&options.length)setChoice(options[0].id);
     if(choice&&options.length&&!options.some(x=>x.id===choice))setChoice(options[0].id);

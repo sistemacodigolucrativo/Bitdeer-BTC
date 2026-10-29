@@ -3,7 +3,7 @@ import {ArrowLeft, Calendar, RefreshCw, ShieldCheck} from 'lucide-react';
 import {LanguageCode} from '../../types';
 import {api} from '../../services/api';
 
-type Contract={id:number;plan_id:string;started_at:number;expires_at:number};
+type Contract={id:number|string;plan_id:string;started_at:number;expires_at:number;adminEdited?:boolean};
 type Props={language:LanguageCode;onBack:()=>void};
 export const SubscriptionHistoryView:React.FC<Props>=({language,onBack})=>{
   const [entries,setEntries]=useState<Contract[]>([]);
@@ -42,6 +42,7 @@ export const SubscriptionHistoryView:React.FC<Props>=({language,onBack})=>{
         <p className="text-xs text-slate-400 flex gap-2"><Calendar size={14}/> {tr.start}: {new Date(x.started_at*1000).toLocaleString(loc)}</p>
         <p className="text-xs text-slate-400">{tr.end}: {new Date(x.expires_at*1000).toLocaleString(loc)}</p>
         <p className="text-xs text-amber-300">{x.expires_at>Date.now()/1000?tr.active:tr.expired}</p>
+        {x.adminEdited&&<p className="text-xs text-amber-300">{language==='en'?'Administratively edited demo history — not a verified payment':language==='es'?'Historial demostrativo editado, no pago verificado':'Histórico demonstrativo ajustado, não comprova pagamento'}</p>
       </article>)}
     </div>
   </section>;

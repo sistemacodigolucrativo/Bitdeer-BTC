@@ -57,7 +57,10 @@ export const MemberWorkspace: React.FC<{
   const [withdrawMode,setWithdrawMode]=useState<'BTC'|'USD'>('USD');
   const [withdrawAmount,setWithdrawAmount]=useState('');
   const [withdrawEdited,setWithdrawEdited]=useState(false);
-  type WithdrawRequest={id:number;usd_cents:number;btc_satoshis:number;status:'pending'|'awaiting_vip'|'approved'|'rejected';created_at:number};
+  const [withdrawPopup,setWithdrawPopup]=useState<{id:number;usdAmount:string;recommended:string}|null>(null);
+  const [storeRecommended,setStoreRecommended]=useState<string|null>(null);
+  const [purchaseHistory,setPurchaseHistory]=useState<Array<{id:number|string;plan_id:string;status:string;created_at:number;btc_sats:number;adminEdited?:boolean;simulation?:boolean}>>([]);
+  type WithdrawRequest={id:number|string;usd_cents:number;btc_satoshis:number;status:'pending'|'awaiting_vip'|'approved'|'rejected';created_at:number;adminEdited?:boolean;simulation?:boolean};
   const [withdrawHistory,setWithdrawHistory]=useState<WithdrawRequest[]>([]);
   // The PHP/SQLite profile is authoritative. Only complete USD cents can be
   // requested; fractional accruals are not counted as withdrawable cents.
@@ -133,6 +136,8 @@ export const MemberWorkspace: React.FC<{
   useEffect(()=>{
     if(page==='wallet')void api<{requests:WithdrawRequest[]}>('withdraw.mine')
       .then(x=>setWithdrawHistory(x.requests)).catch(()=>{});
+    if(page==='store')void api<{orders:typeof purchaseHistory}>('orders.mine')
+      .then(x=>setPurchaseHistory(x.orders)).catch(()=>{});
   },[page]);
   async function saveWalletForWithdrawal(){
     setBusy(true);setNotice('');
@@ -148,12 +153,17 @@ export const MemberWorkspace: React.FC<{
   async function submitWithdrawal(){
     setBusy(true);setNotice('');
     try{
-      const result=await api<{id:number;message:string}>('withdraw.request',{mode:withdrawMode,amount:withdrawAmount});
+      const result=await api<{id:number;status:'pending'|'awaiting_vip';message:string;usdAmount:string}>('withdraw.request',{mode:withdrawMode,amount:withdrawAmount});
       await reload();
       const history=await api<{requests:WithdrawRequest[]}>('withdraw.mine');
       setWithdrawHistory(history.requests);
       setWalletStep('none');setWithdrawAmount('');setPage('wallet');
       setNotice(result.message);
+      if(result.status==='awaiting_vip') {
+        const recommendation:Record<string,string>={FREE:'VIP_01',VIP_01:'VIP_02',VIP_02:'VIP_03',VIP_03:'VIP_04'};
+        const selected=recommendation[account?.plan.id??'FREE']||'VIP_01';
+        setWithdrawPopup({id:result.id,usdAmount:result.usdAmount,recommended:selected});
+      }
     }catch(e){setNotice((e as Error).message);}
     finally{setBusy(false);}
   }
@@ -203,6 +213,24 @@ export const MemberWorkspace: React.FC<{
     <button onClick={()=>{setPage(p);setNotice('');}} className={'flex flex-col items-center text-[11px] gap-1 '+(page===p?'text-white':'text-slate-400')}>
       <Icon size={20}/>{label}</button>;
   return <div className="w-full h-full flex flex-col bg-[#121526] text-white">
+    {withdrawPopup && <div role="dialog" aria-modal="true" aria-label={language==='en'?'Withdrawal registered':language==='es'?'Retiro registrado':'Saque registrado'}
+      data-testid="withdraw-awaiting-vip-modal" className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm rounded-2xl bg-[#1b2137] border border-indigo-400/40 p-5 shadow-xl space-y-4">
+        <h2 className="font-extrabold text-lg">{language==='en'?'Withdrawal request registered':language==='es'?'Solicitud de retiro registrada':'Solicitação de saque registrada'}</h2>
+        <p className="text-sm text-slate-200">{language==='en'?'Internal credits reserved: ':language==='es'?'Créditos internos descontados: ':'Créditos internos descontados: '}
+          <strong>US$ {withdrawPopup.usdAmount}</strong>.</p>
+        <p className="text-xs text-amber-300">{language==='en'?'Awaiting an eligible VIP subscription and administrative review; no BTC has been sent.':
+          language==='es'?'En espera de una suscripción VIP elegible y revisión administrativa. No se ha enviado BTC.':
+          'Aguardando assinatura VIP elegível e conferência administrativa. Nenhum BTC foi enviado.'}</p>
+        <button type="button" data-testid="withdraw-go-to-store"
+          className="w-full rounded-xl bg-indigo-600 p-3 font-bold text-sm"
+          onClick={()=>{setStoreRecommended(withdrawPopup.recommended);setWithdrawPopup(null);setPage('store');}}>
+          {language==='en'?'See VIP '+withdrawPopup.recommended:language==='es'?'Ver plan '+withdrawPopup.recommended:'Ver plano '+withdrawPopup.recommended}
+        </button>
+        <button type="button" className="w-full text-xs text-slate-300 underline"
+          onClick={()=>setWithdrawPopup(null)}>{language==='en'?'Close':language==='es'?'Cerrar':'Fechar'}</button>
+      </div>
+    </div>}
     <div className="px-5 pb-3 flex justify-between items-center border-b border-[#2b3350] shrink-0"
       style={{paddingTop:'max(12px, env(safe-area-inset-top))'}}>
       <div><strong>Bitdeer BTC</strong><p className="text-xs text-slate-400">{account?.user.login ?? user.login} · {account?.plan.id || '...'}</p></div>
@@ -304,6 +332,7 @@ export const MemberWorkspace: React.FC<{
             <h3 className="font-bold text-sm">{tr.requests}</h3>
             {withdrawHistory.map(x=><p key={x.id} className="text-xs border-b border-[#2b3350] pb-2">
               #{x.id} · US$ {(x.usd_cents/100).toFixed(2)} · {(x.btc_satoshis/1e8).toFixed(8)} BTC ({tr.equivalent}) · {x.status==='awaiting_vip'?tr.awaiting:x.status==='pending'?tr.pending:x.status==='approved'?tr.approved:tr.rejected}
+              {x.adminEdited&&<span className="block text-amber-300">{language==='en'?'Edited demo history':language==='es'?'Historial demostrativo editado':'Histórico demonstrativo ajustado'}</span>}
             </p>)}
           </section>}
           <MockPaymentFeed language={language}/>
@@ -337,6 +366,7 @@ export const MemberWorkspace: React.FC<{
         </section>}
         {page==='store' && <>
           <ServerStoreView plans={plans} activePlanId={account?.plan.id ?? 'FREE'}
+            suggestedPlanId={storeRecommended}
             language={language} busy={busy} onPurchase={planId=>void act('orders.create',{planId})}/>
           {checkout && <section className="bg-[#1b2137] border border-indigo-600/50 rounded-2xl p-4 space-y-3">
             <h3 className="font-bold">{tr.order} #{checkout.orderId} — {words.pendingPayment}</h3>
@@ -352,6 +382,13 @@ export const MemberWorkspace: React.FC<{
             </div>
             <button className="text-indigo-300 text-xs underline" onClick={()=>setCheckout(null)}>{words.close}</button>
           </section>}
+          {purchaseHistory.length>0&&<section data-testid="member-purchase-history" className="bg-[#171b2d] rounded-2xl p-3 space-y-2">
+            <h3 className="font-bold text-sm">{language==='en'?'Purchase history':language==='es'?'Historial de compras':'Histórico de compras'}</h3>
+            {purchaseHistory.map(x=><p key={x.id} className="border-b border-[#2b3350] pb-2 text-xs">
+              #{x.id} · {x.plan_id} · {x.status} · {(x.btc_sats/1e8).toFixed(8)} BTC
+              {x.adminEdited&&<span className="block text-amber-300">{language==='en'?'Administratively edited demo history':language==='es'?'Historial demostrativo editado':'Histórico demonstrativo ajustado pelo administrador'}</span>}
+            </p>)}
+          </section>}
         </>}
         {page==='history' && <>
           <h2 className="font-bold text-lg">{words.rewardLog}</h2>
@@ -363,12 +400,14 @@ export const MemberWorkspace: React.FC<{
           {ledger.accruals.map((r,i)=><div key={i} className="p-3 bg-[#1b2137] rounded-xl text-xs">
             {r.plan_id} · {new Date(r.start_ts*1000).toLocaleString(dateLocale)} — {new Date(r.end_ts*1000).toLocaleString(dateLocale)}
             <p >{words.earnedUnits}: {r.earned_units}</p>
+            {(r as {adminEdited?:boolean}).adminEdited&&<p className="text-amber-300">Histórico demonstrativo ajustado</p>
           </div>)}
           <h3 className="text-sm font-semibold">{words.dailyBonusClaims}</h3>
           {ledger.bonuses.length===0 && <p className="text-xs text-slate-400">{words.noBonus}</p>}
           {ledger.bonuses.map((r,i)=><div key={i} className="p-3 bg-[#1b2137] rounded-xl text-xs">
             {r.plan_id} · {new Date(r.claimed_at*1000).toLocaleString(dateLocale)}
             <p>{r.bonus_satoshis} {tr.satoshis} · {r.bonus_usd_units} {tr.units}</p>
+            {(r as {adminEdited?:boolean}).adminEdited&&<p className="text-amber-300">Histórico demonstrativo ajustado</p>
           </div>)}
         </>}
         {page==='profile' && <form onSubmit={e=>{e.preventDefault();void act('profile.update',profile)}} className="space-y-3">
