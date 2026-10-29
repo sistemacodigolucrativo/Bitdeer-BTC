@@ -79,12 +79,13 @@ try {
     await page.waitForTimeout(200);
     if(await page.getByText('Sincronizando interface...').count())throw Error('React error boundary shown on tab '+i);
   }
-  // Legacy settings destinations must open real member views backed by SQLite.
+  await page.locator('nav button').nth(2).click();
+  await page.getByTestId('rewards-premium').waitFor({timeout:10000});
+  await page.getByTestId('claim-daily-rewards').waitFor({timeout:10000});
+  await page.getByTestId('referrals-in-rewards').waitFor({timeout:10000});
   await page.locator('nav button').nth(4).click();
-  await page.getByRole('button',{name:/Indicações|Referrals|Referidos/}).click();
-  await page.getByText(/Histórico de indicações|Referral history|Historial de referidos/).first()
-    .waitFor({timeout:10000});
-  await page.locator('nav button').nth(4).click();
+  if(await page.getByRole('button',{name:/Indicações|Referrals|Referidos|Ver histórico|View history/}).count())
+    throw Error('Redundant settings button is visible');
   await page.getByRole('button',{name:/Top Miners|Mejores mineros/}).click();
   await page.getByText('James Hudson').waitFor({timeout:10000});
   const minerCards=page.locator('[data-testid="miner-card"]');
