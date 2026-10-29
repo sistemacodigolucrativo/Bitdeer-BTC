@@ -645,6 +645,56 @@ function api_dispatch(PDO $db, string $action, string $method): never {
           'btcAmount'=>number_format($sats/100000000,8,'.',''),
           'expiresAt'=>$quote['quoted_at']+900],201);
     }
+    if ($action === 'mock.payments.next' && $method === 'POST') {
+        $actor=require_post_csrf($db);
+        if($actor['role']!=='member') fail(403,'Apenas membros');
+        $userId=(int)$actor['id'];
+        $feed=atomic($db,static function()use($db,$userId):array {
+            $cursor=query_one($db,'SELECT next_ordinal FROM mock_payment_cursor WHERE user_id=?',[$userId]);
+            if(!$cursor) {
+                // Purely demonstrative data, never BTC transactions or real members.
+                $given=['Ana','Bruno','Carla','Daniel','Eduarda','Felipe','Gabriela',
+                    'Henrique','Isabela','João','Larissa','Marcos','Natália','Pedro',
+                    'Renata','Rafael','Camila','Tiago','Luana','Sofia'];
+                $family=['Azevedo','Barros','Costa','Dias','Esteves','Farias',
+                    'Gomes','Lopes','Mendes','Nogueira'];
+                $positions=range(0,199);
+                for($i=199;$i>0;$i--){$j=random_int(0,$i);
+                    [$positions[$i],$positions[$j]]=[$positions[$j],$positions[$i]];}
+                $time=now();
+                foreach($positions as $ordinal=>$p){
+                    $btcSats=random_int(1000,250000);
+                    // Simulated USD at a fixed illustrative rate, not an exchange quote.
+                    $usdCents=(int)round($btcSats*80000*100/100000000);
+                    execute_sql($db,'INSERT INTO mock_payment_feed
+                       (user_id,ordinal,fake_hash,display_name,usd_cents,btc_sats,occurred_at)
+                       VALUES (?,?,?,?,?,?,?)',
+                       [$userId,$ordinal,'SIM-'.bin2hex(random_bytes(16)),
+                        $given[$p%20].' '.$family[intdiv($p,20)],
+                        $usdCents,$btcSats,$time-$p*1337]);
+                }
+                execute_sql($db,'INSERT INTO mock_payment_cursor(user_id,next_ordinal) VALUES (?,0)',[$userId]);
+                $next=0;
+            } else {
+                $next=(int)$cursor['next_ordinal'];
+            }
+            if($next>=200)return ['records'=>[],'remaining'=>0,'total'=>200,'exhausted'=>true,
+                'simulation'=>true];
+            $rows=query_all($db,'SELECT fake_hash,display_name,usd_cents,btc_sats,occurred_at
+                FROM mock_payment_feed WHERE user_id=? AND ordinal>=? AND ordinal<?
+                ORDER BY ordinal ASC',[$userId,$next,$next+10]);
+            execute_sql($db,'UPDATE mock_payment_cursor SET next_ordinal=? WHERE user_id=?',
+                [$next+count($rows),$userId]);
+            return ['records'=>array_map(static fn($x)=>[
+                'hash'=>$x['fake_hash'],'name'=>$x['display_name'],
+                'valueUsd'=>number_format((int)$x['usd_cents']/100,2,'.',''),
+                'btc'=>number_format((int)$x['btc_sats']/100000000,8,'.',''),
+                'createdAt'=>(int)$x['occurred_at']],$rows),
+                'remaining'=>200-($next+count($rows)),'total'=>200,
+                'exhausted'=>($next+count($rows)>=200),'simulation'=>true];
+        });
+        json_out($feed);
+    }
     if ($action === 'withdraw.quote' && $method === 'GET') {
         $actor=auth_user($db);
         if ($actor['role']!=='member') fail(403,'Acesso restrito ao membro');
