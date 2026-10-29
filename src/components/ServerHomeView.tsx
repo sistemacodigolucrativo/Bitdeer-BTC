@@ -76,7 +76,7 @@ export const ServerHomeView: React.FC<Props> = ({
             : language==='en'?'BTC quote unavailable':language==='es'?'Cotización BTC no disponible':'Cotação BTC indisponível'}
           {quoteStatus==='unavailable'&&<button type="button" onClick={onRetryQuote}
             className="underline ml-2 text-indigo-300">{language==='en'?'Retry':language==='es'?'Reintentar':'Tentar novamente'}</button>}
-        </div>
+        </div>}
         <p data-testid="mining-live-usd" className="text-xs text-slate-300 mt-1">
           {language==='en'?'Estimated USD equivalent':language==='es'?'Equivalencia estimada en USD':'Equivalência estimada em USD'}:
           {' '}US$ {liveBalanceUsd.toFixed(8)}
