@@ -22,6 +22,29 @@ try {
   const login=await ctx.request.post('/api/index.php?action=login',{
     data:{login:'browsermember',password:'BrowserMemberPassword2026'}});
   if(login.status()!==200)throw Error('Member login: '+login.status());
+  const device=await browser.newContext({viewport:{width:390,height:844},baseURL:base,locale:'pt-BR'});
+  const screen=await device.newPage();
+  await screen.goto('/');
+  await screen.locator('input[autocomplete="username"]').fill('browsermember');
+  await screen.locator('input[autocomplete="current-password"]').fill('BrowserMemberPassword2026');
+  await screen.locator('button[type="submit"]').click();
+  await screen.getByRole('button',{name:'Português'}).waitFor({timeout:15000});
+  await screen.getByRole('button',{name:'Português'}).click();
+  await screen.getByRole('button',{name:'Continuar'}).click();
+  const enter=screen.getByRole('button',{name:'ENTRAR NO PAINEL'});
+  await enter.waitFor({timeout:15000});
+  await enter.click({timeout:15000});
+  await screen.getByTestId('member-top-nav').waitFor({timeout:15000});
+  await screen.getByRole('button',{name:'Sair'}).click();
+  await screen.locator('input[autocomplete="username"]').fill('browsermember');
+  await screen.locator('input[autocomplete="current-password"]').fill('BrowserMemberPassword2026');
+  await screen.locator('button[type="submit"]').click();
+  await enter.waitFor({timeout:15000});
+  if(await screen.getByRole('button',{name:'Português'}).count())
+    throw Error('Language picker was repeated after previously saving the language');
+  await enter.click({timeout:15000});
+  await screen.getByTestId('member-top-nav').waitFor({timeout:15000});
+  await device.close();
   const page=await ctx.newPage();
   page.on('pageerror',e=>problems.push(e.message));
   await page.goto('/');
