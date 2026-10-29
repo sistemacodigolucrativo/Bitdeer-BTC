@@ -67,7 +67,7 @@ try {
   await store.getByTestId('store-active-plan').waitFor({timeout:10000});
   const figure=store.getByTestId('store-plan-illustration');
   await figure.waitFor({timeout:10000});
-  if(await figure.evaluate(el=>el.getBoundingClientRect().height)>180)
+  if(await figure.evaluate(el=>el.getBoundingClientRect().height)>112)
     throw Error('Store selected plan illustration is not slim');
   if(await store.getByText(/Escolha um plano. Valores e condições|Choose a plan. Rates and conditions/).count())
     throw Error('Store top banner is still visible');
@@ -145,6 +145,9 @@ try {
   }
   await page.locator('nav button').nth(2).click();
   await page.getByTestId('rewards-premium').waitFor({timeout:10000});
+  await page.getByTestId('rewards-compact-claim').waitFor({timeout:10000});
+  if(await page.getByTestId('reward-bonus-grid').locator(':scope > div').count()!==2)
+    throw Error('Compact reward grid must have two bonus tiles');
   await page.getByTestId('claim-daily-rewards').waitFor({timeout:10000});
   await page.getByTestId('referrals-in-rewards').waitFor({timeout:10000});
   await page.locator('nav button').nth(4).click();
