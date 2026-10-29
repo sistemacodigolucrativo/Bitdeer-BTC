@@ -379,7 +379,7 @@ for batch in range(20):
     assert page["total"]==200 and len(page["records"])==10
     assert page["remaining"]==200-10*(batch+1)
     all_fake.extend(x["hash"] for x in page["records"])
-    assert all(x.startswith("SIM-") and float(x["btc"])>0
+    assert all(x["hash"].startswith("SIM-") and float(x["btc"])>0
       and float(x["valueUsd"])>0 for x in page["records"])
 assert len(all_fake)==len(set(all_fake))==200
 assert newsession.call("mock.payments.next",{})["records"]==[]
