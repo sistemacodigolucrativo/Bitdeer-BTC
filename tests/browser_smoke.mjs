@@ -64,6 +64,8 @@ try {
     throw Error('Store top banner is still visible');
   if(await store.getByText(/Solicitações|Requests/,{exact:true}).count())
     throw Error('Removed requests block is still visible');
+  if(await store.getByText(/Ativação após conferência manual|Activation follows manual payment confirmation|La activación requiere la confirmación manual/).count())
+    throw Error('Store activation explanatory text must not be shown');
   await page.locator('nav button').first().click();
   const bonus=page.getByTestId('daily-bonus-card');
   await bonus.waitFor({timeout:10000});
@@ -154,6 +156,23 @@ try {
   if(new Set(minerNames).size!==200)throw Error('Duplicated Top Miners profile name');
   const brazilCount=await minerCards.filter({hasText:/Brasil|Brazil/}).count();
   if(brazilCount<60)throw Error('Top Miners must have at least 60 Brazilian profiles');
+  const ranked=await minerCards.evaluateAll(cards=>cards.map((card,i)=>({
+    name:card.querySelector('h3')?.textContent?.trim()??'',
+    brazilian:!!card.querySelector('span[aria-label="Brazil"]'),
+    btc:Number((card.querySelector('p.font-mono')?.textContent??'').replace(' BTC','').trim()),
+    rank:i
+  })));
+  const brazilian=ranked.filter(x=>x.brazilian);
+  if(brazilian.length!==61)throw Error('Top Miners should contain 61 Brazilian profiles');
+  const familyNames=brazilian.map(x=>x.name.split(' ').at(-1));
+  if(new Set(familyNames).size!==brazilian.length)
+    throw Error('A Brazilian surname was repeated in the Top Miners ranking');
+  if(ranked.some((x,i)=>i>0&&x.name.split(' ')[0]===ranked[i-1].name.split(' ')[0]))
+    throw Error('Adjacent miners share the same first name');
+  if(ranked.some((x,i)=>i>0&&!(ranked[i-1].btc>x.btc)))
+    throw Error('Top Miners BTC balances must descend in ranking order');
+  if(brazilian.at(-1).rank<185 || brazilian[1].rank>18)
+    throw Error('Brazilian profiles must be distributed across the whole ranking');
   await page.screenshot({path:'release-build/top-miners-mobile.png',fullPage:true});
   await page.getByText(/Ranking demonstrativo|Demonstration ranking|Ranking demostrativo/i).waitFor({timeout:10000});
   const navBox=await topMenu.boundingBox();
@@ -185,15 +204,36 @@ try {
   if(await page.getByRole('button',{name:/Editar carteira|Edit wallet|Editar billetera/}).count())
     throw Error('Saved BTC wallet address card should be hidden');
   await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
-  await page.getByText(/Solicitar saque interno|Request internal withdrawal|Solicitar retiro interno/).waitFor({timeout:10000});
+  await page.getByTestId('withdraw-form-heading').getByText('SOLICITAR SAQUE',{exact:true}).waitFor({timeout:10000});
+  const amountField=page.getByTestId('withdraw-request-amount');
+  const totalUsd=(await page.getByTestId('withdraw-available-amount').innerText())
+    .replace(/[^0-9,\.]/g,'').replace(',','.');
+  await page.waitForFunction(expected=>document.querySelector('[data-testid="withdraw-request-amount"]')?.value===expected,
+    Number(totalUsd).toFixed(2),{timeout:10000});
+  const displayedAddress=page.getByText('bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z',{exact:true});
+  if(await displayedAddress.count())
+    throw Error('Saved BTC wallet address must not appear in the withdrawal form');
   if(await page.getByText(/O servidor verifica a cotação ao registrar|The server verifies the rate when|El servidor verifica la cotización al/).count())
     throw Error('BTC quote details should be removed from withdrawal form');
+  await amountField.fill('0.12');
+  await page.waitForTimeout(700);
+  if(await amountField.inputValue()!=='0.12')
+    throw Error('Autofill must not overwrite a manually edited withdrawal amount');
   await page.getByRole('button',{name:'Bitcoin (BTC)'}).click();
   await page.getByTestId('withdraw-available-card').getByText(/Saldo disponível em BTC|Available balance in BTC|Saldo disponible en BTC/)
     .waitFor({timeout:10000});
+  const totalBtc=(await page.getByTestId('withdraw-available-amount').innerText()).replace(' BTC','').trim();
+  await page.waitForFunction(expected=>document.querySelector('[data-testid="withdraw-request-amount"]')?.value===expected,
+    totalBtc,{timeout:10000});
+  if(!/^\d+\.\d{8}$/.test(await amountField.inputValue()))
+    throw Error('BTC autofill must use exactly eight decimal places');
   await page.getByRole('button',{name:/Dólar \(USD\)|Dollar \(USD\)/}).click();
   await page.getByTestId('withdraw-available-card').getByText(/Saldo disponível em USD|Available balance in USD|Saldo disponible en USD/)
     .waitFor({timeout:10000});
+  await page.waitForFunction(expected=>document.querySelector('[data-testid="withdraw-request-amount"]')?.value===expected,
+    Number(totalUsd).toFixed(2),{timeout:10000});
+  if(await page.getByText(/não saldo BTC na blockchain|not a blockchain BTC balance|no es saldo BTC en blockchain/).count())
+    throw Error('Removed blockchain phrase is still visible in the withdrawal card');
   await page.getByRole('button',{name:/Voltar à carteira|Back to wallet|Volver a la billetera/}).click();
   await page.locator('nav button').nth(4).click();
   await page.getByRole('button',{name:/Meu perfil|My profile|Mi perfil/}).click();
@@ -231,8 +271,8 @@ try {
   await page.locator('nav button').nth(4).click();
   await page.locator('select').selectOption('en');
   await page.locator('nav button').nth(1).click();
-  await page.getByText('Activation follows manual payment confirmation. No fixed deadline is guaranteed.')
-    .waitFor({timeout:10000});
+  if(await page.getByText('Activation follows manual payment confirmation. No fixed deadline is guaranteed.').count())
+    throw Error('Removed activation note appears in English store');
   await page.locator('nav button').nth(3).click();
   await page.getByRole('button',{name:'Withdraw'}).click();
   await page.getByRole('heading',{name:'Withdrawal Request'}).waitFor({timeout:10000});
