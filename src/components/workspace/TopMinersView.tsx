@@ -17,7 +17,7 @@ const originals=[
 {name:'Javier Torres',country:'Mexico',flag:'🇲🇽',message:'Technology connects us',btc:'0.64289010',usd:'51,609.5112'},
 ];
 const brFirst=['Ana','Bruno','Camila','Daniel','Eduarda','Felipe','Gabriela','Henrique','Isabela','João','Larissa','Marcos','Natália','Pedro','Renata'];
-const brLast=['Almeida','Barbosa','Carvalho','Dias','Ferreira','Gomes','Lima','Martins','Nascimento','Oliveira','Pereira','Ribeiro'];
+const brLast=["Almeida","Barbosa","Carvalho","Dias","Ferreira","Gomes","Lima","Martins","Nascimento","Oliveira","Pereira","Ribeiro","Rocha","Rodrigues","Santos","Silva","Souza","Costa","Araújo","Batista","Cardoso","Correia","Duarte","Farias","Freitas","Guimarães","Leite","Lopes","Machado","Marques","Monteiro","Moreira","Moura","Nogueira","Pacheco","Peixoto","Pinheiro","Queiroz","Ramos","Reis","Rezende","Sampaio","Santana","Teixeira","Vieira","Azevedo","Barros","Borges","Campos","Cavalcanti","Figueiredo","Fonseca","Macedo","Magalhães","Neves","Paiva","Prado","Tavares","Viana","Xavier"];
 const brCities=['São Paulo','Rio de Janeiro','Belo Horizonte','Curitiba','Salvador','Recife','Fortaleza','Manaus','Belém','Florianópolis','Vitória','Goiânia','Campinas','Santos','Natal','João Pessoa','Maceió','Aracaju','Campo Grande','Porto Alegre'];
 const regions: Array<[string,string,string,string,string,string]>=[
   ['🇺🇸','USA','Austin','James|Michael|David|Daniel|Ryan','Parker|Carter|Williams|Collins|Murphy','Seattle|Chicago|Denver|Boston|Atlanta'],
@@ -39,31 +39,45 @@ const testimonials=['Exploring digital technologies','Building a connected commu
   'Innovation without borders','Discovering new opportunities','Connected through technology'];
 export const showcase: Miner[] = (()=>{
   const result:Miner[]=[];
-  const add=(name:string,country:string,flag:string,location:string,i:number)=>{
-    // Unique deterministic amount, descending order. Display only — not a payout claim.
-    const btcSats=99047281-i*300617;
-    result.push({name,country,flag,location,message:testimonials[i%testimonials.length],btcSats});
+  const add=(name:string,country:string,flag:string,location:string)=>{
+    // BTC amounts are intentionally illustrative, strictly descending by rank.
+    const rank=result.length;
+    const btcSats=423000000-rank*1965713;
+    result.push({name,country,flag,location,message:testimonials[rank%testimonials.length],btcSats});
   };
-  for(const x of originals){
-    const i=result.length;
-    add(x.name,x.country,x.flag,x.country,i);
+  for(const x of originals) add(x.name,x.country,x.flag,x.country);
+  let brazilianIndex=0;
+  let internationalIndex=0;
+  // Spread the 60 additional Brazilian profiles across all remaining 190 ranks.
+  for(let position=0;position<190;position++){
+    const isBrazilian=Math.floor((position+1)*60/190)>Math.floor(position*60/190);
+    if(isBrazilian){
+      const i=brazilianIndex++;
+      let first=brFirst[i%brFirst.length];
+      if(first===result[result.length-1]?.name.split(' ')[0])
+        first=brFirst[(i+1)%brFirst.length];
+      const name=first+' '+brLast[i];
+      const city=brCities[i%brCities.length];
+      add(name,'Brazil','🇧🇷',city+', Brasil');
+    } else {
+      const i=internationalIndex++;
+      const [flag,country,capital,given,surnames,cities]=regions[i%regions.length];
+      const j=Math.floor(i/regions.length);
+      const first=given.split('|')[j%5];
+      const last=surnames.split('|')[(j%5+Math.floor(j/5))%5];
+      const places=[capital,...cities.split('|')];
+      add(first+' '+last,country,flag,places[j%places.length]+', '+country);
+    }
   }
-  for(let i=0;i<60;i++){
-    const name=brFirst[i%brFirst.length]+' '+brLast[Math.floor(i/brFirst.length)%brLast.length];
-    const city=brCities[i%brCities.length];
-    add(name,'Brazil','🇧🇷',city+', Brasil',result.length);
-  }
-  for(let i=0;i<130;i++){
-    const [flag,country,capital,given,surnames,cities]=regions[i%regions.length];
-    const j=Math.floor(i/regions.length); // 0..9 for each country
-    const first=given.split('|')[j%5];
-    const last=surnames.split('|')[(j%5+Math.floor(j/5))%5];
-    const places=[capital,...cities.split('|')];
-    add(first+' '+last,country,flag,places[j%places.length]+', '+country,result.length);
-  }
-  if(result.length!==200 || new Set(result.map(x=>x.name)).size!==200 ||
-     new Set(result.map(x=>x.btcSats)).size!==200) {
-    throw new Error('Top Miners demonstration data must contain 200 unique profiles and BTC amounts');
+  const brazilian=result.filter(x=>x.country==='Brazil');
+  const surnames=brazilian.map(x=>x.name.split(' ').at(-1));
+  const firstNames=result.map(x=>x.name.split(' ')[0]);
+  if(result.length!==200 || brazilianIndex!==60 || internationalIndex!==130 ||
+     brazilian.length!==61 || new Set(result.map(x=>x.name)).size!==200 ||
+     new Set(surnames).size!==brazilian.length ||
+     result.some((x,i)=>i>0 && x.btcSats>=result[i-1].btcSats) ||
+     firstNames.some((x,i)=>i>0 && x===firstNames[i-1])) {
+    throw new Error('Top Miners must have distributed Brazilian names, unique surnames, no adjacent duplicate first names and descending BTC amounts');
   }
   return result;
 })();
