@@ -2,7 +2,7 @@
 export const memberViewCopy = {
   pt: {
     back:'Voltar à carteira', title:'Solicitação de Saque', walletRegistration:'Cadastrar carteira Bitcoin',
-    request:'Solicitar saque interno', close:'Fechar', address:'Endereço de recebimento BTC',
+    request:'SOLICITAR SAQUE', close:'Fechar', address:'Endereço de recebimento BTC',
     save:'Salvar carteira', wallet:'Carteira', quote:'Cotação BTC/USD',
     unavailable:'indisponível', source:'Fonte', rateNotice:'O servidor verifica a cotação ao registrar o pedido.',
     minimum:'Saque mínimo', period:'Prazo do plano', days:'dia(s)', usd:'Dólar (USD)',
@@ -17,7 +17,7 @@ export const memberViewCopy = {
   },
   en: {
     back:'Back to wallet', title:'Withdrawal Request', walletRegistration:'Register Bitcoin wallet',
-    request:'Request internal withdrawal', close:'Close', address:'Receiving BTC address',
+    request:'REQUEST WITHDRAWAL', close:'Close', address:'Receiving BTC address',
     save:'Save wallet', wallet:'Wallet', quote:'BTC/USD rate',
     unavailable:'unavailable', source:'Source', rateNotice:'The server verifies the rate when the request is submitted.',
     minimum:'Minimum withdrawal', period:'Plan waiting period', days:'day(s)', usd:'Dollar (USD)',
@@ -32,7 +32,7 @@ export const memberViewCopy = {
   },
   es: {
     back:'Volver a la billetera', title:'Solicitud de Retiro', walletRegistration:'Registrar billetera Bitcoin',
-    request:'Solicitar retiro interno', close:'Cerrar', address:'Dirección BTC de recepción',
+    request:'SOLICITAR RETIRO', close:'Cerrar', address:'Dirección BTC de recepción',
     save:'Guardar billetera', wallet:'Billetera', quote:'Cotización BTC/USD',
     unavailable:'no disponible', source:'Fuente', rateNotice:'El servidor verifica la cotización al registrar la solicitud.',
     minimum:'Retiro mínimo', period:'Plazo del plan', days:'día(s)', usd:'Dólar (USD)',

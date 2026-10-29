@@ -67,7 +67,6 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
         <div className="flex justify-between"><span className="text-slate-400">{helper.choose}</span><strong>{selected.name}</strong></div>
         <div className="flex justify-between"><span className="text-slate-400">{t.price}</span><strong>US$ {selected.priceUsd}</strong></div>
         <div className="flex justify-between"><span className="text-slate-400">{t.currentPlan}</span><strong>{activePlanId}</strong></div>
-        <p className="text-xs text-amber-300">{helper.activation}</p>
         <button disabled={busy||selected.id===activePlanId}
           onClick={()=>onPurchase(selected.id)}
           className="w-full py-3 rounded-xl bg-[#f43f5e] hover:bg-[#e11d48] disabled:opacity-40 text-xs font-bold flex gap-2 items-center justify-center">

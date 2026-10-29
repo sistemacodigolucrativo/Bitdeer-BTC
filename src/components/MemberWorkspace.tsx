@@ -55,6 +55,7 @@ export const MemberWorkspace: React.FC<{
   const [walletDraft,setWalletDraft]=useState('');
   const [withdrawMode,setWithdrawMode]=useState<'BTC'|'USD'>('USD');
   const [withdrawAmount,setWithdrawAmount]=useState('');
+  const [withdrawEdited,setWithdrawEdited]=useState(false);
   type WithdrawRequest={id:number;usd_cents:number;btc_satoshis:number;status:'pending'|'awaiting_vip'|'approved'|'rejected';created_at:number};
   const [withdrawHistory,setWithdrawHistory]=useState<WithdrawRequest[]>([]);
   // The PHP/SQLite profile is authoritative. Only complete USD cents can be
@@ -81,6 +82,15 @@ export const MemberWorkspace: React.FC<{
     : availableBtcSatoshis!==null
       ? (availableBtcSatoshis/100000000).toFixed(8)+' BTC'
       : '— BTC';
+  // Fill from the same SQLite-backed, already-reserved balance as the card.
+  // Never overwrite a member's manual edit; a tab change resets autofill.
+  // If the public quote is unavailable, BTC remains empty rather than guessed.
+  const defaultWithdrawAmount=withdrawMode==='USD'
+    ? (availableUsdCents/100).toFixed(2)
+    : availableBtcSatoshis===null ? '' : (availableBtcSatoshis/100000000).toFixed(8);
+  useEffect(()=>{
+    if(walletStep==='amount'&&!withdrawEdited) setWithdrawAmount(defaultWithdrawAmount);
+  },[walletStep,withdrawEdited,defaultWithdrawAmount]);
   useEffect(() => {
     if (!checkout) {setCheckoutQr('');return;}
     const bip21='bitcoin:'+checkout.btcAddress+'?amount='+checkout.btcAmount;
@@ -223,9 +233,9 @@ export const MemberWorkspace: React.FC<{
           {availableAmount}
         </strong>
         <p className="text-[10px] leading-tight text-slate-400">
-          {language==='en'?'Internal credits available for requests; this is not a blockchain BTC balance.':
-            language==='es'?'Créditos internos disponibles para solicitudes; no es saldo BTC en blockchain.':
-            'Créditos internos disponíveis para solicitação, não saldo BTC na blockchain.'}
+          {language==='en'?'Internal credits available for requests.':
+            language==='es'?'Créditos internos disponibles para solicitudes.':
+            'Créditos internos disponíveis para solicitação.'}
         </p>
         {withdrawMode==='BTC'&&!validQuote&&<div className="flex flex-wrap gap-2 items-center text-[10px] text-amber-300">
           <span role="status">{quoteStatus==='loading'
@@ -237,7 +247,7 @@ export const MemberWorkspace: React.FC<{
       </section>
           {walletStep!=='none' && <section className="bg-[#1b2137] border border-indigo-500 rounded-2xl p-4 space-y-3">
             <div className="flex justify-between items-center">
-              <h3 className="font-bold">{walletStep==='register'?tr.walletRegistration:tr.request}</h3>
+              <h3 data-testid="withdraw-form-heading" className="font-bold">{walletStep==='register'?tr.walletRegistration:tr.request}</h3>
               <button onClick={()=>{setWalletStep('none');setPage('wallet');}} className="text-xs underline">{tr.close}</button>
             </div>
             {walletStep==='register' ? <form className="space-y-3" onSubmit={e=>{e.preventDefault();void saveWalletForWithdrawal();}}>
@@ -247,18 +257,18 @@ export const MemberWorkspace: React.FC<{
               </label>
               <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{tr.save}</button>
             </form> : <form className="space-y-3" onSubmit={e=>{e.preventDefault();void submitWithdrawal();}}>
-              <p className="text-xs text-slate-300 break-all">{tr.wallet}: {account?.profile.walletAddress}</p>
               <p className="text-xs text-slate-400">{tr.minimum}: US$ {account?.plan.withdrawMinUsd??'0.00'}.
                 {tr.period}: {account?.plan.withdrawAfterDays??0} {tr.days}.</p>
               <div className="flex gap-2">
                 <button type="button" className={'flex-1 p-2 rounded-lg '+(withdrawMode==='USD'?'bg-indigo-600':'bg-[#11182c]')}
-                  onClick={()=>{setWithdrawMode('USD');setWithdrawAmount('');}}>{tr.usd}</button>
+                  onClick={()=>{setWithdrawMode('USD');setWithdrawEdited(false);}}>{tr.usd}</button>
                 <button type="button" className={'flex-1 p-2 rounded-lg '+(withdrawMode==='BTC'?'bg-indigo-600':'bg-[#11182c]')}
-                  onClick={()=>{setWithdrawMode('BTC');setWithdrawAmount('');}}>{tr.btc}</button>
+                  onClick={()=>{setWithdrawMode('BTC');setWithdrawEdited(false);}}>{tr.btc}</button>
               </div>
               <label className="block text-sm">{tr.amount} ({withdrawMode})
-                <input required type="number" min="0.00000001" step={withdrawMode==='BTC'?'0.00000001':'0.01'}
-                  value={withdrawAmount} onChange={e=>setWithdrawAmount(e.target.value)}
+                <input data-testid="withdraw-request-amount" required type="number"
+                  min={withdrawMode==='BTC'?'0.00000001':'0.01'} step={withdrawMode==='BTC'?'0.00000001':'0.01'}
+                  value={withdrawAmount} onChange={e=>{setWithdrawEdited(true);setWithdrawAmount(e.target.value);}}
                   className="w-full mt-2 bg-[#11182c] rounded-lg p-3"/>
               </label>
               <button disabled={busy || !freshBtcUsd} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{tr.submit}</button>
@@ -284,6 +294,8 @@ export const MemberWorkspace: React.FC<{
             onWithdraw={()=>{
               setWalletDraft(account?.profile.walletAddress??'');
               setWalletStep(account?.profile.walletAddress?'amount':'register');
+              setWithdrawMode('USD');
+              setWithdrawEdited(false);
               setWithdrawAmount('');
               setPage('withdraw');
             }}/>
