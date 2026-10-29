@@ -171,6 +171,19 @@ try {
   await page.getByRole('button',{name:'Withdraw'}).click();
   await page.getByRole('heading',{name:'Withdrawal Request'}).waitFor({timeout:10000});
   await page.getByRole('button',{name:'Back to wallet'}).click();
+  // A real outage cannot be described indefinitely as "being calculated".
+  // Stub only the public quote request in this browser, not any PHP balances.
+  const quotePattern='**/api/index.php?action=withdraw.quote';
+  await page.route(quotePattern,route=>route.fulfill({
+    status:503,contentType:'application/json',body:'{"error":"BTC/USD price unavailable"}'
+  }));
+  await page.reload();
+  await page.locator('nav button').first().click();
+  await page.getByText('BTC quote unavailable',{exact:true}).waitFor({timeout:10000});
+  await page.unroute(quotePattern);
+  await page.getByRole('button',{name:'Retry'}).click();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="mining-live-btc"]')?.textContent?.trim()!=='— BTC',
+    null,{timeout:10000});
   await ctx.close();
 
   const admin=await browser.newContext({viewport:{width:1280,height:800},baseURL:base});
