@@ -65,6 +65,7 @@ try {
   await page.locator('nav button').nth(1).click();
   const store=page.getByTestId('store-view');
   await store.getByTestId('store-active-plan').waitFor({timeout:10000});
+  if(await store.evaluate(el=>el.firstElementChild?.getAttribute('data-testid'))!=='store-active-plan')throw Error('Active plan must appear first');
   const figure=store.getByTestId('store-plan-illustration');
   await figure.waitFor({timeout:10000});
   if(await figure.evaluate(el=>el.getBoundingClientRect().height)>112)
