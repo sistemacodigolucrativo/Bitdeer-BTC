@@ -72,6 +72,7 @@ try {
     throw Error('Store selected plan illustration is not slim');
   if(await store.getByText(/Escolha um plano. Valores e condições|Choose a plan. Rates and conditions/).count())
     throw Error('Store top banner is still visible');
+  await page.screenshot({path:'release-build/store-slim-mobile.png',fullPage:true});
   if(await store.getByText(/Solicitações|Requests/,{exact:true}).count())
     throw Error('Removed requests block is still visible');
   if(await store.getByText(/Ativação após conferência manual|Activation follows manual payment confirmation|La activación requiere la confirmación manual/).count())
