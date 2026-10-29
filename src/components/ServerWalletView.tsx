@@ -4,8 +4,9 @@ import {MemberData} from '../services/api';
 import {LanguageCode} from '../types';
 type RecordItem={start_ts:number;earned_units:number;end_ts:number;plan_id:string};
 type Props={account:MemberData|null;language:LanguageCode;accruals:RecordItem[];
-  onEdit:()=>void;onHistory:()=>void;onWithdraw:()=>void;btcUsd:number|null;liveBalanceUsd:number;};
-export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit,onHistory,onWithdraw,btcUsd,liveBalanceUsd})=>{
+  onEdit:()=>void;onHistory:()=>void;onWithdraw:()=>void;liveBtc:string|null;
+  quoteStatus:'loading'|'ready'|'unavailable';onRetryQuote:()=>void;liveBalanceUsd:number;};
+export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit,onHistory,onWithdraw,liveBtc,quoteStatus,onRetryQuote,liveBalanceUsd})=>{
   const locale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const t=language==='en'
     ?{title:'Wallet',balance:'Internal rewards',sats:'Internal satoshi bonuses',
@@ -39,8 +40,15 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
       <p className="text-xs text-slate-400">{t.balance}</p>
       <p data-testid="wallet-live-usd" className="text-3xl font-extrabold font-mono mt-3">US$ {account?liveBalanceUsd.toFixed(8):'0.00000000'}</p>
       <p className="text-xs text-slate-300 mt-3">{t.btc}:
-        <strong className="font-mono ml-2">{btcUsd && account ? (liveBalanceUsd/btcUsd).toFixed(8) : '—'} BTC</strong>
+        <strong data-testid="wallet-live-btc" className="font-mono ml-2">{liveBtc??'—'} BTC</strong>
       </p>
+      {liveBtc===null&&<p role="status" className="text-[11px] text-slate-400 mt-1">
+        {quoteStatus==='loading'
+          ? language==='en'?'BTC quote being calculated':language==='es'?'Cotización BTC en cálculo':'Cotação BTC sendo calculada'
+          : language==='en'?'BTC quote unavailable':language==='es'?'Cotización BTC no disponible':'Cotação BTC indisponível'}
+        {quoteStatus==='unavailable'&&<button type="button" onClick={onRetryQuote}
+          className="ml-2 underline text-indigo-300">{language==='en'?'Retry':language==='es'?'Reintentar':'Tentar novamente'}</button>}
+      </p>}
       <button onClick={onWithdraw} className="mt-4 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold w-full">{t.withdraw}</button>
       <p className="flex gap-2 items-center text-xs text-slate-300 mt-4">
         <Coins size={18} className="text-amber-400"/>{t.sats}: {(account?.mining.bonusSatoshisBalance||0).toLocaleString(locale)}

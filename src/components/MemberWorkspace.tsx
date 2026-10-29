@@ -52,6 +52,7 @@ export const MemberWorkspace: React.FC<{
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [btcUsd,setBtcUsd]=useState<number|null>(null);
+  const [quotePhase,setQuotePhase]=useState<'loading'|'ready'|'unavailable'>('loading');
   const [btcQuote,setBtcQuote]=useState<{source:string;quotedAt:number}|null>(null);
   const [walletStep,setWalletStep]=useState<'none'|'register'|'amount'>('none');
   const [walletDraft,setWalletDraft]=useState('');
@@ -64,12 +65,17 @@ export const MemberWorkspace: React.FC<{
   // The BTC figure is a quote-based equivalent of that very same USD balance,
   // not a separately held on-chain Bitcoin balance.
   const liveBalanceUsd = projectInternalBalance(account,lastSnapshotReceivedAt,balanceTick);
-  const freshBtcUsd=btcQuote && balanceTick/1000-btcQuote.quotedAt<60 ? btcUsd : null;
+  const freshBtcUsd=btcQuote && balanceTick/1000-btcQuote.quotedAt>=0 &&
+    balanceTick/1000-btcQuote.quotedAt<60 && btcUsd!==null && btcUsd>0 ? btcUsd : null;
+  // Both screens show the same one-second USD projection converted with a
+  // single backend-issued BTC/USD quote, rounded to eight decimal places.
+  const liveBtc=freshBtcUsd===null ? null : (liveBalanceUsd/freshBtcUsd).toFixed(8);
+  const quoteStatus=freshBtcUsd!==null?'ready':quotePhase==='loading'?'loading':'unavailable';
   const availableUsdCents=Math.max(0,Math.floor((account?.mining.balanceUnits??0)/8640000));
   const validQuote=freshBtcUsd!==null && Number.isFinite(freshBtcUsd) && freshBtcUsd>0 &&
     btcQuote!==null && Date.now()/1000-btcQuote.quotedAt>=0 &&
     Date.now()/1000-btcQuote.quotedAt<60;
-  const availableBtcSatoshis=validQuote&&btcUsd!==null
+  const availableBtcSatoshis=validQuote&&freshBtcUsd!==null
     ? Math.floor(availableUsdCents/100*100000000/freshBtcUsd)
     : null;
   const availableAmount=withdrawMode==='USD'
@@ -97,16 +103,23 @@ export const MemberWorkspace: React.FC<{
       acceptSnapshot(data); setProfile({...data.profile,phone:formatBrazilianPhone(data.profile.phone)});
     } catch(e) { setNotice((e as Error).message); }
   }
-  useEffect(() => {
-    const quote=()=>void api<{btcUsd:string;source:string;quotedAt:number}>('withdraw.quote')
+  function refreshQuote() {
+    setQuotePhase('loading');
+    return api<{btcUsd:string;source:string;quotedAt:number}>('withdraw.quote')
       .then(x=>{
         const rate=Number(x.btcUsd);
-        if(!Number.isFinite(rate)||rate<=0)throw new Error('Cotação inválida');
+        if(!Number.isFinite(rate)||rate<=0||!Number.isFinite(x.quotedAt))
+          throw new Error('Cotação inválida');
         setBtcUsd(rate);
         setBtcQuote({source:x.source,quotedAt:x.quotedAt});
-      }).catch(()=>{setBtcUsd(null);setBtcQuote(null);});
-    quote();
-    const timer=window.setInterval(quote,45000);
+        setQuotePhase('ready');
+      }).catch(()=>{
+        setBtcUsd(null);setBtcQuote(null);setQuotePhase('unavailable');
+      });
+  }
+  useEffect(() => {
+    void refreshQuote();
+    const timer=window.setInterval(()=>{void refreshQuote();},45000);
     return ()=>window.clearInterval(timer);
   }, []);
   useEffect(()=>{
@@ -196,24 +209,28 @@ export const MemberWorkspace: React.FC<{
       <h2 className="text-xl font-bold">{tr.title}</h2>
       {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-amber-300 text-xs">{notice}</p>}
       <section data-testid="withdraw-available-card" aria-live="polite"
-        className="rounded-2xl border border-[#303b59] bg-[#191e32] px-4 py-5 space-y-2">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+        className="rounded-xl border border-[#303b59] bg-[#191e32] px-3 py-2 space-y-1">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-300">
           {withdrawMode==='USD'
             ? language==='en'?'Available balance in USD':language==='es'?'Saldo disponible en USD':'Saldo disponível em USD'
             : language==='en'?'Available balance in BTC':language==='es'?'Saldo disponible en BTC':'Saldo disponível em BTC'}
         </p>
         <strong data-testid="withdraw-available-amount"
-          className="block text-2xl font-black font-mono text-emerald-300 tabular-nums break-all">
+          className="block text-xl leading-tight font-black font-mono text-emerald-300 tabular-nums break-all">
           {availableAmount}
         </strong>
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[10px] leading-tight text-slate-400">
           {language==='en'?'Internal credits available for requests; this is not a blockchain BTC balance.':
             language==='es'?'Créditos internos disponibles para solicitudes; no es saldo BTC en blockchain.':
             'Créditos internos disponíveis para solicitação, não saldo BTC na blockchain.'}
         </p>
-        {withdrawMode==='BTC'&&!validQuote&&<p className="text-xs text-amber-300">
-          {language==='en'?'BTC/USD quote unavailable.':language==='es'?'Cotización BTC/USD no disponible.':'Cotação BTC/USD indisponível.'}
-        </p>}
+        {withdrawMode==='BTC'&&!validQuote&&<div className="flex flex-wrap gap-2 items-center text-[10px] text-amber-300">
+          <span role="status">{quoteStatus==='loading'
+            ? language==='en'?'BTC quote being calculated':language==='es'?'Cotización BTC en cálculo':'Cotação BTC sendo calculada'
+            : language==='en'?'BTC quote unavailable':language==='es'?'Cotización BTC no disponible':'Cotação BTC indisponível'}</span>
+          {quoteStatus==='unavailable'&&<button type="button" onClick={()=>{void refreshQuote();}}
+            className="underline text-indigo-300">{language==='en'?'Retry':language==='es'?'Reintentar':'Tentar novamente'}</button>}
+        </div>}
       </section>
           {walletStep!=='none' && <section className="bg-[#1b2137] border border-indigo-500 rounded-2xl p-4 space-y-3">
             <div className="flex justify-between items-center">
@@ -228,9 +245,6 @@ export const MemberWorkspace: React.FC<{
               <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{tr.save}</button>
             </form> : <form className="space-y-3" onSubmit={e=>{e.preventDefault();void submitWithdrawal();}}>
               <p className="text-xs text-slate-300 break-all">{tr.wallet}: {account?.profile.walletAddress}</p>
-              <p className="text-xs text-slate-400">{tr.quote}: {freshBtcUsd?('US$ '+freshBtcUsd.toFixed(2)+'/BTC'):tr.unavailable}.
-              {btcQuote&&<> {tr.source}: {btcQuote.source} · {new Date(btcQuote.quotedAt*1000).toLocaleTimeString(dateLocale)}.</>}
-              {' '}{tr.rateNotice}</p>
               <p className="text-xs text-slate-400">{tr.minimum}: US$ {account?.plan.withdrawMinUsd??'0.00'}.
                 {tr.period}: {account?.plan.withdrawAfterDays??0} {tr.days}.</p>
               <div className="flex gap-2">
@@ -244,7 +258,6 @@ export const MemberWorkspace: React.FC<{
                   value={withdrawAmount} onChange={e=>setWithdrawAmount(e.target.value)}
                   className="w-full mt-2 bg-[#11182c] rounded-lg p-3"/>
               </label>
-              <p className="text-xs text-amber-300">{tr.terms}</p>
               <button disabled={busy || !freshBtcUsd} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{tr.submit}</button>
             </form>}
           </section>}
@@ -255,14 +268,16 @@ export const MemberWorkspace: React.FC<{
       page==='referrals' ? <ReferralHistoryView language={language} onBack={()=>setPage('settings')}/> :
       <div className="flex-1 overflow-auto p-5 space-y-4">
         {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
-        {page==='home' && <ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} language={language} btcUsd={freshBtcUsd} busy={busy}
+        {page==='home' && <ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} quoteStatus={quoteStatus}
+          onRetryQuote={()=>{void refreshQuote();}} language={language} busy={busy}
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
           onRefresh={()=>void reload()} onRewards={()=>setPage('reward')}
           onHistory={()=>setPage('history')}/>}
         {page==='reward' && <ServerRewardView account={account} language={language} busy={busy}
           onClaim={()=>void act('rewards.claim')} onHistory={()=>setPage('history')}/>}
         {page==='wallet' && <>
-          <ServerWalletView account={account} liveBalanceUsd={liveBalanceUsd} language={language} btcUsd={freshBtcUsd}
+          <ServerWalletView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} quoteStatus={quoteStatus}
+            onRetryQuote={()=>{void refreshQuote();}} language={language}
             accruals={ledger.accruals} onEdit={()=>setPage('profile')} onHistory={()=>setPage('history')}
             onWithdraw={()=>{
               setWalletDraft(account?.profile.walletAddress??'');

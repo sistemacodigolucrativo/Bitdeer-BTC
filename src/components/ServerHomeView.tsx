@@ -5,7 +5,8 @@ import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
 
 type Props = {
-  account: MemberData | null; language: LanguageCode; busy: boolean; btcUsd:number|null; liveBalanceUsd:number;
+  account: MemberData | null; language: LanguageCode; busy: boolean;
+  liveBtc:string|null; quoteStatus:'loading'|'ready'|'unavailable'; onRetryQuote:()=>void; liveBalanceUsd:number;
   onStart: () => void; onStop: () => void; onRefresh: () => void;
   onRewards: () => void; onHistory: () => void;
 };
@@ -13,21 +14,21 @@ const details = {
   pt:{balance:'Saldo interno (USD)',mining:'Painel de mineração', active:'Mineração ativa',
     inactive:'Sessão inativa',check:'Atualizar',history:'Histórico',rewards:'Recompensas',
     daily:'Bônus diário',claim:'Resgatar bônus',notice:'Registros internos de recompensas. Não comprovam Bitcoin efetivamente minerado.',
-    faq:'Perguntas frequentes',session:'Fim da sessão',cooldown:'Próxima sessão',
+    faq:'Perguntas frequentes',session:'Fim da sessão',
     vip:'Plano VIP válido até', noHash:'Capacidade de mineração'},
   en:{balance:'Internal USD balance',mining:'Mining panel', active:'Mining running',
     inactive:'Mining stopped',check:'Refresh',history:'History',rewards:'Rewards',
     daily:'Daily bonus',claim:'Claim bonus',notice:'Internal rewards only. This does not prove actual Bitcoin mining.',
-    faq:'Frequently asked questions',session:'Session ends',cooldown:'Next session',
+    faq:'Frequently asked questions',session:'Session ends',
     vip:'VIP plan expires', noHash:'Mining capacity'},
   es:{balance:'Saldo interno USD',mining:'Panel de minería', active:'Minería activa',
     inactive:'Minería detenida',check:'Actualizar',history:'Historial',rewards:'Recompensas',
     daily:'Bono diario',claim:'Reclamar bono',notice:'Recompensas internas, no prueba de minería real de Bitcoin.',
-    faq:'Preguntas frecuentes',session:'Fin de sesión',cooldown:'Próxima sesión',
+    faq:'Preguntas frecuentes',session:'Fin de sesión',
     vip:'Plan VIP hasta', noHash:'Capacidad de minería'}
 };
 export const ServerHomeView: React.FC<Props> = ({
-  account,language,busy,btcUsd,liveBalanceUsd,onStart,onStop,onRefresh,onRewards,onHistory
+  account,language,busy,liveBtc,quoteStatus,onRetryQuote,liveBalanceUsd,onStart,onStop,onRefresh,onRewards,onHistory
 }) => {
   const t=translations[language]?.home ?? translations.pt.home;
   const d=details[language] ?? details.pt;
@@ -37,14 +38,14 @@ export const ServerHomeView: React.FC<Props> = ({
     const timer=setInterval(()=>setClock(Date.now()),1000);
     return ()=>clearInterval(timer);
   },[]);
-  const status=account?.mining.running ?? false;
+  const status=!!account?.mining.running &&
+    (account.mining.sessionEndsAt===null || account.mining.sessionEndsAt>clock/1000) &&
+    (account.plan.expiresAt===null || account.plan.expiresAt>clock/1000);
   const ends=account?.mining.sessionEndsAt;
   const seconds=ends ? Math.max(0,ends-Math.floor(clock/1000)):0;
   const remaining=Math.floor(seconds/60).toString().padStart(2,'0')+':'+
     (seconds%60).toString().padStart(2,'0');
-  const inCooldown=!!(account?.mining.cooldownUntil && account.mining.cooldownUntil>clock/1000);
   const isVip=account?.plan.id!=='FREE' && account?.plan.id!==undefined;
-  const estimatedBtc=btcUsd && btcUsd>0 ? (liveBalanceUsd/btcUsd).toFixed(8) : '—';
   const stamp=(v:number)=>new Date(v*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR');
   return <div className="space-y-4 select-none pb-4">
     <div className="flex items-center gap-3 bg-[#171b2d] border border-[#252c45] rounded-2xl p-3 shadow-sm">
@@ -68,7 +69,14 @@ export const ServerHomeView: React.FC<Props> = ({
         <p className="text-[11px] text-slate-400">
           {language==='en'?'Bitcoin counter - BTC':language==='es'?'Contador de Bitcoin - BTC':'Contador de Bitcoin - BTC'}
         </p>
-        <strong className="text-2xl font-bold font-mono text-amber-300">{estimatedBtc} BTC</strong>
+        <strong data-testid="mining-live-btc" className="text-2xl font-bold font-mono text-amber-300">{liveBtc??'—'} BTC</strong>
+        {liveBtc===null&&<div className="text-[10px] text-slate-400 mt-1" role="status">
+          {quoteStatus==='loading'
+            ? language==='en'?'BTC quote being calculated':language==='es'?'Cotización BTC en cálculo':'Cotação BTC sendo calculada'
+            : language==='en'?'BTC quote unavailable':language==='es'?'Cotización BTC no disponible':'Cotação BTC indisponível'}
+          {quoteStatus==='unavailable'&&<button type="button" onClick={onRetryQuote}
+            className="underline ml-2 text-indigo-300">{language==='en'?'Retry':language==='es'?'Reintentar':'Tentar novamente'}</button>}
+        </div>
         <p data-testid="mining-live-usd" className="text-xs text-slate-300 mt-1">
           {language==='en'?'Estimated USD equivalent':language==='es'?'Equivalencia estimada en USD':'Equivalência estimada em USD'}:
           {' '}US$ {liveBalanceUsd.toFixed(8)}
@@ -100,13 +108,12 @@ export const ServerHomeView: React.FC<Props> = ({
         </svg>
       </div>
       <button onClick={status?onStop:onStart}
-        disabled={busy || (!status && inCooldown)}
+        disabled={busy}
         className={'w-full py-4 px-4 rounded-2xl font-bold text-sm flex justify-center items-center gap-2 disabled:opacity-40 '+
           (status?'bg-emerald-600 hover:bg-emerald-500':'bg-[#f43f5e] hover:bg-[#e11d48]')}>
         {status?<><Zap size={18}/>{t.stopMining}{ends?' • '+remaining:''}</>:t.startMining}
       </button>
-      {ends!==null && ends!==undefined && <p className="mt-3 flex items-center gap-2 text-xs text-slate-400"><Clock size={14}/>{d.session}: {stamp(ends)}</p>}
-      {inCooldown && <p className="mt-2 text-xs text-amber-300">{d.cooldown}: {stamp(account!.mining.cooldownUntil!)}</p>}
+      {status && ends!==null && ends!==undefined && <p className="mt-3 flex items-center gap-2 text-xs text-slate-400"><Clock size={14}/>{d.session}: {stamp(ends)}</p>}
       {isVip && account?.plan.expiresAt && <p className="mt-2 text-xs text-slate-400">{d.vip}: {stamp(account.plan.expiresAt)}</p>}
     </section>
     <section data-testid="daily-bonus-card" aria-label={d.daily}
