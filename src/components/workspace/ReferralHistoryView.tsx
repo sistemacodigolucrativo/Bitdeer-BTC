@@ -5,8 +5,8 @@ import {LanguageCode} from '../../types';
 
 type History={id:number;referredAlias:string;rewardUsd:string;createdAt:number};
 type Data={code:string;history:History[];totalUsd:string;count:number;unit:string};
-type Props={language:LanguageCode;onBack:()=>void};
-export const ReferralHistoryView:React.FC<Props>=({language,onBack})=>{
+type Props={language:LanguageCode;onBack?:()=>void;embedded?:boolean};
+export const ReferralHistoryView:React.FC<Props>=({language,onBack,embedded=false})=>{
   const [data,setData]=useState<Data|null>(null);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
@@ -32,21 +32,26 @@ export const ReferralHistoryView:React.FC<Props>=({language,onBack})=>{
     try{await navigator.clipboard.writeText(link);setNotice(copy.copy);}
     catch{setNotice(link);}
   };
-  return <section className="flex-1 flex flex-col bg-[#121626] text-white overflow-hidden">
-    <header className="p-4 border-b border-[#232943] flex justify-between items-center">
-      <button onClick={onBack} aria-label="Voltar"><ArrowLeft size={20}/></button>
-      <strong>{copy.title}</strong>
-      <button onClick={()=>void refresh()} aria-label="Atualizar"><RefreshCw size={18}/></button>
+  const backLabel=language==='en'?'Back':language==='es'?'Volver':'Voltar';
+  const refreshLabel=language==='en'?'Refresh':language==='es'?'Actualizar':'Atualizar';
+  return <section data-testid="referrals-in-rewards"
+    className={embedded?'rounded-2xl border border-[#2a3350] bg-[#151b2e] p-3 space-y-3':
+      'flex-1 flex flex-col bg-[#121626] text-white overflow-hidden'}>
+    <header className={embedded?'flex items-center justify-between gap-3':'p-4 border-b border-[#232943] flex justify-between items-center'}>
+      {!embedded&&<button onClick={onBack} aria-label={backLabel}><ArrowLeft size={20}/></button>}
+      <strong className="text-sm flex items-center gap-2"><Users size={17} className="text-indigo-300"/>{copy.title}</strong>
+      <button onClick={()=>void refresh()} aria-label={refreshLabel}
+        className="p-2 bg-[#242c47] rounded-lg"><RefreshCw size={16}/></button>
     </header>
-    <div className="p-4 space-y-4 overflow-y-auto">
+    <div className={embedded?'space-y-3':'p-4 space-y-4 overflow-y-auto'}>
       {error&&<p className="text-amber-300 text-xs" role="alert">{error}</p>}
       {notice&&<p className="text-emerald-300 text-xs" role="status">{notice}</p>}
-      {data&&<><div className="bg-[#1b2137] border border-[#272e4b] rounded-2xl p-4 space-y-3">
+      {data&&<><div className="bg-[#1b2137] border border-[#272e4b] rounded-xl p-3 space-y-2">
         <p className="text-xs text-slate-400">{copy.total}</p>
-        <strong className="text-2xl">US$ {data.totalUsd}</strong>
+        <strong className="text-xl">US$ {data.totalUsd}</strong>
         <p className="text-xs"><Users size={14} className="inline"/> {copy.registrations}: {data.count}</p>
         <div className="text-xs font-mono bg-[#101627] p-3 rounded-xl">{data.code}</div>
-        <button className="w-full bg-indigo-600 p-3 rounded-xl text-xs flex gap-2 justify-center"
+        <button className="w-full bg-indigo-600 p-2 rounded-xl text-xs font-semibold flex gap-2 justify-center"
           onClick={()=>void share()}><Copy size={16}/>{copy.copy}</button>
         <p className="text-xs text-amber-300">{copy.warn}</p>
       </div>
