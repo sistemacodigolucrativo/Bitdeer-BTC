@@ -3,11 +3,12 @@ import { AuthUser, Plan, api } from '../../services/api';
 import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headphones, Menu, ChevronDown, ChevronUp } from 'lucide-react';
 
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
-type MemberDetails = {member: Member & {phone: string;wallet_address:string}; contracts:Array<{id:number;plan_id:string;started_at:number;expires_at:number}>;orders:Array<{id:number;plan_id:string;status:string}>;balanceUsd:string;bonusSatoshis:number};
+type MemberDetails = {member: Member & {phone: string;wallet_address:string}; contracts:Array<{id:number;plan_id:string;started_at:number;expires_at:number}>;orders:Array<{id:number;plan_id:string;status:string;payment_ref:string|null}>;balanceUsd:string;bonusSatoshis:number};
 type Order = {id:number; user_id:number; login:string; plan_id:string; status:string; created_at:number;btc_sats:number;quote_source:string;payment_ref?:string|null};
 type Withdraw = {id:number;user_id:number;login:string;plan_id:string;btc_address:string;usd_cents:number;btc_satoshis:number;status:'pending'|'awaiting_vip'|'approved'|'rejected';created_at:number;reference:string};
 type Ticket = {id:number;user_id:number;login:string;subject:string;message:string;
-  status:'open'|'resolved';notification_status:'pending'|'accepted'|'failed';created_at:number};
+  status:'open'|'resolved';ticket_state:'open'|'replied'|'closed';admin_reply:string|null;
+  notification_status:'pending'|'accepted'|'failed';created_at:number};
 export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({user,onLogout}) => {
   const [section,setSection]=useState<'overview'|'members'|'plans'|'orders'|'settings'|'audit'|'tickets'|'withdrawals'>('overview');
   const [menuOpen,setMenuOpen]=useState(false);
@@ -17,6 +18,8 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   const [plans,setPlans]=useState<Plan[]>([]);
   const [orders,setOrders]=useState<Order[]>([]);
   const [tickets,setTickets]=useState<Ticket[]>([]);
+  const [replyTicket,setReplyTicket]=useState<number|null>(null);
+  const [replyMessage,setReplyMessage]=useState('');
   const [withdrawals,setWithdrawals]=useState<Withdraw[]>([]);
   const [filter,setFilter]=useState('');
   const [statusFilter,setStatusFilter]=useState('');
@@ -201,6 +204,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
             <h4 className="font-bold text-xs">Últimos pedidos</h4>
             {details.orders.map(o=><div key={o.id} className="text-xs p-2 border-b border-[#2b3350]">
               Pedido #{o.id} · {o.plan_id} · {o.status}
+              <p className="font-mono text-slate-400 break-all mt-1">TXID: {o.payment_ref || (o.status==='approved'?'Não existe — aprovação simulada':'Não informado')}</p>
             </div>)}
           </section>}
           <button className="text-indigo-300 underline" onClick={()=>setDetails(null)}>Fechar detalhes</button>
@@ -325,33 +329,46 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
               void change('admin.order.reject',{orderId:o.id,reason:reason.trim()});
             }
           }}>Rejeitar pedido</button>}
-          {o.status==='pending' && <button disabled={busy} className={btn} onClick={()=>{
-            const txid = window.prompt('Informe o TXID da transferência BTC confirmada na blockchain (64 caracteres hexadecimais).');
-            if (!txid) return;
-            if(!/^[a-fA-F0-9]{64}$/.test(txid.trim())) {
-              setNotice('TXID inválido. Nenhum plano foi ativado.');return;
+          {o.status==='pending' && <button data-testid="admin-approve-simulation"
+            disabled={busy} className={btn} onClick={()=>{
+            if(window.confirm('Aprovar somente como simulação interna? Nenhum pagamento BTC real foi confirmado.')) {
+              void change('admin.order.approve',{orderId:o.id,paymentConfirmed:true,simulationConfirmed:true});
             }
-            if(window.confirm('Confirma que este TXID corresponde ao valor e ao endereço do pedido e que o pagamento foi verificado independentemente?')) {
-              void change('admin.order.approve',{orderId:o.id,paymentConfirmed:true,paymentReference:txid.trim()});
-            }
-          }}>Confirmar pagamento e ativar</button>}
+          }}>Aprovar simulação e ativar VIP</button>}
         </article>)}
       </div>}
       {section==='tickets' && <div className="space-y-3">
         {tickets.length===0 && <p className="text-sm text-slate-400">Nenhum ticket registrado.</p>}
-        {tickets.map(t=><article key={t.id} className="p-4 rounded-xl bg-[#1b2137] border border-[#2b3350] space-y-2">
+        {tickets.map(t=><article key={t.id} data-testid="admin-ticket" className="p-4 rounded-xl bg-[#1b2137] border border-[#2b3350] space-y-2">
           <p className="font-bold text-sm">#{t.id} · {t.subject}</p>
-          <p className="text-xs text-slate-400">{t.login} · {t.status==='open'?'Aberto':'Resolvido'} · notificação: {t.notification_status==='pending'?'Pendente':t.notification_status==='accepted'?'Encaminhada':'Falhou'}</p>
+          <p className="text-xs text-slate-400">{t.login} · {t.ticket_state==='replied'?'Respondido':t.ticket_state==='closed'?'Fechado':'Aberto'} · notificação: {t.notification_status==='pending'?'Pendente':t.notification_status==='accepted'?'Encaminhada':'Falhou'}</p>
           <p className="whitespace-pre-wrap text-sm">{t.message}</p>
+          {t.admin_reply&&<p className="whitespace-pre-wrap text-xs text-emerald-200">Resposta registrada: {t.admin_reply}</p>}
           <p className="text-xs text-slate-400">{new Date(t.created_at*1000).toLocaleString('pt-BR')}</p>
           <div className="flex flex-wrap gap-2">
-            <button disabled={busy} className={btn} onClick={()=>void change('admin.support.status',{
-              ticketId:t.id,status:t.status==='open'?'resolved':'open'
-            })}>{t.status==='open'?'Resolver':'Reabrir'}</button>
+            {t.ticket_state!=='closed'&&<button disabled={busy} className={btn}
+              onClick={()=>{setReplyTicket(t.id);setReplyMessage('');}}>Resolver / Responder</button>}
+            {t.ticket_state==='closed'
+              ? <button disabled={busy} className={btn} onClick={()=>void change('admin.support.manage',{ticketId:t.id,operation:'reopen'})}>Reabrir</button>
+              : <button disabled={busy} className={btn} onClick={()=>void change('admin.support.manage',{ticketId:t.id,operation:'close'})}>Fechar / Trancar</button>}
+            <button disabled={busy} className={btn} onClick={()=>{
+              if(window.confirm('Excluir este ticket da listagem? O registro de auditoria será preservado.'))
+                void change('admin.support.manage',{ticketId:t.id,operation:'delete'});
+            }}>Excluir</button>
             <button disabled={busy} className={btn} onClick={()=>void change('admin.support.notify',{ticketId:t.id})}>
               Solicitar envio por e-mail
             </button>
           </div>
+          {replyTicket===t.id&&<form data-testid="admin-ticket-reply" className="border-t border-[#2b3350] pt-3 space-y-2"
+            onSubmit={e=>{e.preventDefault();void change('admin.support.reply',{ticketId:t.id,message:replyMessage}).then(()=>{setReplyTicket(null);setReplyMessage('');});}}>
+            <label className="block text-sm">Responder ticket
+              <textarea required minLength={2} maxLength={2500} rows={4}
+                value={replyMessage} onChange={e=>setReplyMessage(e.target.value)}
+                className="mt-2 w-full p-3 bg-[#101629] border border-[#333a57] rounded-xl"/>
+            </label>
+            <button disabled={busy||replyMessage.trim().length<2} className={btn}>Enviar resposta</button>
+            <button type="button" className="text-slate-400 underline text-xs ml-2" onClick={()=>setReplyTicket(null)}>Cancelar</button>
+          </form>}
         </article>)}
       </div>}
       {section==='audit' && <div className="space-y-2">

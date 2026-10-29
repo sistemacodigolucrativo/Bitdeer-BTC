@@ -5,6 +5,7 @@ import { api } from '../../services/api';
 
 type Props = {language: LanguageCode; onBack: () => void};
 type Ticket = {id:number;subject:string;message:string;status:'open'|'resolved';
+  ticket_state:'open'|'replied'|'closed';admin_reply:string|null;
   notification_status:'pending'|'accepted'|'failed';created_at:number};
 const draftKey = 'bitdeer_support_draft_v2';
 const labels = {
@@ -100,8 +101,12 @@ export const CustomerSupportView: React.FC<Props> = ({language,onBack}) => {
         {tickets.map(ticket=><article key={ticket.id}
           className="bg-[#1e2338] p-3 rounded-xl text-xs border border-[#2b3350] space-y-1">
           <strong>#{ticket.id} · {ticket.subject}</strong>
-          <p>{ticket.status==='resolved'?tr.resolved:tr.open} · {new Date(ticket.created_at*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR')}</p>
+          <p>{ticket.ticket_state==='replied'?(language==='en'?'Answered':language==='es'?'Respondido':'Respondido'):ticket.ticket_state==='closed'?(language==='en'?'Closed':language==='es'?'Cerrado':'Fechado'):tr.open} · {new Date(ticket.created_at*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR')}</p>
           <p className="text-slate-300 whitespace-pre-wrap">{ticket.message}</p>
+          {ticket.admin_reply&&<div data-testid="member-ticket-reply" className="border-t border-[#3d465c] mt-2 pt-2 text-emerald-200">
+            <p className="font-semibold mb-1">{language==='en'?'Support reply':language==='es'?'Respuesta del soporte':'Resposta do suporte'}</p>
+            <p className="whitespace-pre-wrap">{ticket.admin_reply}</p>
+          </div>}
           <p className="text-slate-400">{ticket.notification_status==='accepted'?tr.accepted:tr.unconfirmed}</p>
         </article>)}
       </section>

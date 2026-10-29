@@ -8,6 +8,7 @@ import QRCode from 'qrcode';
 import { ServerHomeView } from './ServerHomeView';
 import { ServerStoreView } from './ServerStoreView';
 import { ServerWalletView } from './ServerWalletView';
+import { MockPaymentFeed } from './MockPaymentFeed';
 import { formatBrazilianPhone, validBrazilianPhone } from '../utils/phone';
 import { projectInternalBalance } from '../utils/projectInternalBalance';
 import { ServerRewardView } from './ServerRewardView';
@@ -305,6 +306,7 @@ export const MemberWorkspace: React.FC<{
               #{x.id} · US$ {(x.usd_cents/100).toFixed(2)} · {(x.btc_satoshis/1e8).toFixed(8)} BTC ({tr.equivalent}) · {x.status==='awaiting_vip'?tr.awaiting:x.status==='pending'?tr.pending:x.status==='approved'?tr.approved:tr.rejected}
             </p>)}
           </section>}
+          <MockPaymentFeed language={language}/>
         </>}
         {page==='settings' && <section className="space-y-3">
           <h2 className="text-lg font-bold">{words.settings}</h2>
