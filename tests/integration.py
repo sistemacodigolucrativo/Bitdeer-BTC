@@ -375,7 +375,7 @@ assert all(t["id"]!=replyTicket["id"] for t in admin.call("admin.support.tickets
 
 # The mock wallet always shows just ten fresh fictional payments across the
 # viewer's current and previous local dates, priced against a verified quote.
-guest.call("mock.payments.latest",{"timezone":"America/Sao_Paulo"},401)
+Client().call("mock.payments.latest",{"timezone":"America/Sao_Paulo"},401)
 admin.call("mock.payments.latest",{"timezone":"America/Sao_Paulo"},403)
 newsession.call("mock.payments.latest",{"timezone":"Invalid/Zone"},422)
 all_fake=[]
