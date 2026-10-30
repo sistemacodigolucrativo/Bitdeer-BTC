@@ -286,8 +286,7 @@ export const MemberWorkspace: React.FC<{
               </label>
               <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{tr.save}</button>
             </form> : <form className="space-y-3" onSubmit={e=>{e.preventDefault();void submitWithdrawal();}}>
-              <p className="text-xs text-slate-400">{tr.minimum}: US$ {account?.plan.withdrawMinUsd??'0.00'}.
-                {tr.period}: {account?.plan.withdrawAfterDays??0} {tr.days}.</p>
+              <p className="text-xs text-slate-400">{tr.minimum}: US$ {account?.plan.withdrawMinUsd??'0.00'}.</p>
               <div className="flex gap-2">
                 <button type="button" className={'flex-1 p-2 rounded-lg '+(withdrawMode==='USD'?'bg-indigo-600':'bg-[#11182c]')}
                   onClick={()=>{setWithdrawMode('USD');setWithdrawEdited(false);}}>{tr.usd}</button>
@@ -328,12 +327,21 @@ export const MemberWorkspace: React.FC<{
               setWithdrawAmount('');
               setPage('withdraw');
             }}/>
-          {withdrawHistory.length>0 && <section className="bg-[#171b2d] rounded-2xl p-4 space-y-2">
+          {withdrawHistory.length>0 && <section className="bg-[#171b2d] rounded-2xl p-4 space-y-2 min-w-0">
             <h3 className="font-bold text-sm">{tr.requests}</h3>
-            {withdrawHistory.map(x=><p key={x.id} className="text-xs border-b border-[#2b3350] pb-2">
-              #{x.id} · US$ {(x.usd_cents/100).toFixed(2)} · {(x.btc_satoshis/1e8).toFixed(8)} BTC ({tr.equivalent}) · {x.status==='awaiting_vip'?tr.awaiting:x.status==='pending'?tr.pending:x.status==='approved'?tr.approved:tr.rejected}
-              {x.adminEdited&&<span className="block text-amber-300">{language==='en'?'Edited demo history':language==='es'?'Historial demostrativo editado':'Histórico demonstrativo ajustado'}</span>}
-            </p>)}
+            <div data-testid="withdraw-history-scroll" className="w-full max-w-full overflow-x-auto overscroll-x-contain touch-pan-x" tabIndex={0}
+              aria-label={tr.requests}>
+              <div className="min-w-max space-y-2">
+                {withdrawHistory.map(x=><div key={x.id} data-testid="withdraw-history-row"
+                  className="w-full min-w-max whitespace-nowrap text-xs border-b border-[#2b3350] pb-2 flex items-center gap-3">
+                  <span>#{x.id}</span>
+                  <span>US$ {(x.usd_cents/100).toFixed(2)}</span>
+                  <span>{(x.btc_satoshis/1e8).toFixed(8)} BTC ({tr.equivalent})</span>
+                  <span>{x.status==='awaiting_vip'?tr.awaiting:x.status==='pending'?tr.pending:x.status==='approved'?tr.approved:tr.rejected}</span>
+                  {x.adminEdited&&<span className="text-amber-300">{language==='en'?'Edited demo history':language==='es'?'Historial demostrativo editado':'Histórico demonstrativo ajustado'}</span>}
+                </div>)}
+              </div>
+            </div>
           </section>}
           <MockPaymentFeed language={language}/>
         </>}
