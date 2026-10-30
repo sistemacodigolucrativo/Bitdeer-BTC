@@ -297,7 +297,6 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         </div>}
       </>}
       {section==='withdrawals' && <section className="space-y-3">
-        <p className="text-xs text-amber-300">Solicitações de créditos internos. Nenhum Bitcoin é enviado automaticamente.</p>
         {withdrawals.length===0&&<p className="text-xs text-slate-400">Nenhum saque registrado.</p>}
         {withdrawals.map(w=><article key={w.id} className="bg-[#1b2137] rounded-xl border border-[#2b3350] p-4 space-y-2">
           <strong>Solicitação #{w.id} · {w.login}</strong>
