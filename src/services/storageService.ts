@@ -112,6 +112,20 @@ class StorageService {
   /**
    * Reset preferences (useful for testing)
    */
+  /** Member-scoped preference prevents one member's language leaking to another on shared devices. */
+  public getMemberLanguage(id:number): LanguageCode | null {
+    try {
+      const value=localStorage.getItem('btc_member_language_'+id);
+      return value==='en'||value==='es'||value==='pt'?value:null;
+    } catch {return null;}
+  }
+
+  public saveMemberLanguage(id:number,language:LanguageCode): void {
+    try {localStorage.setItem('btc_member_language_'+id,language);}
+    catch { /* SQLite and in-memory preference remain available. */ }
+    this.savePreferences({language,isFirstLaunch:false});
+  }
+
   public reset(): void {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(STORAGE_KEY);

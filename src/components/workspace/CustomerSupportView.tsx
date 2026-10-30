@@ -1,150 +1,115 @@
-import React, { useState } from 'react';
-import { ArrowLeft, FilePlus, Check, Paperclip, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ArrowLeft, Mail, Send, Trash2, RefreshCw } from 'lucide-react';
 import { LanguageCode } from '../../types';
-import { storageService } from '../../services/storageService';
+import { api } from '../../services/api';
 
-interface CustomerSupportViewProps {
-  language: LanguageCode;
-  onBack: () => void;
-}
-
-export const CustomerSupportView: React.FC<CustomerSupportViewProps> = ({
-  onBack
-}) => {
-  const prefs = storageService.getPreferences();
-  const [name, setName] = useState(prefs.userName || 'Marcelo Robadel de Souza');
-  const [email, setEmail] = useState(prefs.userEmail || 'sistemacodigolucrativo@gmail.com');
-  const [message, setMessage] = useState('');
-  const [attachmentName, setAttachmentName] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim()) return;
-
-    setSubmitted(true);
-    setTimeout(() => {
-      setMessage('');
-      setAttachmentName(null);
-      setSubmitted(false);
-      onBack();
-    }, 2000);
-  };
-
-  const handleSimulateAttach = () => {
-    setAttachmentName('error_screenshot_log.png');
-  };
-
-  return (
-    <div className="w-full flex-1 flex flex-col bg-[#121626] text-white select-none overflow-hidden animate-in slide-in-from-right duration-200">
-      {/* Top Header */}
-      <div className="p-4 flex items-center justify-between border-b border-[#232943] bg-[#141829]">
-        <button
-          onClick={onBack}
-          className="w-9 h-9 rounded-full bg-[#1b2137] hover:bg-[#232b47] flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-5 h-5" />
+type Props = {language: LanguageCode; onBack: () => void};
+type Ticket = {id:number;subject:string;message:string;status:'open'|'resolved';
+  ticket_state:'open'|'replied'|'closed';admin_reply:string|null;
+  notification_status:'pending'|'accepted'|'failed';created_at:number};
+const draftKey = 'bitdeer_support_draft_v2';
+const labels = {
+  pt: {title:'Atendimento',subject:'Assunto',message:'Descreva sua solicitação',
+    submit:'Abrir ticket',refresh:'Atualizar',clear:'Limpar rascunho',
+    history:'Meus tickets',email:'Abrir e-mail para suporte',back:'Voltar',empty:'Nenhum atendimento registrado.',resolved:'Resolvido',open:'Aberto',submitted:'Informe assunto e descrição.',emailMissing:'O endereço de suporte não está disponível.',emailNotice:'Confirme o envio no seu aplicativo de e-mail.',created:'registrado.',accepted:'E-mail encaminhado ao transporte, entrega não verificada',unconfirmed:'Notificação por e-mail pendente ou indisponível',transported:'Notificação encaminhada ao transporte de e-mail; recebimento não confirmado.',notTransported:'Notificação por e-mail não confirmada; ticket registrado para atendimento.'},
+  en: {title:'Support',subject:'Subject',message:'Describe your request',
+    submit:'Create ticket',refresh:'Refresh',clear:'Clear draft',
+    history:'My tickets',email:'Open support email',back:'Back',empty:'No support requests registered.',resolved:'Resolved',open:'Open',submitted:'Enter a subject and description.',emailMissing:'The support email address is unavailable.',emailNotice:'Confirm delivery in your email application.',created:'registered.',accepted:'Email accepted by the transport, delivery not verified',unconfirmed:'Email notification pending or unavailable',transported:'Email accepted by the transport; delivery is not confirmed.',notTransported:'Email notification not confirmed; ticket has been recorded for support.'},
+  es: {title:'Soporte',subject:'Asunto',message:'Describa su solicitud',
+    submit:'Crear ticket',refresh:'Actualizar',clear:'Borrar borrador',
+    history:'Mis tickets',email:'Abrir correo de soporte',back:'Volver',empty:'No hay solicitudes de soporte registradas.',resolved:'Resuelto',open:'Abierto',submitted:'Indique asunto y descripción.',emailMissing:'La dirección de soporte no está disponible.',emailNotice:'Confirme el envío en su aplicación de correo.',created:'registrado.',accepted:'Correo aceptado por el transporte, entrega no verificada',unconfirmed:'Notificación por correo pendiente o no disponible',transported:'Notificación aceptada por el transporte de correo; recepción no confirmada.',notTransported:'Notificación por correo no confirmada; ticket registrado para atención.'}
+};
+export const CustomerSupportView: React.FC<Props> = ({language,onBack}) => {
+  const tr=labels[language] || labels.pt;
+  const [subject,setSubject]=useState('');
+  const [message,setMessage]=useState('');
+  const [recipient,setRecipient]=useState('');
+  const [tickets,setTickets]=useState<Ticket[]>([]);
+  const [loading,setLoading]=useState(false);
+  const [notice,setNotice]=useState('');
+  async function refresh(){
+    try {setTickets((await api<{tickets:Ticket[]}>('support.tickets.mine')).tickets);}
+    catch(e){setNotice((e as Error).message);}
+  }
+  useEffect(()=>{
+    try {
+      const saved=JSON.parse(sessionStorage.getItem(draftKey)||'{}');
+      setSubject(saved.subject||'');setMessage(saved.message||'');
+    } catch { /* ignored */ }
+    void refresh();
+    api<{email:string}>('support').then(d=>setRecipient(d.email)).catch(()=>{});
+  },[]);
+  useEffect(()=>{
+    sessionStorage.setItem(draftKey,JSON.stringify({subject,message}));
+  },[subject,message]);
+  async function submit(e:React.FormEvent){
+    e.preventDefault();setNotice('');
+    if(subject.trim().length<3||message.trim().length<10){setNotice(tr.submitted);return;}
+    setLoading(true);
+    try{
+      const result=await api<{ticket:{id:number;notification_status:string}}>(
+        'support.ticket.create',{subject:subject.trim(),message:message.trim()});
+      setSubject('');setMessage('');sessionStorage.removeItem(draftKey);
+      setNotice('Ticket #'+result.ticket.id+' '+tr.created+' '+
+        (result.ticket.notification_status==='accepted'?tr.transported:tr.notTransported));
+      await refresh();
+    }catch(e){setNotice((e as Error).message);}
+    finally{setLoading(false);}
+  }
+  function openMail(){
+    if(!recipient){setNotice(tr.emailMissing);return;}
+    const url='mailto:'+recipient+'?subject='+encodeURIComponent(subject.trim())+
+      '&body='+encodeURIComponent(message.trim());
+    window.location.href=url;
+    setNotice(tr.emailNotice);
+  }
+  return <section className="w-full flex-1 flex flex-col bg-[#121626] text-white overflow-hidden">
+    <header className="p-4 border-b border-[#232943] flex items-center gap-3">
+      <button onClick={onBack} aria-label={tr.back}><ArrowLeft size={20}/></button>
+      <h2 className="font-bold">{tr.title}</h2>
+      <button className="ml-auto" onClick={()=>void refresh()} aria-label={tr.refresh}><RefreshCw size={18}/></button>
+    </header>
+    <div className="p-4 space-y-5 overflow-y-auto">
+      <form onSubmit={e=>void submit(e)} className="space-y-3">
+        <label className="block text-sm">{tr.subject}
+          <input required minLength={3} maxLength={120} value={subject}
+            onChange={e=>setSubject(e.target.value)}
+            className="w-full block mt-2 rounded-xl bg-[#1e2338] p-3 border border-[#2b3350]"/>
+        </label>
+        <label className="block text-sm">{tr.message}
+          <textarea required minLength={10} maxLength={2500} value={message}
+            onChange={e=>setMessage(e.target.value)} rows={5}
+            className="w-full block mt-2 rounded-xl bg-[#1e2338] p-3 border border-[#2b3350]"/>
+        </label>
+        {notice && <p role="status" className="text-amber-300 text-xs">{notice}</p>}
+        <button type="submit" disabled={loading}
+          className="w-full flex items-center gap-2 justify-center rounded-xl bg-indigo-600 p-3 disabled:opacity-50">
+          <Send size={16}/>{tr.submit}
         </button>
-
-        <h2 className="text-base font-bold text-white tracking-wide">Customer Support</h2>
-
-        <div className="w-9 h-9" />
-      </div>
-
-      {/* Content Form */}
-      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Name Field */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-300 block">Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter Your Name"
-              required
-              className="w-full bg-[#1e2338] border border-[#2b3350] rounded-2xl px-4 py-3.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
-            />
-          </div>
-
-          {/* Email Field */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-300 block">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="sistemacodigolucrativo@gmail.com"
-              required
-              className="w-full bg-[#1e2338] border border-[#2b3350] rounded-2xl px-4 py-3.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
-            />
-          </div>
-
-          {/* Message Field */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-300 block">Message</label>
-            <textarea
-              rows={4}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Enter your message"
-              required
-              className="w-full bg-[#1e2338] border border-[#2b3350] rounded-2xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
-            />
-          </div>
-
-          {/* Attachment Box (matches screenshot) */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-300 block">Attachment</label>
-            
-            {attachmentName ? (
-              <div className="w-full bg-[#1e2338] border border-indigo-500/50 rounded-2xl p-4 flex items-center justify-between">
-                <div className="flex items-center gap-2.5 text-xs text-indigo-300 font-mono">
-                  <Paperclip className="w-4 h-4 text-indigo-400" />
-                  <span>{attachmentName}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAttachmentName(null)}
-                  className="text-slate-400 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSimulateAttach}
-                className="w-full bg-[#1e2338] hover:bg-[#252c46] border border-[#2b3350] border-dashed rounded-2xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors group"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition-transform">
-                  <FilePlus className="w-6 h-6 stroke-[1.5]" />
-                </div>
-                <span className="text-xs text-slate-400">Click to attach screenshot or file</span>
-              </button>
-            )}
-          </div>
-
-          {/* Success Message */}
-          {submitted && (
-            <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs text-center flex items-center justify-center gap-2 animate-in fade-in">
-              <Check className="w-4 h-4" />
-              <span>Request #59201 submitted successfully!</span>
-            </div>
-          )}
-
-          {/* Submit Request Button */}
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={submitted}
-              className="w-full py-3.5 rounded-2xl bg-[#6366f1] hover:bg-[#4f46e5] active:bg-[#4338ca] text-white font-black text-xs tracking-wider shadow-lg shadow-indigo-950/40 transition-all cursor-pointer active:scale-[0.99] disabled:opacity-50"
-            >
-              Submit Request
-            </button>
-          </div>
-        </form>
-      </div>
+        {recipient && <button type="button" onClick={openMail}
+          className="w-full flex items-center gap-2 justify-center rounded-xl border border-slate-600 p-3 text-sm">
+          <Mail size={16}/>{tr.email}
+        </button>}
+        <button type="button" className="w-full flex items-center justify-center gap-2 text-xs text-slate-400"
+          onClick={()=>{setSubject('');setMessage('');sessionStorage.removeItem(draftKey);}}>
+          <Trash2 size={15}/>{tr.clear}
+        </button>
+      </form>
+      <section className="space-y-2">
+        <h3 className="font-bold text-sm">{tr.history}</h3>
+        {!tickets.length && <p className="text-xs text-slate-400">{tr.empty}</p>}
+        {tickets.map(ticket=><article key={ticket.id}
+          className="bg-[#1e2338] p-3 rounded-xl text-xs border border-[#2b3350] space-y-1">
+          <strong>#{ticket.id} · {ticket.subject}</strong>
+          <p>{ticket.ticket_state==='replied'?(language==='en'?'Answered':language==='es'?'Respondido':'Respondido'):ticket.ticket_state==='closed'?(language==='en'?'Closed':language==='es'?'Cerrado':'Fechado'):tr.open} · {new Date(ticket.created_at*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR')}</p>
+          <p className="text-slate-300 whitespace-pre-wrap">{ticket.message}</p>
+          {ticket.admin_reply&&<div data-testid="member-ticket-reply" className="border-t border-[#3d465c] mt-2 pt-2 text-emerald-200">
+            <p className="font-semibold mb-1">{language==='en'?'Support reply':language==='es'?'Respuesta del soporte':'Resposta do suporte'}</p>
+            <p className="whitespace-pre-wrap">{ticket.admin_reply}</p>
+          </div>}
+          <p className="text-slate-400">{ticket.notification_status==='accepted'?tr.accepted:tr.unconfirmed}</p>
+        </article>)}
+      </section>
     </div>
-  );
+  </section>;
 };

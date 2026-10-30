@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { User, Lock, Eye, EyeOff, AlertCircle, Gift } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
-import { miningService } from '../services/miningService';
+import { AuthUser, login as backendLogin, register as backendRegister } from '../services/api';
 
 interface LoginScreenProps {
   language: LanguageCode;
-  onLoginSuccess: (username: string) => void;
+  onLoginSuccess: (user: AuthUser) => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({
@@ -16,84 +16,27 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const t = translations[language].login;
   const [loginInput, setLoginInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
-  const [inviteCodeInput, setInviteCodeInput] = useState('');
+  const [registerMode, setRegisterMode] = useState(false);
   const [fullNameInput, setFullNameInput] = useState('');
+  const [inviteCode,setInviteCode] = useState(
+    ()=>new URLSearchParams(window.location.search).get('invite') || ''
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Simple string hash function to never store raw passwords in memory or storage per requirement 8
-  const hashCredentials = async (raw: string): Promise<string> => {
-    try {
-      if (typeof window !== 'undefined' && window.crypto?.subtle) {
-        const msgUint8 = new TextEncoder().encode(raw);
-        const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgUint8);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      }
-    } catch {
-      // fallback
-    }
-    return `token_${btoa(raw).slice(0, 16)}`;
-  };
-
   const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
-
-    const trimmedLogin = loginInput.trim();
-    const trimmedPassword = passwordInput.trim();
-    const trimmedCode = inviteCodeInput.trim().toUpperCase();
-    const trimmedFullName = fullNameInput.trim();
-
-    // Validation: ensure both fields are provided and password has minimum length
-    if (!trimmedLogin || !trimmedPassword) {
-      setErrorMessage(t.validationError);
-      return;
-    }
-
-    if (trimmedPassword.length < 4) {
-      setErrorMessage(t.validationError);
-      return;
-    }
-
-    if (trimmedCode) {
-      const candidateName = trimmedFullName || (trimmedLogin.includes('@') ? '' : trimmedLogin);
-      if (candidateName.split(/\s+/).filter(Boolean).length < 2) {
-        setErrorMessage('Para usar código de convite, informe Nome e Sobrenome.');
-        return;
-      }
-      const candidateEmail = trimmedLogin.includes('@')
-        ? trimmedLogin
-        : `${trimmedLogin.toLowerCase().replace(/\s+/g, '.')}@gmail.com`;
-
-      const refResult = await miningService.registerReferralSignup({
-        fullName: candidateName,
-        email: candidateEmail,
-        inviteCode: trimmedCode,
-      });
-
-      if (!refResult.success) {
-        setErrorMessage(refResult.message);
-        return;
-      }
-    }
-
-    setIsLoading(true);
-
+    e.preventDefault(); setErrorMessage(''); setIsLoading(true);
     try {
-      // Secure hash representation instead of raw plaintext
-      await hashCredentials(trimmedPassword);
-      
-      // Simulate quick secure validation
-      setTimeout(() => {
-        setIsLoading(false);
-        onLoginSuccess(trimmedFullName || trimmedLogin);
-      }, 350);
-    } catch {
-      setIsLoading(false);
-      setErrorMessage(t.validationError);
-    }
+      const userLogin = loginInput.trim();
+      if (registerMode) {
+        await backendRegister(userLogin, passwordInput, fullNameInput.trim(),inviteCode.trim());
+      }
+      const user = await backendLogin(userLogin, passwordInput);
+      onLoginSuccess(user);
+    } catch (e) {
+      setErrorMessage((e as Error).message);
+    } finally { setIsLoading(false); }
   };
 
   return (
@@ -221,56 +164,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </div>
           </div>
 
-          {/* Código de Convite (Opcional) */}
-          <div className="space-y-1.5 text-left">
-            <label className="text-xs font-semibold text-slate-300 block">
-              {language === 'pt'
-                ? 'Código de Convite (Opcional)'
-                : language === 'es'
-                ? 'Código de Invitación (Opcional)'
-                : 'Invite Code (Optional)'}
-            </label>
-            <div className="relative flex items-center bg-[#181d33] border border-[#2b3353] rounded-2xl px-3.5 py-2.5 text-sm focus-within:border-indigo-500 transition-colors">
-              <Gift className="w-4 h-4 text-amber-400 mr-3 flex-shrink-0" />
-              <input
-                type="text"
-                value={inviteCodeInput}
-                onChange={(e) => {
-                  setInviteCodeInput(e.target.value.toUpperCase());
-                  if (errorMessage) setErrorMessage('');
-                }}
-                placeholder="Ex.: 8ZPTC"
-                className="bg-transparent border-none text-white text-sm font-mono uppercase placeholder:text-slate-500 placeholder:font-sans w-full outline-hidden"
-              />
-            </div>
-          </div>
-
-          {inviteCodeInput.trim().length > 0 && (
-            <div className="space-y-1.5 text-left animate-in fade-in duration-150">
-              <label className="text-xs font-semibold text-slate-300 block">
-                {language === 'pt'
-                  ? 'Nome e Sobrenome do Indicado'
-                  : language === 'es'
-                  ? 'Nombre y Apellido del Referido'
-                  : 'Referred Full Name'}
-              </label>
-              <div className="relative flex items-center bg-[#181d33] border border-[#2b3353] rounded-2xl px-3.5 py-2.5 text-sm focus-within:border-indigo-500 transition-colors">
-                <User className="w-4 h-4 text-emerald-400 mr-3 flex-shrink-0" />
-                <input
-                  type="text"
-                  value={fullNameInput}
-                  onChange={(e) => {
-                    setFullNameInput(e.target.value);
-                    if (errorMessage) setErrorMessage('');
-                  }}
-                  placeholder="Ex.: João Silva"
-                  className="bg-transparent border-none text-white text-sm placeholder:text-slate-500 w-full outline-hidden"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Botão de Acesso */}
+          {registerMode && <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-300 block">{language==='en'?'Full name (optional)':language==='es'?'Nombre completo (opcional)':'Nome completo (opcional)'}</label>
+            <input value={fullNameInput} onChange={e => setFullNameInput(e.target.value)}
+              className="bg-[#181d33] border border-[#2b3353] rounded-2xl px-3.5 py-3 text-sm text-white w-full"/>
+          </div>}
+          {registerMode && <label className="block text-xs text-slate-300">
+            {language==='en'?'Invite code (optional)':language==='es'?'Código de invitación (opcional)':'Código de indicação (opcional)'}
+            <input value={inviteCode} onChange={e=>setInviteCode(e.target.value.toUpperCase())}
+              maxLength={20} className="w-full mt-2 bg-[#181d33] border border-[#2b3353] rounded-2xl p-3 text-sm"/>
+          </label>}
+          {/* Cadastro público sempre gera uma conta de membro. */}
           <div className="pt-2">
             <button
               type="submit"
@@ -280,11 +184,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <span>{t.accessBtn}</span>
+                <span>{registerMode ? language==='en'?'Create member account':language==='es'?'Crear cuenta de miembro':'Criar conta de membro' : t.accessBtn}</span>
               )}
             </button>
           </div>
         </form>
+        <button type="button" onClick={() => {setRegisterMode(v=>!v);setErrorMessage('');}}
+          className="mt-4 text-indigo-300 text-xs underline">
+          {registerMode ? language==='en'?'Already have an account? Sign in':language==='es'?'¿Ya tienes cuenta? Iniciar sesión':'Já tenho conta — Entrar' : language==='en'?'New here? Sign up':language==='es'?'¿Eres nuevo? Crear cuenta':'Novo por aqui? Criar conta'}
+        </button>
       </div>
 
       {/* Footer Terms & Disclaimer */}

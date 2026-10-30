@@ -1,0 +1,80 @@
+name: Bitdeer PHP SQLite validation
+on:
+  push:
+    branches: [implementation/php-sqlite-backend]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, sqlite3, mbstring
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: PHP syntax
+        run: find api server install bin -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: DNS owner proof and Bitcoin address checks
+        run: php tests/authorization_checks.php
+      - name: Frontend lint and build
+        run: |
+          npm install --no-audit --no-fund --package-lock=false
+          npm run lint
+          npm run build
+      - name: Provision test SQLite database
+        env:
+          BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
+          BITDEER_ALLOW_CLI_PROVISION: '1'
+        run: php bin/provision.php adminci 'StrongCIpassword123!' support@example.org
+      - name: Verify initial plan baseline
+        env:
+          BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
+        run: python3 tests/baseline_plans.py
+      - name: API integration regression
+        env:
+          BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
+          BITDEER_TEST_QUOTE_USD: '80000'
+        run: |
+          php -S 127.0.0.1:8765 -t . >/tmp/bitdeer-php.log 2>&1 &
+          echo $! >/tmp/bitdeer-php.pid
+          trap 'kill $(cat /tmp/bitdeer-php.pid); cat /tmp/bitdeer-php.log' EXIT
+          python3 tests/integration.py
+      - name: Isolated browser installation policies
+        run: python3 tests/installer_smoke.py
+      - name: Local first-install browser smoke
+        run: python3 tests/local_installer_smoke.py
+      - name: IP ownership proof and VPS installer smoke
+        run: python3 tests/ip_installer_smoke.py
+      - name: Create deployable ZIP (no publishing)
+        run: bash scripts/package-release.sh
+      - name: Verify deployable ZIP structure and PHP paths
+        run: python3 tests/package_structure.py
+      - name: Exercise unpacked PHP SQLite package over HTTP
+        run: python3 tests/package_runtime_smoke.py
+      - name: Browser UI regression (mobile and desktop)
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund playwright
+          npx playwright install --with-deps chromium
+          mkdir -p /tmp/bitdeer-browser-e2e
+          unzip -q release-build/bitdeer-php-sqlite.zip -d /tmp/bitdeer-browser-e2e
+          php -r 'require "/tmp/bitdeer-browser-e2e/bitdeer/private/server/schema.php"; provision("browseradmin","BrowserAdminPassword2026","support@example.org");'
+          php -S 127.0.0.1:8777 -t /tmp/bitdeer-browser-e2e/bitdeer/public_html >/tmp/bitdeer-browser-php.log 2>&1 &
+          echo $! >/tmp/bitdeer-browser-php.pid
+          trap 'kill $(cat /tmp/bitdeer-browser-php.pid); cat /tmp/bitdeer-browser-php.log' EXIT
+          node tests/browser_smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bitdeer-browser-screenshots
+          path: release-build/*.png
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bitdeer-php-sqlite-package
+          path: release-build/bitdeer-php-sqlite.zip
+          retention-days: 14

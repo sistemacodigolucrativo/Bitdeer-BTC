@@ -351,7 +351,7 @@ export const SettingTab: React.FC<SettingTabProps> = ({
       {/* App Version Info */}
       <div className="text-center pt-1 text-[11px] text-slate-500">
         <p>{t.version}</p>
-        <p className="mt-0.5">Bitcoin Cloud Mining Remotely Mockup</p>
+        <p className="mt-0.5">Bitcoin Cloud Mining — projeto demonstrativo</p>
       </div>
 
       {/* Toast Notification */}

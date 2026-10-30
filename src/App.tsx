@@ -3,23 +3,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LanguageCode, AppScreen } from './types';
 import { storageService } from './services/storageService';
-import { miningService } from './services/miningService';
+import { AuthUser, api, session as backendSession, logout as backendLogout } from './services/api';
+import { AdminWorkspace } from './components/admin/AdminWorkspace';
+import { MemberWorkspace } from './components/MemberWorkspace';
 import { translations } from './i18n/translations';
 import { LanguageScreen } from './components/LanguageScreen';
-import { OnboardingPreviewScreen } from './components/OnboardingPreviewScreen';
 import { TerminalInitScreen } from './components/TerminalInitScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { CongratulationsModal } from './components/CongratulationsModal';
-import { MainAppWorkspace } from './components/MainAppWorkspace';
+
 
 class AppErrorBoundary extends React.Component<
-  { children: React.ReactNode },
+  { children: React.ReactNode; language: LanguageCode },
   { hasError: boolean }
 > {
-  constructor(props: { children: React.ReactNode }) {
+  constructor(props: { children: React.ReactNode; language: LanguageCode }) {
     super(props);
     this.state = { hasError: false };
   }
@@ -34,19 +35,24 @@ class AppErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
+      const t=this.props.language==='en'
+        ? {title:'Synchronizing interface...',description:'A temporary display error occurred. Your records and balance remain saved.',continue:'Continue to dashboard'}
+        :this.props.language==='es'
+        ? {title:'Sincronizando interfaz...',description:'Se produjo un error temporal de visualización. Sus registros y saldo están guardados.',continue:'Continuar al panel'}
+        : {title:'Sincronizando interface...',description:'Detectamos uma oscilação temporária na exibição. Seus dados e saldo permanecem salvos.',continue:'Continuar no Painel'};
       return (
         <div className="min-h-screen bg-[#090c17] text-white flex flex-col items-center justify-center p-6 text-center">
           <div className="max-w-xs w-full bg-[#171b2d] border border-[#252c45] rounded-3xl p-6 space-y-4 shadow-2xl">
-            <h2 className="text-base font-black text-white">Sincronizando interface...</h2>
+            <h2 className="text-base font-black text-white">{t.title}</h2>
             <p className="text-xs text-slate-400">
-              Detectamos uma oscilação temporária na exibição. Seus dados e saldo permanecem salvos.
+              {t.description}
             </p>
             <button
               type="button"
               onClick={() => this.setState({ hasError: false })}
               className="w-full py-3 rounded-xl bg-[#f43f5e] hover:bg-[#e11d48] text-white font-bold text-xs cursor-pointer"
             >
-              Continuar no Painel
+              {t.continue}
             </button>
           </div>
         </div>
@@ -71,8 +77,63 @@ export default function App() {
     const savedTheme = storageService.getPreferences().theme;
     return savedTheme === 'light' ? 'light' : 'dark';
   });
-  const [activeScreen, setActiveScreen] = useState<AppScreen>('language');
+  const [activeScreen, setActiveScreen] = useState<AppScreen>('login');
   const [showCongratulations, setShowCongratulations] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const choiceRevision=useRef(0);
+  // Local, member-scoped selection takes priority on this device. Otherwise
+  // restore the persisted SQLite choice (including after changing devices).
+  async function restoreMemberLanguage(user:AuthUser) {
+    if(user.role!=='member')return;
+    const revision=choiceRevision.current;
+    const local=storageService.getMemberLanguage(user.id);
+    try {
+      const result=await api<{language:string|null}>('language.preference');
+      if (choiceRevision.current!==revision) return; // user changed language while loading
+      const backend=result.language;
+      if(local) {
+        setLanguage(local);
+        storageService.savePreferences({language:local,isFirstLaunch:false});
+        if (backend!==local) await api('language.preference',{language:local});
+      } else if(backend==='pt'||backend==='en'||backend==='es') {
+        setLanguage(backend);
+        storageService.saveMemberLanguage(user.id,backend);
+      }
+    } catch {
+      if(local && choiceRevision.current===revision) setLanguage(local);
+    }
+  }
+  useEffect(() => {
+    backendSession().then(async user => {
+      setAuthUser(user);
+      if (user.role !== 'member') {
+        setActiveScreen('workspace');
+        return;
+      }
+      const local = storageService.getMemberLanguage(user.id);
+      if (local) {
+        setLanguage(local);
+        setActiveScreen('workspace');
+        void restoreMemberLanguage(user);
+        return;
+      }
+      // A restored session without a device choice must still ask once.
+      // Only after a deliberate choice may a member bypass the picker.
+      try {
+        const {language:remote} = await api<{language:string|null}>('language.preference');
+        if (remote === 'pt' || remote === 'en' || remote === 'es') {
+          storageService.saveMemberLanguage(user.id,remote);
+          setLanguage(remote);
+          setActiveScreen('workspace');
+        } else {
+          setActiveScreen('language');
+        }
+      } catch {
+        setActiveScreen('language');
+      }
+    }).catch(() => {}).finally(() => setCheckingSession(false));
+  }, []);
 
   // Sync state with storage changes
   useEffect(() => {
@@ -92,27 +153,56 @@ export default function App() {
   const handleSelectLanguage = (newLang: LanguageCode) => {
     const validLang = normalizeLanguage(newLang);
     setLanguage(validLang);
-    storageService.savePreferences({ language: validLang });
+    choiceRevision.current+=1;
+    if(authUser?.role==='member') {
+      storageService.saveMemberLanguage(authUser.id,validLang);
+      void api('language.preference',{language:validLang}).catch(()=>{});
+    } else {
+      storageService.savePreferences({language:validLang,isFirstLaunch:false});
+    }
   };
 
   const handleConfirmLanguage = () => {
-    storageService.savePreferences({ language });
-    setActiveScreen('onboarding');
-  };
-
-  const handleSlideToStart = () => {
+    storageService.savePreferences({ language,isFirstLaunch:false });
+    if (authUser?.role==='member') {
+      storageService.saveMemberLanguage(authUser.id,language);
+      void api('language.preference',{language}).catch(()=>{});
+    }
     setActiveScreen('terminal');
   };
 
   const handleEnterWorkspace = () => {
-    setActiveScreen('login');
+    setActiveScreen('workspace');
   };
 
-  const handleLoginSuccess = (username?: string) => {
-    if (username) {
-      storageService.savePreferences({ userName: username });
+  const handleLoginSuccess = (user: AuthUser) => {
+    setAuthUser(user);
+    setShowCongratulations(false);
+    if(user.role==='admin'){setActiveScreen('workspace');return;}
+    const local=storageService.getMemberLanguage(user.id);
+    if(local){
+      setLanguage(local);
+      storageService.savePreferences({language:local,isFirstLaunch:false});
+      setActiveScreen('terminal');
+      void restoreMemberLanguage(user); // Keep SQLite aligned in the background.
+      return;
     }
-    setShowCongratulations(true);
+    // First device sign-in: use SQLite choice if available, otherwise ask once.
+    // While checking, render neither the language picker nor an obsolete intro.
+    const revision=++choiceRevision.current;
+    setCheckingSession(true);
+    void api<{language:string|null}>('language.preference').then(({language:remote})=>{
+      if(choiceRevision.current!==revision)return;
+      if(remote==='pt'||remote==='en'||remote==='es'){
+        storageService.saveMemberLanguage(user.id,remote);
+        setLanguage(remote);
+        setActiveScreen('terminal');
+      } else {
+        setActiveScreen('language');
+      }
+    }).catch(()=>{
+      if(choiceRevision.current===revision)setActiveScreen('language');
+    }).finally(()=>setCheckingSession(false));
   };
 
   const handleProceedFromCongratulations = () => {
@@ -122,21 +212,22 @@ export default function App() {
 
   const handleResetData = () => {
     storageService.reset();
-    miningService.resetAll();
+
     const defaultLang = 'pt';
     setLanguage(defaultLang);
     storageService.savePreferences({ language: defaultLang });
     setShowCongratulations(false);
-    setActiveScreen('language');
+    setActiveScreen('login');
   };
 
   return (
-    <AppErrorBoundary>
+    <AppErrorBoundary language={language}>
       <div className={`min-h-screen ${theme === 'light' ? 'theme-light bg-slate-100 text-slate-900' : 'bg-[#090c17] text-slate-100'} flex flex-col items-center justify-center p-0 md:p-6 overflow-x-hidden transition-colors duration-200`}>
         {/* Mobile App Viewport Container */}
-        <main className={`w-full max-w-[420px] h-[100dvh] md:h-[840px] md:rounded-3xl md:shadow-2xl ${theme === 'light' ? 'bg-white border md:border-slate-200 text-slate-800' : 'bg-[#121626] border-0 md:border md:border-[#20263f] text-slate-100'} overflow-hidden flex flex-col relative transition-colors duration-200`}>
-          {/* Step 1: Language Screen */}
-          {activeScreen === 'language' && (
+        <main className={`w-full ${authUser?.role === 'admin' ? 'max-w-6xl' : 'max-w-[420px]'} h-[100dvh] md:h-[840px] md:rounded-3xl md:shadow-2xl ${theme === 'light' ? 'bg-white border md:border-slate-200 text-slate-800' : 'bg-[#121626] border-0 md:border md:border-[#20263f] text-slate-100'} overflow-hidden flex flex-col relative transition-colors duration-200`}>
+          {checkingSession && <div className="p-8 text-center">{language==='en'?'Checking secure session...':language==='es'?'Verificando sesión segura...':'Verificando sessão segura...'}</div>}
+          {/* First-time member language choice, skipped when saved on device or SQLite */}
+          {!checkingSession && activeScreen === 'language' && (
             <LanguageScreen
               currentLanguage={language}
               onSelectLanguage={handleSelectLanguage}
@@ -144,25 +235,16 @@ export default function App() {
             />
           )}
 
-          {/* Step 2: Onboarding Screen with Slide to Start */}
-          {activeScreen === 'onboarding' && (
-            <OnboardingPreviewScreen
-              language={language}
-              onBackToLanguage={() => setActiveScreen('language')}
-              onSlideToStart={handleSlideToStart}
-            />
-          )}
-
-          {/* Step 3: Terminal Diagnostics Initialization */}
-          {activeScreen === 'terminal' && (
+          {/* Mining Core immediately after login / initial language choice */}
+          {!checkingSession && activeScreen === 'terminal' && (
             <TerminalInitScreen
               language={language}
               onEnterWorkspace={handleEnterWorkspace}
             />
           )}
 
-          {/* Step 4: Login with Google & Referral code */}
-          {activeScreen === 'login' && !showCongratulations && (
+          {/* Step 1: Login before language selection */}
+          {!checkingSession && activeScreen === 'login' && !showCongratulations && (
             <LoginScreen
               language={language}
               onLoginSuccess={handleLoginSuccess}
@@ -170,7 +252,7 @@ export default function App() {
           )}
 
           {/* Step 5: Congratulations Welcome Gift Modal */}
-          {showCongratulations && (
+          {false && showCongratulations && (
             <CongratulationsModal
               language={language}
               onProceed={handleProceedFromCongratulations}
@@ -178,14 +260,12 @@ export default function App() {
           )}
 
           {/* Step 6: Main App Workspace with Tabs (Home, Store, Reward, Wallet, Setting) */}
-          {activeScreen === 'workspace' && (
-            <MainAppWorkspace
-              language={language}
-              onNavigateToLanguage={() => setActiveScreen('language')}
-              onSelectLanguage={handleSelectLanguage}
-              onResetData={handleResetData}
-              onLogout={() => setActiveScreen('login')}
-            />
+          {!checkingSession && activeScreen === 'workspace' && authUser && (
+            authUser.role === 'admin'
+              ? <AdminWorkspace user={authUser} onLogout={() => {void backendLogout().finally(() => {setAuthUser(null);setActiveScreen('login');});}}/>
+              : <MemberWorkspace user={authUser} language={language}
+                onChangeLanguage={handleSelectLanguage}
+                onLogout={() => {void backendLogout().finally(() => {setAuthUser(null);setActiveScreen('login');});}}/>
           )}
         </main>
       </div>
