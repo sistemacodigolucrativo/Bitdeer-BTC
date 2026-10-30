@@ -78,7 +78,7 @@ export const ServerHomeView: React.FC<Props> = ({
             className="underline ml-2 text-indigo-300">{language==='en'?'Retry':language==='es'?'Reintentar':'Tentar novamente'}</button>}
         </div>}
         <p data-testid="mining-live-usd" className="text-xs text-slate-300 mt-1">
-          {language==='en'?'Estimated USD equivalent':language==='es'?'Equivalencia estimada en USD':'Equivalência estimada em USD'}:
+          USD:
           {' '}US$ {liveBalanceUsd.toFixed(8)}
         </p>
         <p className="text-[10px] text-slate-400 mt-1">
