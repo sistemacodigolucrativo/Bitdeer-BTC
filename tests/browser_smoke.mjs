@@ -119,6 +119,8 @@ try {
     Math.abs(initialBtc-syncedUsd/quoteRate)>0.000000011)
     throw Error('Mining BTC/USD equivalents not synchronized at quoted rate: '+
       JSON.stringify({btc:initialBtc,usd:syncedUsd,expected:syncedUsd/quoteRate}));
+  const mockFeedResponse=page.waitForResponse(response=>
+    response.url().includes('action=mock.payments.latest'),{timeout:15000});
   await page.locator('nav button').nth(3).click();
   const walletBalance=page.getByTestId('wallet-live-usd');
   await walletBalance.waitFor({timeout:10000});
@@ -126,18 +128,41 @@ try {
   await page.waitForTimeout(2100);
   const secondWallet=await walletBalance.innerText();
   if(!(displayedUsd(secondWallet)>displayedUsd(firstWallet)))throw Error('Live wallet USD not increasing');
+  const mockFeed=await (await mockFeedResponse).json();
   const feed=page.getByTestId('simulated-payments');
   await feed.waitFor({timeout:10000});
   await page.getByTestId('simulated-payment-row').first().waitFor({timeout:10000});
-  if(await page.getByTestId('simulated-payment-row').count()!==10)
-    throw Error('Wallet feed must display ten rows');
-  const firstIds=await page.getByTestId('simulated-payment-row').locator('p.font-mono').allTextContents();
-  await page.getByTestId('simulated-payments-next').click();
-  await page.waitForFunction(old=>
-    document.querySelector('[data-testid="simulated-payment-row"] p.font-mono')?.textContent!==old,
-    firstIds[0],{timeout:10000});
-  const secondIds=await page.getByTestId('simulated-payment-row').locator('p.font-mono').allTextContents();
-  if(secondIds.some(id=>firstIds.includes(id)))throw Error('Wallet feed repeated rows');
+  if(await feed.getByText('Últimos Pagamentos BTC',{exact:true}).count()!==1)
+    throw Error('Wallet feed title must be Últimos Pagamentos BTC');
+  if(await page.getByTestId('simulated-payment-row').count()!==10 ||
+      mockFeed.total!==10||mockFeed.records.length!==10)
+    throw Error('Wallet feed must display exactly ten fictional records');
+  if(await page.getByTestId('simulated-payments-next').count() ||
+     await page.getByTestId('simulated-payments-exhausted').count() ||
+     await feed.getByText(/200 registros demonstrativos/i).count())
+    throw Error('Wallet must not show the legacy pagination or 200-record footer');
+  const hashes=mockFeed.records.map(record=>record.hash);
+  if(new Set(hashes).size!==10||hashes.some(hash=>!hash.startsWith('SIM-')))
+    throw Error('Wallet mock hashes must be unique and clearly fictional');
+  const displayedIds=await page.getByTestId('simulated-payment-row').locator('p.font-mono').allTextContents();
+  if(displayedIds.join('|')!==hashes.join('|'))
+    throw Error('Wallet must render the backend mock samples in descending date order');
+  const localDates=await page.evaluate(stamps=>{
+    const today=new Date();
+    const yesterday=new Date(today);
+    yesterday.setDate(yesterday.getDate()-1);
+    return {today:today.toLocaleDateString('pt-BR'),
+      yesterday:yesterday.toLocaleDateString('pt-BR'),
+      records:stamps.map(stamp=>new Date(stamp*1000).toLocaleDateString('pt-BR'))};
+  },mockFeed.records.map(record=>record.createdAt));
+  if(localDates.records.filter(day=>day===localDates.today).length!==5||
+     localDates.records.filter(day=>day===localDates.yesterday).length!==5)
+    throw Error('Mock records must use the visitor’s today and yesterday');
+  const rate=Number(mockFeed.quoteUsd);
+  if(!Number.isFinite(rate)||rate<=0||!mockFeed.quoteSource||
+     mockFeed.records.some(record=>Math.abs(Number(record.valueUsd)-
+      Number(record.btc)*rate)>.01))
+    throw Error('Mock BTC and USD amounts must match the verified market quote');
   await page.screenshot({path:'release-build/wallet-feed-mobile.png',fullPage:true});
   const walletBtc=displayedBtc(await page.getByTestId('wallet-live-btc').innerText());
   if(!Number.isFinite(walletBtc)||Math.abs(walletBtc-displayedUsd(secondWallet)/quoteRate)>0.000000011)
