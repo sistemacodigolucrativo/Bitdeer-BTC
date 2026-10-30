@@ -78,7 +78,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         bonusSatoshis:selected.bonusSatoshis,durationDays:selected.durationDays,
         sessionSeconds:selected.sessionSeconds,restartCooldownSeconds:0,
         withdrawMinCents:Math.round(Number(selected.withdrawMinUsd)*100),
-        withdrawAfterDays:selected.withdrawAfterDays,
+        withdrawAfterDays:0, // Kept for API compatibility; waiting days are discontinued.
         hashrate:selected.hashrate,serverModel:selected.serverModel,available:selected.available
       });
       setSelected(null);
