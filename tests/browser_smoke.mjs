@@ -191,6 +191,21 @@ try {
   await page.getByTestId('claim-daily-rewards').waitFor({timeout:10000});
   await page.getByTestId('referrals-in-rewards').waitFor({timeout:10000});
   await page.getByTestId('referrals-in-rewards').getByRole('button',{name:'Copiar convite'}).waitFor({timeout:10000});
+  const rewardToggle=page.getByTestId('reward-history-toggle');
+  if(await rewardToggle.getAttribute('aria-expanded')!=='false')throw Error('Reward history should start collapsed');
+  await rewardToggle.click();
+  const inlineHistory=page.getByTestId('reward-history-panel');
+  await inlineHistory.waitFor({timeout:10000});
+  await inlineHistory.getByTestId('reward-history-log').waitFor({timeout:10000});
+  if(await rewardToggle.getAttribute('aria-expanded')!=='true'||await page.getByTestId('rewards-premium').count()!==1)
+    throw Error('Reward history should open below Rewards without leaving this page');
+  await inlineHistory.getByRole('button',{name:/Atualizar|Refresh|Actualizar/}).click();
+  await rewardToggle.click();
+  if(await inlineHistory.count()||await rewardToggle.getAttribute('aria-expanded')!=='false')
+    throw Error('Reward history should collapse in place');
+  if(await page.getByText('Não BTC efetivamente minerado').count())
+    throw Error('Removed reward explanation remains visible');
+
   await page.screenshot({path:'release-build/rewards-slim-mobile.png',fullPage:true});
   await page.locator('nav button').nth(4).click();
   if(await page.getByRole('button',{name:/Indicações|Referrals|Referidos|Ver histórico|View history/}).count())
