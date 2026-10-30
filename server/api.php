@@ -735,16 +735,8 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             $plan=plan_at($db,$uid,$at);
             $snapshot=$plan['snapshot'];
             $min=(int)($snapshot['withdraw_min_cents']??0);
-            $days=(int)($snapshot['withdraw_after_days']??0);
-            $start=(int)$u['created_at'];
-            if ($plan['id']!=='FREE') {
-                $contract=query_one($db,'SELECT started_at FROM contracts
-                  WHERE user_id=? AND started_at<=? AND expires_at>? ORDER BY id DESC LIMIT 1',
-                  [$uid,$at,$at]);
-                $start=(int)($contract['started_at']??$start);
-            }
-            if ($at<$start+$days*86400)
-                fail(409,'O plano exige aguardar o prazo mínimo antes do saque');
+            // Waiting periods are no longer part of withdrawal eligibility.
+            // Legacy snapshots retain their historical value, but it is not enforced.
             if ($cents<$min) fail(409,'Valor abaixo do mínimo de saque do plano');
             $units=$cents*8640000;
             $state=query_one($db,'SELECT balance_units FROM mining_state WHERE user_id=?',[$uid]);
@@ -1128,13 +1120,8 @@ function api_dispatch(PDO $db, string $action, string $method): never {
                 }
                 $currentPlan=plan_at($db,(int)$request['user_id'],now());
                 $min=(int)($currentPlan['snapshot']['withdraw_min_cents']??0);
-                $waiting=(int)($currentPlan['snapshot']['withdraw_after_days']??0);
-                $contract=query_one($db,'SELECT started_at FROM contracts WHERE user_id=?
-                  AND started_at<=? AND expires_at>? ORDER BY id DESC LIMIT 1',
-                  [$request['user_id'],now(),now()]);
-                if((int)$request['usd_cents']<$min ||
-                   ($contract && now()<(int)$contract['started_at']+$waiting*86400)) {
-                    fail(409,'Saque não atende às condições do plano VIP vigente');
+                if((int)$request['usd_cents']<$min) {
+                    fail(409,'Saque abaixo do valor mínimo do plano VIP vigente');
                 }
             }
             if ($status==='rejected') {
