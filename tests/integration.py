@@ -6,6 +6,8 @@ import urllib.error
 import urllib.request
 import http.cookiejar
 import sqlite3
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import os
 
 BASE = "http://127.0.0.1:8765/api/index.php?action="
@@ -371,19 +373,39 @@ admin.call("admin.support.manage",{"ticketId":replyTicket["id"],"operation":"del
 assert all(t["id"]!=replyTicket["id"] for t in newsession.call("support.tickets.mine")["tickets"])
 assert all(t["id"]!=replyTicket["id"] for t in admin.call("admin.support.tickets")["tickets"])
 
-# The same member never gets a duplicate mock row or batch; exactly 200 samples.
+# The mock wallet always shows just ten fresh fictional payments across the
+# viewer's current and previous local dates, priced against a verified quote.
+guest.call("mock.payments.latest",{"timezone":"America/Sao_Paulo"},401)
+admin.call("mock.payments.latest",{"timezone":"America/Sao_Paulo"},403)
+newsession.call("mock.payments.latest",{"timezone":"Invalid/Zone"},422)
 all_fake=[]
-for batch in range(20):
-    page=newsession.call("mock.payments.next",{})
+tz=ZoneInfo("America/Sao_Paulo")
+for _ in range(2):
+    page=newsession.call("mock.payments.latest",{"timezone":"America/Sao_Paulo"})
     assert page["simulation"] is True
-    assert page["total"]==200 and len(page["records"])==10
-    assert page["remaining"]==200-10*(batch+1)
-    all_fake.extend(x["hash"] for x in page["records"])
-    assert all(x["hash"].startswith("SIM-") and float(x["btc"])>0
-      and float(x["valueUsd"])>0 for x in page["records"])
-assert len(all_fake)==len(set(all_fake))==200
-assert newsession.call("mock.payments.next",{})["records"]==[]
-assert newsession.call("mock.payments.next",{})["exhausted"] is True
+    assert page["total"]==10 and len(page["records"])==10
+    assert page["quoteUsd"]=="80000.00"
+    assert page["quoteSource"]=="CI fixture"
+    today=datetime.now(tz).date()
+    yesterday=today-timedelta(days=1)
+    days=[datetime.fromtimestamp(x["createdAt"],tz).date() for x in page["records"]]
+    assert days.count(today)==5 and days.count(yesterday)==5,days
+    assert all(x["createdAt"]>=y["createdAt"] for x,y
+               in zip(page["records"],page["records"][1:]))
+    ids=[x["hash"] for x in page["records"]]
+    assert len(ids)==len(set(ids))==10
+    assert all(x.startswith("SIM-") for x in ids)
+    all_fake.extend(ids)
+    for row in page["records"]:
+        usd=float(row["valueUsd"])
+        btc=float(row["btc"])
+        assert usd>=5 and btc>0 and abs(usd-btc*float(page["quoteUsd"]))<0.01
+assert len(all_fake)==len(set(all_fake))==20, "Samples must regenerate without reuse"
+# The legacy 200-record paging tables are retained for upgrade compatibility,
+# but the new endpoint neither populates them nor advances a cursor.
+with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as mock_db:
+    assert mock_db.execute("SELECT COUNT(*) FROM mock_payment_feed").fetchone()[0]==0
+    assert mock_db.execute("SELECT COUNT(*) FROM mock_payment_cursor").fetchone()[0]==0
 
 # Approval without TXID is permitted solely in the clearly marked simulation mode.
 guest.call("register",{"login":"mockvip","password":"MockVipPassword2026"},201)
