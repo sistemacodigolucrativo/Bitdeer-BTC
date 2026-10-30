@@ -310,7 +310,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
               if(!reference||reference.trim().length<6)return;
               if(window.confirm('Registrar conferência? Esta ação NÃO transmite BTC.'))
                 void change('admin.withdraw.process',{requestId:w.id,status:'approved',reference:reference.trim(),manualReviewConfirmed:true});
-            }}>Registrar conferência manual</button>}
+            }}>Aceitar solicitação (conferência interna)</button>}
             <button disabled={busy} className={btn} onClick={()=>{
               const reference=window.prompt('Motivo da rejeição (mínimo 6 caracteres):');
               if(reference&&reference.trim().length>=6)
