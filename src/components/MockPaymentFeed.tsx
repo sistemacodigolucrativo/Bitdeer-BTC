@@ -52,12 +52,18 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
     <p className="text-xs text-amber-300">{tr.notice}</p>
     {loading&&rows.length===0&&!error&&<p role="status" className="text-xs text-slate-400">{tr.loading}</p>}
     {error&&<p role="alert" className="text-xs text-red-300">{error}</p>}
-    <div className="space-y-2">
-      {rows.map(row=><article data-testid="simulated-payment-row" key={row.hash} className="p-2.5 bg-[#101629] rounded-xl border border-[#262e49] text-xs space-y-1">
-        <div className="flex justify-between gap-2"><strong>{row.name}</strong><span>{new Date(row.createdAt*1000).toLocaleString(locale)}</span></div>
-        <p className="font-mono text-[10px] break-all text-slate-400">{row.hash}</p>
-        <div className="flex justify-between gap-2"><span>{tr.value}: US$ {row.valueUsd}</span><span>{tr.amount}: {row.btc} BTC</span></div>
-      </article>)}
+    <div data-testid="btc-payments-scroll" className="w-full max-w-full overflow-x-auto overscroll-x-contain touch-pan-x" tabIndex={0}
+      aria-label={tr.title}>
+      <div className="min-w-max space-y-2">
+        {rows.map(row=><article data-testid="simulated-payment-row" key={row.hash}
+          className="min-w-max whitespace-nowrap flex items-center gap-4 px-3 py-2.5 bg-[#101629] rounded-xl border border-[#262e49] text-xs">
+          <strong>{row.name}</strong>
+          <span>{new Date(row.createdAt*1000).toLocaleString(locale)}</span>
+          <p className="font-mono text-[10px] text-slate-400">{row.hash}</p>
+          <span>{tr.value}: US$ {row.valueUsd}</span>
+          <span>{tr.amount}: {row.btc} BTC</span>
+        </article>)}
+      </div>
     </div>
   </section>;
 };
