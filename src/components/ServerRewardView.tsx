@@ -3,11 +3,13 @@ import {Gift,Coins,ShieldCheck,ChevronRight} from 'lucide-react';
 import {MemberData} from '../services/api';
 import {LanguageCode} from '../types';
 import {ReferralHistoryView} from './workspace/ReferralHistoryView';
+import {RewardHistoryLog,RewardHistoryData} from './RewardHistoryLog';
 
 type Props={account:MemberData|null;language:LanguageCode;busy:boolean;
-  onClaim:()=>void;onHistory:()=>void};
-export const ServerRewardView:React.FC<Props>=({account,language,busy,onClaim,onHistory})=>{
+  ledger:RewardHistoryData;onClaim:()=>void;onRefreshHistory:()=>void};
+export const ServerRewardView:React.FC<Props>=({account,language,busy,ledger,onClaim,onRefreshHistory})=>{
   const [now,setNow]=useState(Date.now());
+  const [historyOpen,setHistoryOpen]=useState(false);
   useEffect(()=>{
     const timer=window.setInterval(()=>setNow(Date.now()),1000);
     return ()=>window.clearInterval(timer);
@@ -57,10 +59,18 @@ export const ServerRewardView:React.FC<Props>=({account,language,busy,onClaim,on
         <ShieldCheck size={13} className="shrink-0"/>{t.notice}
       </p>
     </div>
-    <button type="button" onClick={onHistory}
+    <button type="button" data-testid="reward-history-toggle" aria-controls="rewards-history-panel"
+      aria-expanded={historyOpen} onClick={()=>{
+        setHistoryOpen(open=>!open);
+        if(!historyOpen)onRefreshHistory();
+      }}
       className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-[#2c3551] bg-[#1b2137] font-semibold text-xs">
-      {t.ledger}<ChevronRight size={16}/>
+      {t.ledger}<ChevronRight size={16} className={historyOpen?'rotate-90 transition-transform':'transition-transform'}/>
     </button>
+    {historyOpen&&<div id="rewards-history-panel" role="region" aria-label={t.ledger}
+      data-testid="reward-history-panel" className="rounded-xl border border-[#2c3551] bg-[#171b2d] p-3 space-y-3">
+      <RewardHistoryLog language={language} ledger={ledger} onRefresh={onRefreshHistory}/>
+    </div>}
     <ReferralHistoryView language={language} embedded/>
   </section>;
 };
