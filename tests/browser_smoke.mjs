@@ -240,6 +240,11 @@ try {
     throw Error('Adjacent miners share the same first name');
   if(ranked.some((x,i)=>i>0&&!(ranked[i-1].btc>x.btc)))
     throw Error('Top Miners BTC balances must descend in ranking order');
+  if(ranked.some((x,i)=>{
+    const original=423000000-i*1965713;
+    const expected=original<=200000000?Math.round(original/2):original-100000000;
+    return Math.round(x.btc*100000000)!==expected;
+  }))throw Error('Top Miners reduction must match the 1–4 BTC mapping at every rank');
   if(brazilian.at(-1).rank<185 || brazilian[1].rank>18)
     throw Error('Brazilian profiles must be distributed across the whole ranking');
   await page.screenshot({path:'release-build/top-miners-mobile.png',fullPage:true});
