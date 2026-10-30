@@ -12,6 +12,7 @@ import { MockPaymentFeed } from './MockPaymentFeed';
 import { formatBrazilianPhone, validBrazilianPhone } from '../utils/phone';
 import { projectInternalBalance } from '../utils/projectInternalBalance';
 import { ServerRewardView } from './ServerRewardView';
+import { RewardHistoryLog } from './RewardHistoryLog';
 import { TopMinersView } from './workspace/TopMinersView';
 import { SubscriptionHistoryView } from './workspace/SubscriptionHistoryView';
 import { memberTexts } from '../i18n/memberTexts';
@@ -314,7 +315,8 @@ export const MemberWorkspace: React.FC<{
           onRefresh={()=>void reload()} onRewards={()=>setPage('reward')}
           onHistory={()=>setPage('history')}/>}
         {page==='reward' && <ServerRewardView account={account} language={language} busy={busy}
-          onClaim={()=>void act('rewards.claim')} onHistory={()=>setPage('history')}/>}
+          ledger={ledger} onClaim={()=>void act('rewards.claim')}
+          onRefreshHistory={()=>{void api<typeof ledger>('ledger').then(setLedger).catch(e=>setNotice((e as Error).message));}}/>}
         {page==='wallet' && <>
           <ServerWalletView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} quoteStatus={quoteStatus}
             onRetryQuote={()=>{void refreshQuote();}} language={language}
@@ -398,26 +400,8 @@ export const MemberWorkspace: React.FC<{
             </p>)}
           </section>}
         </>}
-        {page==='history' && <>
-          <h2 className="font-bold text-lg">{words.rewardLog}</h2>
-          <button className="text-xs border border-slate-600 rounded-lg p-2" onClick={()=>
-            void api<typeof ledger>('ledger').then(setLedger).catch(e=>setNotice((e as Error).message))
-          }>{words.updateLog}</button>
-          <h3 className="text-sm font-semibold">{words.accrual}</h3>
-          {ledger.accruals.length===0 && <p className="text-xs text-slate-400">{words.noAccrual}</p>}
-          {ledger.accruals.map((r,i)=><div key={i} className="p-3 bg-[#1b2137] rounded-xl text-xs">
-            {r.plan_id} · {new Date(r.start_ts*1000).toLocaleString(dateLocale)} — {new Date(r.end_ts*1000).toLocaleString(dateLocale)}
-            <p >{words.earnedUnits}: {r.earned_units}</p>
-            {(r as {adminEdited?:boolean}).adminEdited&&<p className="text-amber-300">Histórico demonstrativo ajustado</p>}
-          </div>)}
-          <h3 className="text-sm font-semibold">{words.dailyBonusClaims}</h3>
-          {ledger.bonuses.length===0 && <p className="text-xs text-slate-400">{words.noBonus}</p>}
-          {ledger.bonuses.map((r,i)=><div key={i} className="p-3 bg-[#1b2137] rounded-xl text-xs">
-            {r.plan_id} · {new Date(r.claimed_at*1000).toLocaleString(dateLocale)}
-            <p>{r.bonus_satoshis} {tr.satoshis} · {r.bonus_usd_units} {tr.units}</p>
-            {(r as {adminEdited?:boolean}).adminEdited&&<p className="text-amber-300">Histórico demonstrativo ajustado</p>}
-          </div>)}
-        </>}
+        {page==='history' && <RewardHistoryLog language={language} ledger={ledger}
+          onRefresh={()=>{void api<typeof ledger>('ledger').then(setLedger).catch(e=>setNotice((e as Error).message));}}/>}
         {page==='profile' && <form onSubmit={e=>{e.preventDefault();void act('profile.update',profile)}} className="space-y-3">
           <h2 className="text-lg font-bold">{words.profile}</h2>
           {(['displayName','email','phone','walletAddress'] as const).map(k=><label key={k} className="block text-sm text-slate-300">
