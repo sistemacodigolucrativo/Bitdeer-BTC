@@ -37,12 +37,19 @@ const regions: Array<[string,string,string,string,string,string]>=[
 // 200 unique profile names with 61 Brazilian profiles including original Ricardo.
 const testimonials=['Exploring digital technologies','Building a connected community','Learning about blockchain','Ideas for a digital future',
   'Innovation without borders','Discovering new opportunities','Connected through technology'];
+/** Piecewise monotone reduction: 1→0.5, 2→1, 3→2, 4→3 BTC.
+ * Values below 2 BTC are halved; values above 2 lose 1 BTC.
+ * Integer satoshis preserve ranking and eight-decimal precision.
+ */
+export const reduceShowcaseBtcSats=(sats:number):number=>
+  sats<=200000000?Math.round(sats/2):sats-100000000;
+
 export const showcase: Miner[] = (()=>{
   const result:Miner[]=[];
   const add=(name:string,country:string,flag:string,location:string)=>{
     // BTC amounts are intentionally illustrative, strictly descending by rank.
     const rank=result.length;
-    const btcSats=423000000-rank*1965713;
+    const btcSats=reduceShowcaseBtcSats(423000000-rank*1965713);
     result.push({name,country,flag,location,message:testimonials[rank%testimonials.length],btcSats});
   };
   for(const x of originals) add(x.name,x.country,x.flag,x.country);
