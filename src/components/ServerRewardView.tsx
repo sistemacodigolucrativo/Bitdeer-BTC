@@ -21,15 +21,15 @@ export const ServerRewardView:React.FC<Props>=({account,language,busy,onClaim,on
   const t=language==='en'?{
     title:'Rewards',usd:'USD bonus',sats:'Satoshi bonus',claim:'Claim both daily bonuses',
     waiting:'Next claim in',frequency:'Once every 24 hours',ledger:'Reward history',
-    notice:'One claim grants both bonuses as internal credits, not actual mined BTC.'
+    notice:'One claim grants both bonuses as internal credits.'
   }:language==='es'?{
     title:'Recompensas',usd:'Bono USD',sats:'Bono en satoshis',claim:'Reclamar ambos bonos diarios',
     waiting:'Próximo reclamo en',frequency:'Cada 24 horas',ledger:'Historial de recompensas',
-    notice:'Un solo reclamo acredita ambos bonos como créditos internos, no BTC minados reales.'
+    notice:'Un solo reclamo acredita ambos bonos como créditos internos.'
   }:{
     title:'Recompensas',usd:'Bônus em USD',sats:'Bônus em satoshis',claim:'Resgatar ambos os bônus diários',
     waiting:'Próximo resgate em',frequency:'A cada 24 horas',ledger:'Histórico de recompensas',
-    notice:'Um único resgate credita ambos os bônus como créditos internos, não BTC efetivamente minerado.'
+    notice:'Um único resgate credita ambos os bônus como créditos internos.'
   };
   return <section data-testid="rewards-premium" className="space-y-3 pb-4">
     <header className="flex items-center justify-between gap-3">
