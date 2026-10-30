@@ -95,7 +95,6 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       ['durationDays','Duração do plano (dias)'],
       ['sessionSeconds','Duração da sessão (segundos)'],
       ['withdrawMinUsd','Valor mínimo de saque (USD)'],
-      ['withdrawAfterDays','Prazo mínimo para saque (dias)'],
       ['hashrate','Capacidade ilustrativa'],['serverModel','Equipamento ilustrativo']
     ] as const).map(([key,label])=><label key={key} className="block text-sm">
       {label}<input required value={selected[key]} type={
