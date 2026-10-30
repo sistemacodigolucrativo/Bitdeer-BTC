@@ -136,6 +136,15 @@ assert abs(float(charlie.call("profile")["mining"]["balanceUsd"])-8.0)<1e-6
 vip_checkout=charlie.call("orders.create",{"planId":"VIP_01"},201)
 admin.call("admin.order.approve",{"orderId":vip_checkout["orderId"],
   "paymentConfirmed":True,"paymentReference":"b"*64})
+# Regression: an older saved VIP contract may still specify a 365-day
+# withdrawal waiting period. The rule must not block new requests or approval.
+with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as db:
+    contract=db.execute("SELECT id,plan_snapshot_json FROM contracts WHERE user_id=? ORDER BY id DESC LIMIT 1",
+                        (charlie_uid,)).fetchone()
+    legacy_snapshot=json.loads(contract[1])
+    legacy_snapshot["withdraw_after_days"]=365
+    db.execute("UPDATE contracts SET plan_snapshot_json=? WHERE id=?",
+               (json.dumps(legacy_snapshot),contract[0]))
 assert charlie.call("withdraw.mine")["requests"][0]["status"]=="pending"
 admin.call("admin.withdraw.process",{"requestId":free_request["id"],
   "status":"approved","reference":"test-vip-active","manualReviewConfirmed":True})
