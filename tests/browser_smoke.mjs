@@ -174,6 +174,8 @@ try {
     throw Error('Invalid BTC address incorrectly dismissed required dialog');
   await requiredAddress.fill(registeredWallet);
   await requiredWallet.getByTestId('wallet-required-save').click();
+  await requiredWallet.getByText(/Confirme o endereço Bitcoin|Confirm the Bitcoin address|Confirme la dirección Bitcoin/).waitFor({timeout:10000});
+  await requiredWallet.getByTestId('wallet-required-save').click();
   await requiredWallet.waitFor({state:'detached',timeout:15000});
   const savedWalletResponse=await ctx.request.get('/api/index.php?action=profile');
   if(!savedWalletResponse.ok()||(await savedWalletResponse.json()).profile.walletAddress!==registeredWallet)
