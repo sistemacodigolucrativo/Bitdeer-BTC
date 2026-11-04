@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Coins, Gift, Info, RefreshCw, Clock, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { Coins, Gift, Info, RefreshCw, Clock, Zap, ChevronDown, ChevronUp, LogOut } from 'lucide-react';
 import { MemberData } from '../services/api';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
@@ -8,7 +8,7 @@ type Props = {
   account: MemberData | null; language: LanguageCode; busy: boolean;
   liveBtc:string|null; quoteStatus:'loading'|'ready'|'unavailable'; onRetryQuote:()=>void; liveBalanceUsd:number;
   onStart: () => void; onStop: () => void; onRefresh: () => void;
-  onRewards: () => void; onHistory: () => void;
+  onRewards: () => void; onHistory: () => void; onLogout: () => void;
 };
 const details = {
   pt:{balance:'Saldo interno (USD)',mining:'Painel de mineração', active:'Mineração ativa',
@@ -28,7 +28,7 @@ const details = {
     vip:'Plan VIP hasta', noHash:'Capacidad de minería'}
 };
 export const ServerHomeView: React.FC<Props> = ({
-  account,language,busy,liveBtc,quoteStatus,onRetryQuote,liveBalanceUsd,onStart,onStop,onRefresh,onRewards,onHistory
+  account,language,busy,liveBtc,quoteStatus,onRetryQuote,liveBalanceUsd,onStart,onStop,onRefresh,onRewards,onHistory,onLogout
 }) => {
   const t=translations[language]?.home ?? translations.pt.home;
   const d=details[language] ?? details.pt;
@@ -54,9 +54,15 @@ export const ServerHomeView: React.FC<Props> = ({
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[11px] text-slate-400 truncate">{language==='en'?'Welcome back':language==='es'?'Bienvenido de nuevo':'Boas-vindas'}</p>
-        <p className="text-sm font-extrabold text-white truncate">{account?.profile.displayName || account?.user.login || 'Membro'}</p>
+        <p className="text-sm font-extrabold text-white truncate">{account?.profile.displayName || account?.user.login || (language==='en'?'Member':language==='es'?'Miembro':'Membro')}</p>
+        <p data-testid="welcome-current-plan" className="text-[11px] font-semibold text-emerald-300 truncate">{language==='en'?'Current plan':language==='es'?'Plan actual':'Plano atual'}: {account?.plan.id ?? 'FREE'}</p>
       </div>
-      <button aria-label={d.check} onClick={onRefresh} className="text-slate-300"><RefreshCw size={18}/></button>
+      <div className="flex shrink-0 items-center gap-2">
+        <button type="button" aria-label={d.check} onClick={onRefresh} className="text-slate-300 p-1"><RefreshCw size={18}/></button>
+        <button type="button" data-testid="home-exit" onClick={onLogout}
+          aria-label={language==='en'?'Exit':language==='es'?'Salir':'Sair'} title={language==='en'?'Exit':language==='es'?'Salir':'Sair'}
+          className="flex items-center justify-center rounded-lg border border-[#303b59] bg-[#11182c] p-2 text-rose-300"><LogOut size={18}/></button>
+      </div>
     </div>
     <section className="bg-[#191e32] border border-[#262e49] rounded-3xl p-5 overflow-hidden shadow-md">
       <div className="flex justify-between items-center gap-2 mb-4">
@@ -98,7 +104,7 @@ export const ServerHomeView: React.FC<Props> = ({
             {status?d.active:d.inactive}
           </p>
         </div>
-        <svg viewBox="0 0 120 70" className="w-24 h-16 drop-shadow-md" aria-label="Equipamento gráfico ilustrativo">
+        <svg viewBox="0 0 120 70" className="w-24 h-16 drop-shadow-md" aria-label={language==='en'?'Illustrative equipment graphic':language==='es'?'Gráfico ilustrativo del equipo':'Equipamento gráfico ilustrativo'}>
           <rect x="10" y="10" width="95" height="50" rx="6" fill="#1e294b" stroke="#3b82f6" strokeWidth="1.5"/>
           <circle cx="35" cy="35" r="16" fill="#0f172a" stroke="#60a5fa" strokeWidth="1.5"/>
           <circle cx="75" cy="35" r="16" fill="#0f172a" stroke="#60a5fa" strokeWidth="1.5"/>
