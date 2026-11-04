@@ -4,6 +4,7 @@ require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/quote.php';
 require_once __DIR__ . '/bitcoin.php';
 require_once __DIR__ . '/member_history.php';
+require_once __DIR__ . '/demo_marcelo.php';
 
 /* The reward unit exactly matches dailyRewards.ts:
  * one USD = 864,000,000 units; USD/day (in cents) yields cents * 100 units/s.
@@ -809,6 +810,23 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             ORDER BY u.id DESC LIMIT 50 OFFSET ?',
             [now(),now(),...$params,$offset]);
         json_out(['members'=>$list,'total'=>(int)$total['n'],'offset'=>$offset,'pageSize'=>50]);
+    }
+    if ($action === 'admin.demo.marcelo.status' && $method === 'GET') {
+        auth_user($db,true);
+        $marker=query_one($db,'SELECT value FROM app_settings WHERE name="demo_marcelo_seed"');
+        $seed=$marker?json_decode($marker['value'],true):null;
+        json_out(['exists'=>is_array($seed),'summary'=>is_array($seed)?$seed:null]);
+    }
+    if ($action === 'admin.demo.marcelo.seed' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);
+        $body=request_body();
+        if(($body['confirmDemo']??null)!==true)
+            fail(422,'Confirme que os históricos serão exclusivamente demonstrativos.');
+        $result=atomic($db,static function()use($db,$actor):array {
+            return seed_marcelo_demo($db,(int)$actor['id']);
+        });
+        // The random password is shown only once to the authenticated admin.
+        json_out(['ok'=>true,'simulation'=>true]+$result,201);
     }
     if ($action === 'admin.member.details' && $method === 'GET') {
         auth_user($db,true);
