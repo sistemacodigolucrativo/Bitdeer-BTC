@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Coins, Gift, Info, RefreshCw, Clock, Zap, ChevronDown, ChevronUp, LogOut } from 'lucide-react';
+import { Coins, Gift, Info, Clock, Zap, ChevronDown, ChevronUp, LogOut } from 'lucide-react';
 import { MemberData } from '../services/api';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
@@ -7,7 +7,7 @@ import { translations } from '../i18n/translations';
 type Props = {
   account: MemberData | null; language: LanguageCode; busy: boolean;
   liveBtc:string|null; liveBalanceUsd:number;
-  onStart: () => void; onStop: () => void; onRefresh: () => void;
+  onStart: () => void; onStop: () => void;
   onRewards: () => void; onHistory: () => void; onLogout: () => void;
 };
 const details = {
@@ -28,7 +28,7 @@ const details = {
     vip:'Plan VIP hasta', noHash:'Capacidad de minería'}
 };
 export const ServerHomeView: React.FC<Props> = ({
-  account,language,busy,liveBtc,liveBalanceUsd,onStart,onStop,onRefresh,onRewards,onHistory,onLogout
+  account,language,busy,liveBtc,liveBalanceUsd,onStart,onStop,onRewards,onHistory,onLogout
 }) => {
   const t=translations[language]?.home ?? translations.pt.home;
   const d=details[language] ?? details.pt;
@@ -48,17 +48,15 @@ export const ServerHomeView: React.FC<Props> = ({
   const isVip=account?.plan.id!=='FREE' && account?.plan.id!==undefined;
   const stamp=(v:number)=>new Date(v*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR');
   return <div className="space-y-4 select-none pb-4">
-    <div className="flex items-center gap-3 bg-[#171b2d] border border-[#252c45] rounded-2xl p-3 shadow-sm">
+    <div data-testid="home-welcome-card" className="flex items-center gap-3 bg-[#171b2d] border border-[#252c45] rounded-2xl p-3 shadow-sm">
       <div className="w-10 h-10 rounded-full bg-emerald-600 flex justify-center items-center text-white font-bold">
         {(account?.profile.displayName || account?.user.login || 'M').charAt(0).toUpperCase()}
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[11px] text-slate-400 truncate">{language==='en'?'Welcome back':language==='es'?'Bienvenido de nuevo':'Boas-vindas'}</p>
         <p className="text-sm font-extrabold text-white truncate">{account?.profile.displayName || account?.user.login || (language==='en'?'Member':language==='es'?'Miembro':'Membro')}</p>
-        <p data-testid="welcome-current-plan" className="text-[11px] font-semibold text-emerald-300 truncate">{language==='en'?'Current plan':language==='es'?'Plan actual':'Plano atual'}: {account?.plan.id ?? 'FREE'}</p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <button type="button" aria-label={d.check} onClick={onRefresh} className="text-slate-300 p-1"><RefreshCw size={18}/></button>
         <button type="button" data-testid="home-exit" onClick={onLogout}
           aria-label={language==='en'?'Exit':language==='es'?'Salir':'Sair'} title={language==='en'?'Exit':language==='es'?'Salir':'Sair'}
           className="flex items-center justify-center rounded-lg border border-[#303b59] bg-[#11182c] p-2 text-rose-300"><LogOut size={18}/></button>
@@ -80,11 +78,6 @@ export const ServerHomeView: React.FC<Props> = ({
         <p data-testid="mining-live-usd" className="text-xs text-slate-300 mt-1">
           USD:
           {' '}US$ {liveBalanceUsd.toFixed(8)}
-        </p>
-        <p className="text-[10px] text-slate-400 mt-1">
-          {language==='en'?'Internal projection between server updates.':
-          language==='es'?'Proyección interna entre actualizaciones.':
-          'Projeção interna entre atualizações.'}
         </p>
       </div>
       <div className="flex justify-between items-center mb-5">
