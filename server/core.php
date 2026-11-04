@@ -142,7 +142,7 @@ function validate_login(string $login): bool {
     return (bool) preg_match('/^[a-zA-Z0-9_.-]{3,40}$/D', $login);
 }
 function validate_password(string $password): bool {
-    return strlen($password) >= 4 && strlen($password) <= 256;
+    return strlen($password) >= 12 && strlen($password) <= 256;
 }
 function secure_password(string $password): string {
     return password_hash($password, PASSWORD_DEFAULT);
