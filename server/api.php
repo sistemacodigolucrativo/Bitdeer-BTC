@@ -532,14 +532,19 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $avatar=string_field($body,'avatarUrl',2048);
         if ($name === '' || !is_email_or_empty($email) || $phone===null) fail(422,'Nome, e-mail ou telefone inválido');
         if ($wallet!=='' && !btc_receive_address_valid($wallet)) fail(422,'Carteira Bitcoin inválida');
-        $current=query_one($db,'SELECT avatar_url,avatar_locked FROM users WHERE id=?',[$actor['id']]);
-        if($current===null) fail(404,'Perfil indisponível');
-        if((int)$current['avatar_locked']===1 && $avatar!==(string)$current['avatar_url'])
-            fail(409,'A imagem de perfil já foi definida e não pode ser alterada');
-        if($avatar!=='' && (!filter_var($avatar,FILTER_VALIDATE_URL) || !in_array((string)parse_url($avatar,PHP_URL_SCHEME),['https','http'],true)))
+        if($avatar!=='' && (!filter_var($avatar,FILTER_VALIDATE_URL) ||
+            !in_array(strtolower((string)parse_url($avatar,PHP_URL_SCHEME)),['https','http'],true)))
             fail(422,'URL da imagem inválida');
-        execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=?,avatar_url=?,avatar_locked=?,wallet_address=?,updated_at=? WHERE id=?',
-          [$name,$email,$phone,$avatar,$avatar!==''?1:(int)$current['avatar_locked'],$wallet,now(),$actor['id']]);
+        // BEGIN IMMEDIATE serializes concurrent profile changes across devices.
+        // One request may set the image; every subsequent DIFFERENT URL is rejected.
+        atomic($db,static function() use($db,$actor,$name,$email,$phone,$wallet,$avatar): void {
+            $current=query_one($db,'SELECT avatar_url,avatar_locked FROM users WHERE id=?',[$actor['id']]);
+            if($current===null) fail(404,'Perfil indisponível');
+            if((int)$current['avatar_locked']===1 && $avatar!==(string)$current['avatar_url'])
+                fail(409,'A imagem de perfil já foi definida e não pode ser alterada');
+            execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=?,avatar_url=?,avatar_locked=?,wallet_address=?,updated_at=? WHERE id=?',
+              [$name,$email,$phone,$avatar,$avatar!==''?1:(int)$current['avatar_locked'],$wallet,now(),$actor['id']]);
+        });
         json_out(['ok'=>true]);
     }
     if ($action === 'mining.start' && $method === 'POST') {
