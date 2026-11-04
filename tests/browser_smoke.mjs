@@ -266,11 +266,11 @@ try {
     throw Error('Brazilian profiles must be distributed across the whole ranking');
   await page.screenshot({path:'release-build/top-miners-mobile.png',fullPage:true});
   await page.getByText(/Ranking demonstrativo|Demonstration ranking|Ranking demostrativo/i).waitFor({timeout:10000});
-  const navBox=await topMenu.boundingBox();
+  const navBox=await bottomMenu.boundingBox();
   await minerCards.last().scrollIntoViewIfNeeded();
-  const scrolledBox=await topMenu.boundingBox();
+  const scrolledBox=await bottomMenu.boundingBox();
   if(!navBox||!scrolledBox||Math.abs(navBox.y-scrolledBox.y)>2)
-    throw Error('Fixed header navigation moved during vertical scroll');
+    throw Error('Fixed bottom navigation moved during vertical scroll');
   await page.locator('nav button').nth(4).click();
   await page.getByRole('button',{name:/Histórico VIP|Subscriptions|Suscripciones/}).click();
   await page.getByText(/Histórico de assinaturas|Subscription history|Historial de suscripciones/).first()
