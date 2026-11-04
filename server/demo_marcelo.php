@@ -16,9 +16,11 @@ function seed_marcelo_demo(PDO $db, int $adminId): array {
         throw new RuntimeException('A conta demonstrativa Marcelo já foi criada; nenhum dado foi alterado.');
 
     $login='marcelo';
-    // Do not modify an existing account, including an administrator named Marcelo.
-    if (query_one($db,'SELECT id FROM users WHERE login=?',[$login]))
-        throw new RuntimeException('Já existe uma conta com login marcelo; nenhum dado foi alterado.');
+    // Preserve the administrator's chosen login; never take over an existing member.
+    $conflict=query_one($db,'SELECT id,role FROM users WHERE login=?',[$login]);
+    if($conflict && $conflict['role']==='admin')$login='marcelo-demo';
+    if(query_one($db,'SELECT id FROM users WHERE login=?',[$login]))
+        throw new RuntimeException('Já existe a conta Marcelo; nenhum dado foi alterado.');
 
     $now=now();
     $start=$now-165*86400; // 5.5 months of fictional historical activity
