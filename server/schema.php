@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/core.php';
+require_once __DIR__ . '/demo_marcelo.php';
 
 /** Provision one clean database, with a random-password founding member. */
 function provision(string $login, string $password, string $supportEmail, string $siteUrl = '', string $environment = 'auto'): array {
@@ -20,8 +21,6 @@ function provision(string $login, string $password, string $supportEmail, string
     if (!in_array($environment,['auto','vps','shared'],true)) {
         throw new InvalidArgumentException('Tipo de hospedagem inválido');
     }
-    $founderPassword=bin2hex(random_bytes(20));
-    $founderCode=strtoupper(bin2hex(random_bytes(5)));
     $db = database(true);
     $db->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS users (
@@ -203,7 +202,7 @@ CREATE TABLE IF NOT EXISTS auth_attempts (
 );
 CREATE INDEX IF NOT EXISTS idx_auth_attempts ON auth_attempts(login, attempted_at);
 SQL);
-    return atomic($db, static function () use ($db, $login, $password, $supportEmail, $siteUrl, $environment, $founderPassword, $founderCode): array {
+    return atomic($db, static function () use ($db, $login, $password, $supportEmail, $siteUrl, $environment): array {
         if (query_one($db, 'SELECT id FROM users LIMIT 1') !== null ||
             query_one($db, 'SELECT name FROM app_settings LIMIT 1') !== null) {
             throw new RuntimeException('Database already provisioned; refusing to reset');
@@ -222,16 +221,6 @@ SQL);
         }
         execute_sql($db, 'INSERT INTO users (login,password_hash,role,status,display_name,created_at,updated_at) VALUES (?,?,"admin","active",?,?,?)',
           [$login,secure_password($password),'Administrador',$time,$time]);
-        // Create a new network founder (not an imported mockup user). The
-        // credential is random, and is displayed only in the protected first-install response.
-        $founderLogin=strcasecmp($login,'network')===0 ? 'network-member' : 'network';
-        execute_sql($db,'INSERT INTO users(login,password_hash,role,status,display_name,created_at,updated_at)
-            VALUES (?,?,"member","active",?,?,?)',
-            [$founderLogin,secure_password($founderPassword),'Membro Inicial',$time,$time]);
-        $founderId=(int)$db->lastInsertId();
-        execute_sql($db,'INSERT INTO mining_state(user_id,updated_at) VALUES (?,?)',[$founderId,$time]);
-        execute_sql($db,'INSERT INTO referral_codes(user_id,code,created_at) VALUES (?,?,?)',
-            [$founderId,$founderCode,$time]);
         execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("support_email",?)', [$supportEmail]);
         execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("site_url",?)',[$siteUrl]);
         execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("environment_type",?)',[$environment]);
@@ -241,7 +230,11 @@ SQL);
         execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("btc_address_confirmed","0")');
         execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("payment_mode","simulation")');
         execute_sql($db, 'INSERT INTO app_settings (name,value) VALUES ("schema_version","1")');
-        return ['founderLogin'=>$founderLogin,'founderPassword'=>$founderPassword,
-            'founderCode'=>$founderCode];
+        // The first member is Marcelo, with five months of clearly simulated
+        // history. This fixture is created once, atomically with installation.
+        $seed=seed_marcelo_demo($db,(int)query_one($db,
+          'SELECT id FROM users WHERE login=?',[$login])['id']);
+        return ['founderLogin'=>$seed['login'],'founderPassword'=>$seed['initialPassword'],
+            'founderCode'=>$seed['referralCode']];
     });
 }
