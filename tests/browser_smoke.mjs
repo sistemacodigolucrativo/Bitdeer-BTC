@@ -220,8 +220,16 @@ try {
      mockFeed.records.some(record=>Math.abs(Number(record.valueUsd)-
       Number(record.btc)*rate)>.01))
     throw Error('Mock BTC and USD amounts must match the verified market quote');
-  if(await page.getByTestId('btc-payments-scroll').evaluate(el=>getComputedStyle(el).touchAction)!=='auto')
-    throw Error('Horizontal history must not intercept vertical swipe gestures');
+  const paymentScroll=await page.getByTestId('btc-payments-scroll').evaluate(el=>{
+    const ancestor=el.closest('.member-vertical-scroll');
+    el.scrollLeft=180;
+    return {gesture:getComputedStyle(el).touchAction,
+      parentGesture:ancestor?getComputedStyle(ancestor).touchAction:'',
+      scrollLeft:el.scrollLeft,scrollWidth:el.scrollWidth,clientWidth:el.clientWidth};
+  });
+  if(paymentScroll.gesture!=='auto'||paymentScroll.parentGesture!=='auto'||
+     paymentScroll.scrollWidth<=paymentScroll.clientWidth||paymentScroll.scrollLeft<100)
+    throw Error('Payments table must scroll horizontally without blocking vertical gestures');
   await page.screenshot({path:'release-build/wallet-feed-mobile.png',fullPage:true});
   const walletBtc=displayedBtc(await page.getByTestId('wallet-live-btc').innerText());
   if(!Number.isFinite(walletBtc)||Math.abs(walletBtc-displayedUsd(secondWallet)/quoteRate)>0.000000011)
