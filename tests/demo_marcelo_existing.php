@@ -41,7 +41,7 @@ try {
     $seed=atomic($db,static fn():array=>seed_marcelo_demo($db,$admin));
     assert($seed['login']==='user' && $seed['displayName']==='Marcelo');
     $newUser=query_one($db,'SELECT * FROM users WHERE id=?',[$seed['userId']]);
-    assert(strlen($seed['initialPassword'])>=12 && $seed['initialPassword']!=='user');
+    assert($seed['initialPassword']==='123456789123');
     assert(password_verify($seed['initialPassword'],$newUser['password_hash']));
     assert(query_one($db,'SELECT COUNT(*) AS n FROM member_history_edits WHERE user_id=?',
         [$seed['userId']])['n']>300);
