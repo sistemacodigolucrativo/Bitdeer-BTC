@@ -461,7 +461,9 @@ try {
   await withdrawalPage.getByRole('button',{name:/Registrar solicitação|Submit request|Register request|Registrar solicitud/}).click();
   const modal=withdrawalPage.getByTestId('withdraw-awaiting-vip-modal');
   await modal.waitFor({timeout:12000});
-  await modal.getByText('Você não pode realizar outros saques no momento! Sua assinatura VIP Expirou a pouco tempo.').waitFor({timeout:10000});
+  // The withdrawal modal is localized according to the member's selected language,
+  // which can differ from the browser locale in a restored session.
+  await modal.getByText(/Você não pode realizar outros saques no momento!|You cannot make other withdrawals right now|No puede realizar más retiros por ahora/).waitFor({timeout:10000});
   await withdrawalPage.screenshot({path:'release-build/withdraw-awaiting-vip-modal.png',fullPage:true});
   await modal.getByTestId('withdraw-go-to-store').click();
   await withdrawalPage.getByTestId('store-view').waitFor({timeout:10000});
