@@ -23,7 +23,7 @@ assert db.execute("SELECT COUNT(*) FROM member_history_edits WHERE user_id=? AND
 assert db.execute("SELECT COUNT(*) FROM member_history_edits WHERE user_id=? AND kind='withdrawal'",(founder[0],)).fetchone()[0]==60
 assert db.execute("SELECT COUNT(*) FROM member_history_edits WHERE user_id=? AND kind='subscription'",(founder[0],)).fetchone()[0]==4
 assert db.execute("SELECT COUNT(*) FROM member_history_edits WHERE user_id=? AND kind='purchase'",(founder[0],)).fetchone()[0]==4
-assert db.execute("SELECT balance_units FROM mining_state WHERE user_id=?",(founder[0],)).fetchone()[0]==200000*8640000
+assert db.execute("SELECT balance_units FROM mining_state WHERE user_id=?",(founder[0],)).fetchone()[0]==183742*8640000
 assert db.execute("SELECT COUNT(*) FROM contracts WHERE user_id=?",(founder[0],)).fetchone()[0]==0
 assert db.execute("SELECT COUNT(*) FROM orders WHERE user_id=?",(founder[0],)).fetchone()[0]==0
 assert db.execute("SELECT COUNT(*) FROM withdraw_requests WHERE user_id=?",(founder[0],)).fetchone()[0]==0

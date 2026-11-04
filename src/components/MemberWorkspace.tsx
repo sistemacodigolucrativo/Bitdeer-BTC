@@ -340,7 +340,6 @@ export const MemberWorkspace: React.FC<{
                   <span>US$ {(x.usd_cents/100).toFixed(2)}</span>
                   <span>{(x.btc_satoshis/1e8).toFixed(8)} BTC ({tr.equivalent})</span>
                   <span>{x.status==='awaiting_vip'?tr.awaiting:x.status==='pending'?tr.pending:x.status==='approved'?tr.approved:tr.rejected}</span>
-                  {x.adminEdited&&<span className="text-amber-300">{language==='en'?'Edited demo history':language==='es'?'Historial demostrativo editado':'Histórico demonstrativo ajustado'}</span>}
                 </div>)}
               </div>
             </div>
@@ -396,7 +395,6 @@ export const MemberWorkspace: React.FC<{
             <h3 className="font-bold text-sm">{language==='en'?'Purchase history':language==='es'?'Historial de compras':'Histórico de compras'}</h3>
             {purchaseHistory.map(x=><p key={x.id} className="border-b border-[#2b3350] pb-2 text-xs">
               #{x.id} · {x.plan_id} · {x.status} · {(x.btc_sats/1e8).toFixed(8)} BTC
-              {x.adminEdited&&<span className="block text-amber-300">{language==='en'?'Administratively edited demo history':language==='es'?'Historial demostrativo editado':'Histórico demonstrativo ajustado pelo administrador'}</span>}
             </p>)}
           </section>}
         </>}

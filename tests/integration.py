@@ -91,7 +91,7 @@ assert admin.call("admin.overview")["members"]==3
 # The founding demo profile is present on clean installs. Existing profiles
 # cannot be overwritten or credited twice by the admin seed endpoint.
 demo_status=admin.call("admin.demo.marcelo.status")
-assert demo_status["exists"] is True and demo_status["summary"]["balanceUsdCents"]==200000
+assert demo_status["exists"] is True and demo_status["summary"]["balanceUsdCents"]==183742
 assert demo_status["summary"]["historyCounts"]["withdrawal"]==60
 assert Client().call("admin.demo.marcelo.status",expected=401)["error"]
 assert alice.call("admin.demo.marcelo.seed",{"confirmDemo":True},403)["error"]

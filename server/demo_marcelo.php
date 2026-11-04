@@ -130,9 +130,9 @@ function seed_marcelo_demo(PDO $db, int $adminId): array {
     }
 
     // Explicit fictional opening credit reconciles the timeline exactly:
-    // opening + plan accruals + claimed bonuses - demo withdrawals = US$ 2,000.
+    // opening + plan accruals + claimed bonuses - demo withdrawals = US$ 1,837.42.
     // No original financial ledger, on-chain transaction or payment status is changed.
-    $targetUnits=200000*8640000;
+    $targetUnits=183742*8640000;
     $withdrawUnits=$withdrawCents*8640000;
     $openingUnits=$targetUnits-$earnedUnits-$bonusUnits+$withdrawUnits;
     if($openingUnits<0)throw new RuntimeException('Histórico demonstrativo excede o saldo alvo');
@@ -146,7 +146,7 @@ function seed_marcelo_demo(PDO $db, int $adminId): array {
       'startAt'=>$start,'seededAt'=>$now,'openingUsdCents'=>$openingCents,
       'earnedUsdCents'=>intdiv($earnedUnits,8640000),
       'bonusUsdCents'=>intdiv($bonusUnits,8640000),
-      'withdrawUsdCents'=>$withdrawCents,'balanceUsdCents'=>200000,
+      'withdrawUsdCents'=>$withdrawCents,'balanceUsdCents'=>183742,
       'historicalQuote'=>'illustrative, not verified market history',
       'historyCounts'=>$counts];
     execute_sql($db,'INSERT INTO app_settings(name,value) VALUES ("demo_marcelo_seed",?)',

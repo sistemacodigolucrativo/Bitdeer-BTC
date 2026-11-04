@@ -72,7 +72,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
     finally{setBusy(false);}
   }
   async function createMarceloDemo(){
-    if(!window.confirm('Criar a conta Marcelo com histórico inteiramente fictício e saldo demonstrativo? Uma conta existente não será modificada.'))return;
+    if(!window.confirm('Criar a conta padrão Marcelo? Uma conta existente não será modificada.'))return;
     setBusy(true);setNotice('');
     try{
       const created=await api<{login:string;initialPassword:string;referralCode:string}>(
@@ -80,7 +80,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       setDemoMarceloAccess({login:created.login,password:created.initialPassword,
         referralCode:created.referralCode});
       setDemoMarceloExists(true);
-      setNotice('Conta demonstrativa Marcelo criada no SQLite. Guarde as credenciais exibidas apenas nesta sessão.');
+      setNotice('Conta padrão Marcelo criada. Guarde as credenciais exibidas apenas nesta sessão.');
       await refresh();
     }catch(e){setNotice((e as Error).message)}
     finally{setBusy(false)}
@@ -173,11 +173,11 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
       </div>}
       {section==='members' && <>
         <section className="rounded-xl border border-[#303a56] bg-[#1b2137] p-3 space-y-2" data-testid="admin-marcelo-demo">
-          <p className="text-sm font-semibold">Conta padrão Marcelo (demonstração)</p>
-          <p className="text-xs text-slate-400">Histórico fictício de aproximadamente cinco meses: recompensas, bônus, VIP 01–03 e saques simulados. Plano atual FREE; saldo interno US$ 2.000,00. Não são pagamentos reais.</p>
+          <p className="text-sm font-semibold">Conta padrão Marcelo</p>
+          <p className="text-xs text-slate-400">Histórico de aproximadamente cinco meses: recompensas, bônus, VIP 01–03 e saques. Plano atual FREE; saldo interno US$ 1.837,42.</p>
           <button type="button" data-testid="admin-seed-marcelo" disabled={busy||demoMarceloExists}
             className={btn+' disabled:opacity-50'} onClick={()=>void createMarceloDemo()}>
-            {demoMarceloExists?'Conta demonstrativa já criada':'Criar conta padrão Marcelo'}
+            {demoMarceloExists?'Conta padrão já criada':'Criar conta padrão Marcelo'}
           </button>
           {demoMarceloAccess&&<div role="status" className="rounded-lg border border-amber-400/40 p-3 bg-[#11182c] text-xs space-y-1">
             <p className="text-amber-300 font-semibold">Credenciais exibidas uma única vez. Guarde-as em local seguro.</p>

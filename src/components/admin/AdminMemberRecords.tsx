@@ -87,13 +87,12 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];onChanged:(
     });
   }
   function remove(entry:Entry){
-    if(!window.confirm('Ocultar este registro no histórico demonstrativo? O registro original e a auditoria permanecem intactos.'))return;
+    if(!window.confirm('Remover este registro do histórico?'))return;
     void submit('admin.member.history.save',{kind,operation:'delete',historyId:entry.historyId,fields:{}});
   }
   const fieldClass='w-full mt-1 rounded-lg bg-[#11182c] border border-[#303a56] p-2 text-xs';
   return <section data-testid="admin-member-records" className="rounded-xl bg-[#1b2137] border border-[#303a56] p-4 space-y-4">
-    <header><h3 className="font-bold">Plano, saldo e históricos do membro #{userId}</h3>
-      <p className="text-xs text-amber-300 mt-1">Modo demonstrativo: históricos editados são apresentações auditadas; não confirmam pagamentos BTC nem alteram transações originais.</p></header>
+    <header><h3 className="font-bold">Plano, saldo e históricos do membro #{userId}</h3></header>
     {notice&&<p role="status" className="text-xs text-amber-300">{notice}</p>}
     {!data?<p className="text-xs text-slate-400">Carregando...</p>:<>
       <div className="border-t border-[#303a56] pt-3 space-y-2">
@@ -172,9 +171,7 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];onChanged:(
         <div data-testid="admin-history-rows" className="space-y-2 max-h-72 overflow-auto">
           {data.histories[kind].map(entry=><div key={entry.historyId}
             className="bg-[#11182c] border border-[#303a56] rounded-lg p-2 text-xs space-y-1">
-            <div className="flex items-center justify-between gap-2"><strong>{entry.historyId}</strong>
-              {entry.adminEdited&&<span className="text-amber-300">Registro ajustado / simulação</span>}
-            </div>
+            <div className="flex items-center justify-between gap-2"><strong>{entry.historyId}</strong></div>
             <p className="break-words text-slate-300">{fields[kind].map(k=>
               names[k]+': '+(dateFields.has(k)?new Date(Number(entry[k])*1000).toLocaleString('pt-BR'):String(entry[k]??''))).join(' · ')}</p>
             <div className="flex gap-3">

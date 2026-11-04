@@ -15,7 +15,7 @@ with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as db:
     assert user["status"] == "active"
     assert 164 * 86400 < time.time() - user["created_at"] < 166 * 86400
     state = db.execute("SELECT * FROM mining_state WHERE user_id=?", (user["id"],)).fetchone()
-    assert state["running"] == 0 and state["balance_units"] == 200000 * UNITS_PER_CENT
+    assert state["running"] == 0 and state["balance_units"] == 183742 * UNITS_PER_CENT
     assert state["last_accrual_at"] is None
     assert state["session_ends_at"] is None
     assert db.execute("SELECT COUNT(*) FROM contracts WHERE user_id=?", (user["id"],)).fetchone()[0] == 0
@@ -26,7 +26,7 @@ with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as db:
     assert marker
     metadata = json.loads(marker[0])
     assert metadata["simulation"] is True and metadata["userId"] == user["id"]
-    assert metadata["balanceUsdCents"] == 200000
+    assert metadata["balanceUsdCents"] == 183742
     assert metadata["historicalQuote"] == "illustrative, not verified market history"
     records = {}
     for row in db.execute("SELECT kind,payload_json,source_id,deleted FROM member_history_edits WHERE user_id=?",
