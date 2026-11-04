@@ -147,7 +147,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 }}
                 placeholder={t.passwordPlaceholder}
                 className="bg-transparent border-none text-white text-sm placeholder:text-slate-500 w-full outline-hidden pr-2"
-                autoComplete="current-password"
+                autoComplete={registerMode ? 'new-password' : 'current-password'}
+                minLength={registerMode ? 12 : undefined}
+                maxLength={256}
               />
               <button
                 type="button"
