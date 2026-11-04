@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AuthUser, MemberData, Plan, api } from '../services/api';
 import { CustomerSupportView } from './workspace/CustomerSupportView';
+import { WalletRequiredModal } from './workspace/WalletRequiredModal';
 import { LanguageCode } from '../types';
 import { Home, Store, User, Headphones, LogOut, Wallet, Gift, Settings, Trophy, ScrollText, ArrowLeft, Crown, LockKeyhole } from 'lucide-react';
 import { translations } from '../i18n/translations';
@@ -186,6 +187,23 @@ export const MemberWorkspace: React.FC<{
     if(page==='store')void api<{orders:typeof purchaseHistory}>('orders.mine')
       .then(x=>setPurchaseHistory(x.orders)).catch(()=>{});
   },[page]);
+  async function registerRequiredWallet(walletAddress:string):Promise<void>{
+    if(!account)throw new Error('Member profile unavailable');
+    // Reuse the existing PHP validation and SQLite persistence.
+    await api('profile.update',{
+      displayName:account.profile.displayName,
+      email:account.profile.email,
+      phone:account.profile.phone,
+      walletAddress
+    });
+    const saved=await api<MemberData>('profile');
+    if(saved.profile.walletAddress!==walletAddress)
+      throw new Error('Wallet registration could not be verified');
+    acceptSnapshot(saved);
+    setProfile({...saved.profile,phone:formatInternationalPhone(saved.profile.phone)});
+    setWalletDraft(saved.profile.walletAddress);
+    setWalletStep('none');
+  }
   async function saveWalletForWithdrawal(){
     setBusy(true);setNotice('');
     try{
@@ -265,6 +283,8 @@ export const MemberWorkspace: React.FC<{
       className={'flex flex-1 min-w-0 flex-col items-center justify-center text-[10px] sm:text-[11px] gap-1 rounded-xl py-1.5 transition-colors '+(page===p?'text-white bg-indigo-500/15':'text-slate-400 hover:text-white')}>
       <Icon size={20} className="shrink-0"/><span className="w-full truncate text-center">{label}</span></button>;
   return <div className="w-full h-full flex flex-col bg-[#121526] text-white">
+    {page==='wallet' && account!==null && !account.profile.walletAddress &&
+      <WalletRequiredModal language={language} onRegister={registerRequiredWallet}/>}
     {withdrawPopup && <div role="dialog" aria-modal="true" aria-label={language==='en'?'Active VIP plan required':language==='es'?'Se requiere un plan VIP activo':'Plano VIP ativo necessário'}
       data-testid="withdraw-awaiting-vip-modal" className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-amber-300/40 bg-gradient-to-b from-[#26203b] via-[#171b2d] to-[#101423] p-6 shadow-2xl shadow-amber-950/40 space-y-5">
@@ -353,7 +373,7 @@ export const MemberWorkspace: React.FC<{
         {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
         {page==='home' && <ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language} busy={busy}
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
-          onRefresh={()=>void reload()} onRewards={()=>setPage('reward')}
+          onRewards={()=>setPage('reward')}
           onHistory={()=>setPage('history')} onLogout={onLogout}/>}
         {page==='reward' && <ServerRewardView account={account} language={language} busy={busy}
           ledger={ledger} onClaim={()=>void act('rewards.claim')}
