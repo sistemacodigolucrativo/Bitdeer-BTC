@@ -52,7 +52,7 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
     <p className="text-xs text-amber-300">{tr.notice}</p>
     {loading&&rows.length===0&&!error&&<p role="status" className="text-xs text-slate-400">{tr.loading}</p>}
     {error&&<p role="alert" className="text-xs text-red-300">{error}</p>}
-    <div data-testid="btc-payments-scroll" className="w-full max-w-full overflow-x-auto overscroll-x-contain touch-pan-x" tabIndex={0}
+    <div data-testid="btc-payments-scroll" className="w-full max-w-full overflow-x-auto overscroll-x-contain touch-auto member-horizontal-scroll" tabIndex={0}
       aria-label={tr.title}>
       <div className="min-w-max space-y-2">
         {rows.map(row=><article data-testid="simulated-payment-row" key={row.hash}
