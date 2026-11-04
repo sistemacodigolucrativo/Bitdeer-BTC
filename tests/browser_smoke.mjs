@@ -59,8 +59,8 @@ try {
   await page.goto('/');
   await page.getByTestId('welcome-current-plan').waitFor({timeout:15000});
   if(await page.locator('div.px-5.pb-3').count())throw Error('Legacy member top header should be removed');
-  await page.locator('nav button').first().waitFor({timeout:15000});
-  if(await page.locator('nav button').count()!==5)throw Error('Member navigation must have five tabs');
+  await page.getByTestId('member-bottom-nav').locator('button').first().waitFor({timeout:15000});
+  if(await page.getByTestId('member-bottom-nav').locator('button').count()!==5)throw Error('Member navigation must have five tabs');
   const bottomMenu=page.getByTestId('member-bottom-nav');
   await bottomMenu.waitFor({timeout:10000});
   const menuPosition=await bottomMenu.boundingBox();
@@ -82,7 +82,7 @@ try {
   const scrolledMenu=await bottomMenu.boundingBox();
   if(!scrolledMenu||Math.abs(scrolledMenu.y-menuPosition.y)>2)
     throw Error('Bottom navigation must not move with content scrolling');
-  await page.locator('nav button').nth(1).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(1).click();
   const store=page.getByTestId('store-view');
   await store.getByTestId('store-active-plan').waitFor({timeout:10000});
   if(await store.evaluate(el=>el.firstElementChild?.getAttribute('data-testid'))!=='store-active-plan')throw Error('Active plan must appear first');
@@ -101,7 +101,7 @@ try {
     throw Error('Removed requests block is still visible');
   if(await store.getByText(/Ativação após conferência manual|Activation follows manual payment confirmation|La activación requiere la confirmación manual/).count())
     throw Error('Store activation explanatory text must not be shown');
-  await page.locator('nav button').first().click();
+  await page.getByTestId('member-bottom-nav').locator('button').first().click();
   await page.getByTestId('home-exit').waitFor({timeout:10000});
   await page.getByTestId('welcome-current-plan').waitFor({timeout:10000});
   const bonus=page.getByTestId('daily-bonus-card');
@@ -118,7 +118,7 @@ try {
     document.querySelector('[data-testid="claim-daily-rewards"]')?.textContent||''),null,{timeout:10000});
   if(!(await claimButton.isDisabled()))
     throw Error('Daily bonus claim did not enforce the 24-hour wait');
-  await page.locator('nav button').first().click();
+  await page.getByTestId('member-bottom-nav').locator('button').first().click();
   // Verify visual interpolation uses backend-authoritative running state and increases
   // while mining, without writing local browser balances.
   const homeValue=page.getByTestId('mining-live-usd');
@@ -157,7 +157,7 @@ try {
     status:200,contentType:'application/json',
     body:JSON.stringify({requests:withdrawFixture,simulation:true})
   }));
-  await page.locator('nav button').nth(3).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
   await page.getByTestId('withdraw-history-row').first().waitFor({timeout:10000});
   if(await page.getByTestId('withdraw-history-row').count()!==10)
     throw Error('Withdrawals must show ten rows on the first page');
@@ -226,7 +226,7 @@ try {
   const walletBtc=displayedBtc(await page.getByTestId('wallet-live-btc').innerText());
   if(!Number.isFinite(walletBtc)||Math.abs(walletBtc-displayedUsd(secondWallet)/quoteRate)>0.000000011)
     throw Error('Wallet BTC/USD equivalents not synchronized at quoted rate');
-  await page.locator('nav button').first().click();
+  await page.getByTestId('member-bottom-nav').locator('button').first().click();
   if(await page.getByText(/Próxima sessão|Next session|Próxima sesión/).count())
     throw Error('Legacy cooldown warning is still shown');
   await page.getByRole('button',{name:/Mineração Ativa|Mining Active|Minería Activa/}).click();
@@ -238,11 +238,11 @@ try {
   await restart.click();
   await page.getByRole('button',{name:/Mineração Ativa|Mining Active|Minería Activa/}).waitFor({timeout:10000});
   for(let i=0;i<5;i++){
-    await page.locator('nav button').nth(i).click();
+    await page.getByTestId('member-bottom-nav').locator('button').nth(i).click();
     await page.waitForTimeout(200);
     if(await page.getByText('Sincronizando interface...').count())throw Error('React error boundary shown on tab '+i);
   }
-  await page.locator('nav button').nth(2).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(2).click();
   await page.getByTestId('rewards-premium').waitFor({timeout:10000});
   await page.getByTestId('rewards-compact-claim').waitFor({timeout:10000});
   if(await page.getByTestId('reward-bonus-grid').locator(':scope > div').count()!==2)
@@ -268,7 +268,7 @@ try {
     throw Error('Removed reward explanation remains visible');
 
   await page.screenshot({path:'release-build/rewards-slim-mobile.png',fullPage:true});
-  await page.locator('nav button').nth(4).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(4).click();
   if(await page.getByRole('button',{name:/Indicações|Referrals|Referidos|Ver histórico|View history/}).count())
     throw Error('Redundant settings button is visible');
   const goldButton=page.getByTestId('settings-top-miners');
@@ -321,14 +321,14 @@ try {
   const scrolledBox=await bottomMenu.boundingBox();
   if(!navBox||!scrolledBox||Math.abs(navBox.y-scrolledBox.y)>2)
     throw Error('Fixed bottom navigation moved during vertical scroll');
-  await page.locator('nav button').nth(4).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(4).click();
   await page.getByRole('button',{name:/Histórico VIP|Subscriptions|Suscripciones/}).click();
   await page.getByText(/Histórico de assinaturas|Subscription history|Historial de suscripciones/).first()
     .waitFor({timeout:10000});
   if(await page.getByText(/Histórico dos contratos registrados|Subscription contracts saved|Contratos de suscripción guardados/).count())
     throw Error('Technical VIP contract notice must be removed');
-  await page.locator('nav button').nth(4).click();
-  await page.locator('nav button').nth(3).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(4).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
   await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
   await page.getByText(/Solicitação de Saque|Withdrawal Request|Solicitud de Retiro/).waitFor({timeout:10000});
   await page.getByTestId('withdraw-available-card').waitFor({timeout:10000});
@@ -378,7 +378,7 @@ try {
   if(await page.getByText(/não saldo BTC na blockchain|not a blockchain BTC balance|no es saldo BTC en blockchain/).count())
     throw Error('Removed blockchain phrase is still visible in the withdrawal card');
   await page.getByRole('button',{name:/Voltar à carteira|Back to wallet|Volver a la billetera/}).click();
-  await page.locator('nav button').nth(4).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(4).click();
   await page.getByRole('button',{name:/Meu perfil|My profile|Mi perfil/}).click();
   const phone=page.locator('input[type="tel"]');
   await phone.fill('+5531999999999');
@@ -389,13 +389,13 @@ try {
   if(await phone.inputValue()!=='+44 20 7946 0958')throw Error('UK international phone format failed');
   if(await phone.getAttribute('maxlength')!=='24')throw Error('International phone maxlength is missing');
   await page.setViewportSize({width:1280,height:800});
-  await page.locator('nav button').first().click();
+  await page.getByTestId('member-bottom-nav').locator('button').first().click();
   await page.waitForTimeout(250);
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+3);
   if(overflow)throw Error('Horizontal overflow on desktop member view');
   await page.screenshot({path:'release-build/member-desktop.png',fullPage:true});
   // Change the member language, verify localStorage, SQLite and page reload.
-  await page.locator('nav button').nth(4).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(4).click();
   await page.locator('select').selectOption('es');
   await page.waitForTimeout(500);
   const storedLanguage=await page.evaluate(()=>Object.entries(localStorage).filter(
@@ -404,21 +404,21 @@ try {
   const pref=await ctx.request.get('/api/index.php?action=language.preference');
   if((await pref.json()).language!=='es')throw Error('Member language not persisted in SQLite');
   await page.reload();
-  await page.locator('nav button').nth(4).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(4).click();
   if(await page.locator('select').inputValue()!=='es')
     throw Error('Language was reset after reload');
   // Member-facing panels must follow the selected locale, not retain PT-only copy.
-  await page.locator('nav button').nth(3).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
   await page.getByRole('heading',{name:'Billetera'}).waitFor({timeout:10000});
   await page.getByRole('button',{name:'Retirar'}).click();
   await page.getByRole('heading',{name:'Solicitud de Retiro'}).waitFor({timeout:10000});
   await page.getByRole('button',{name:'Volver a la billetera'}).click();
-  await page.locator('nav button').nth(4).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(4).click();
   await page.locator('select').selectOption('en');
-  await page.locator('nav button').nth(1).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(1).click();
   if(await page.getByText('Activation follows manual payment confirmation. No fixed deadline is guaranteed.').count())
     throw Error('Removed activation note appears in English store');
-  await page.locator('nav button').nth(3).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
   await page.getByRole('button',{name:'Withdraw'}).click();
   await page.getByRole('heading',{name:'Withdrawal Request'}).waitFor({timeout:10000});
   await page.getByRole('button',{name:'Back to wallet'}).click();
@@ -432,7 +432,7 @@ try {
     status:503,contentType:'application/json',body:'{"error":"BTC/USD price unavailable"}'
   }));
   await page.reload();
-  await page.locator('nav button').first().click();
+  await page.getByTestId('member-bottom-nav').locator('button').first().click();
   await page.waitForFunction(()=>/^\d+\.\d{8} BTC$/.test(
     document.querySelector('[data-testid="mining-live-btc"]')?.textContent?.trim()||''),
     null,{timeout:10000});
@@ -440,7 +440,7 @@ try {
     throw Error('Last-known quote failures must not be shown to the member');
   if(await page.getByRole('button',{name:/Retry|Reintentar|Tentar novamente/}).count())
     throw Error('Manual BTC quote retry must not be required');
-  await page.locator('nav button').nth(4).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(4).click();
   await page.getByTestId('settings-top-miners').click();
   const cachedMinerUsd=await page.getByTestId('miner-usd-amount').first().innerText();
   if(!cachedMinerUsd.includes('$')||cachedMinerUsd.includes('—'))
@@ -449,7 +449,7 @@ try {
     response.url().includes('action=withdraw.quote')&&response.status()===200,{timeout:30000});
   await page.unroute(quotePattern);
   await recovered;
-  await page.locator('nav button').first().click();
+  await page.getByTestId('member-bottom-nav').locator('button').first().click();
   await page.waitForFunction(()=>/^\d+\.\d{8} BTC$/.test(
     document.querySelector('[data-testid="mining-live-btc"]')?.textContent?.trim()||''),
     null,{timeout:10000});
@@ -459,7 +459,7 @@ try {
     localStorage.setItem(key,JSON.stringify({...data,theme:'light'}));
   });
   await page.reload();
-  await page.locator('nav button').nth(4).click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(4).click();
   const lightGold=await page.getByTestId('settings-top-miners').evaluate(el=>({
     foreground:getComputedStyle(el).color,
     background:getComputedStyle(el).backgroundImage,
@@ -556,7 +556,7 @@ try {
   withdrawalPage.on('pageerror',e=>problems.push(e.message));
   await withdrawalPage.goto('/');
   await withdrawalPage.getByTestId('member-bottom-nav').waitFor({timeout:15000});
-  await withdrawalPage.locator('nav button').nth(3).click();
+  await withdrawalPage.getByTestId('member-bottom-nav').locator('button').nth(3).click();
   await withdrawalPage.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
   await withdrawalPage.getByTestId('withdraw-request-amount').fill('1.00');
   await withdrawalPage.getByRole('button',{name:/Registrar solicitação|Submit request|Register request|Registrar solicitud/}).click();
