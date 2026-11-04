@@ -414,7 +414,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $name=string_field($body,'displayName',120);
         $invite=strtoupper(string_field($body,'inviteCode',20));
         if (!validate_login($login) || !is_string($password) || !validate_password($password)) {
-            fail(422,'Usuário ou senha inválidos (mínimo 10 caracteres para senha)');
+            fail(422,'Usuário ou senha inválidos (senha de 12 a 256 caracteres)');
         }
         if ($invite!=='' && !preg_match('/^[A-F0-9]{10}$/D',$invite)) {
             fail(422,'Código de indicação inválido');
@@ -1281,7 +1281,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $checkId=param_id($body,'verificationId');
         $newPassword=$body['newPassword'] ?? null;
         if (!is_string($newPassword) || !validate_password($newPassword)) {
-            fail(422,'Nova senha deve ter de 10 a 256 caracteres');
+            fail(422,'Nova senha deve ter de 12 a 256 caracteres');
         }
         $hashed=secure_password($newPassword);
         atomic($db, static function() use ($db,$actor,$memberId,$checkId,$hashed): void {
