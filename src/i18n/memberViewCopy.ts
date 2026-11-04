@@ -10,7 +10,7 @@ export const memberViewCopy = {
     terms:'Solicitações de saque exigem um plano VIP 01 a 04 ativo. Sem um VIP vigente, nenhuma solicitação é registrada. A aprovação exige conferência administrativa.',
     requests:'Solicitações de saque', equivalent:'equivalência interna',
     awaiting:'Aguardando assinatura VIP', pending:'Aguardando análise administrativa',
-    approved:'Solicitação aprovada (sem envio automático de BTC)', rejected:'Rejeitado', order:'Pedido',
+    approved:'Solicitação aprovada', rejected:'Rejeitado', order:'Pedido',
     perBtc:'por BTC', qrAlt:'QR de endereço e valor BTC deste pedido',
     satoshis:'satoshis internos', units:'unidades USD', phone:'Informe um telefone internacional válido com DDI, por exemplo +55, +1, +44 ou +36.',
     orderPending:'Pendente', orderApproved:'Aprovado', orderRejected:'Rejeitado', orderExpired:'Expirado'
@@ -25,7 +25,7 @@ export const memberViewCopy = {
     terms:'Withdrawal requests require an active VIP 01–04 plan. Without an active VIP, no request is recorded. Approval requires administrative review.',
     requests:'Withdrawal requests', equivalent:'internal equivalent',
     awaiting:'Awaiting VIP subscription', pending:'Awaiting administrative review',
-    approved:'Request approved (no automatic BTC transfer)', rejected:'Rejected', order:'Order',
+    approved:'Request approved', rejected:'Rejected', order:'Order',
     perBtc:'per BTC', qrAlt:'QR for the BTC address and amount of this order',
     satoshis:'internal satoshis', units:'USD units', phone:'Enter a valid international phone number with a country calling code, such as +55, +1, +44 or +36.',
     orderPending:'Pending', orderApproved:'Approved', orderRejected:'Rejected', orderExpired:'Expired'
@@ -40,7 +40,7 @@ export const memberViewCopy = {
     terms:'Las solicitudes de retiro requieren un plan VIP 01–04 activo. Sin un VIP vigente, no se registra ninguna solicitud. La aprobación requiere revisión administrativa.',
     requests:'Solicitudes de retiro', equivalent:'equivalencia interna',
     awaiting:'Esperando suscripción VIP', pending:'En revisión administrativa',
-    approved:'Solicitud aprobada (sin envío automático de BTC)', rejected:'Rechazado', order:'Pedido',
+    approved:'Solicitud aprobada', rejected:'Rechazado', order:'Pedido',
     perBtc:'por BTC', qrAlt:'QR de dirección e importe BTC del pedido',
     satoshis:'satoshis internos', units:'unidades USD', phone:'Introduzca un teléfono internacional válido con prefijo, por ejemplo +55, +1, +44 o +36.',
     orderPending:'Pendiente', orderApproved:'Aprobado', orderRejected:'Rechazado', orderExpired:'Vencido'
