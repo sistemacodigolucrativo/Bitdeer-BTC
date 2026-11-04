@@ -100,8 +100,8 @@ const descriptions = {
       'Ideas para un futuro digital','Innovación sin fronteras','Descubriendo oportunidades',
       'Conectados por la tecnología']
 } as const;
-type Props={language:LanguageCode;onBack:()=>void;btcUsd?:number|null};
-export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd})=>{
+type Props={language:LanguageCode;onBack:()=>void;btcUsd?:number|null;quoteTime?:number|null};
+export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd,quoteTime})=>{
   const notice=language==='en'
     ? 'Demonstration ranking with 200 fictional profiles and illustrative BTC values; these are not actual mining results.'
     : language==='es'
@@ -116,17 +116,12 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd})=>{
     </header>
     <div data-testid="top-miners-scroll" className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y member-vertical-scroll p-4 space-y-3">
       <p className="text-[11px] text-slate-400">{notice}</p>
-      <p className="text-[10px] text-slate-500">{btcUsd
-        ? language==='en'
-          ? 'USD is calculated using the public BTC/USD quote provided by the server. BTC values are fictional.'
-          : language==='es'
-          ? 'USD calculado con la cotización pública BTC/USD del servidor. Las cantidades BTC son ficticias.'
-          : 'USD indicado pela cotação pública BTC/USD obtida do servidor. Valores de BTC fictícios.'
-        : language==='en'
-          ? 'BTC/USD rate unavailable; USD amounts are hidden.'
-          : language==='es'
-          ? 'Cotización BTC/USD no disponible; los importes USD no se muestran.'
-          : 'Cotação BTC/USD indisponível; valores USD não exibidos.'}</p>
+      {btcUsd!==null&&btcUsd!==undefined&&btcUsd>0&&
+        <p className="text-[10px] text-slate-500">
+          {language==='en'?'USD uses the last available BTC/USD quote. BTC profiles are fictional.':
+            language==='es'?'USD utiliza la última cotización BTC/USD disponible. Los perfiles BTC son ficticios.':
+            'USD utiliza a última cotação BTC/USD disponível. Os perfis BTC são fictícios.'}
+        </p>}
       <div className="space-y-3" aria-label={language==='en'?'Demonstration miner ranking':language==='es'?'Clasificación demostrativa de mineros':'Ranking demonstrativo de mineradores'}>
         {showcase.map((miner,index)=><article key={miner.name} data-testid="miner-card"
           className="miner-card bg-[#1c2238] border border-[#2a314d] rounded-2xl px-3.5 py-4 shadow-sm flex gap-2.5 items-center">
@@ -141,7 +136,8 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd})=>{
             <p className="font-semibold font-mono text-[12px] text-slate-100 tabular-nums whitespace-nowrap">
               {(miner.btcSats/100000000).toFixed(8)} BTC
             </p>
-            <p className="font-mono mt-1.5 text-[11px] text-slate-400 tabular-nums whitespace-nowrap">
+            <p data-testid="miner-usd-amount" data-quote-at={quoteTime??undefined} title={quoteTime?new Date(quoteTime*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR'):undefined}
+              className="font-mono mt-1.5 text-[11px] text-slate-400 tabular-nums whitespace-nowrap">
               {dollar&&btcUsd?'$ '+dollar.format(miner.btcSats/100000000*btcUsd):'USD —'}
             </p>
           </div>
