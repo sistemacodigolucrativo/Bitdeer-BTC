@@ -421,6 +421,8 @@ try {
   const adminPage=await admin.newPage();
   adminPage.on('pageerror',e=>problems.push(e.message));
   await adminPage.goto('/');
+  await adminPage.getByTestId('admin-language-selector').waitFor({timeout:15000});
+  await adminPage.getByTestId('admin-language-selector').selectOption('pt');
   await adminPage.getByText('Visão geral').first().waitFor({timeout:15000});
   await adminPage.getByRole('button',{name:'Abrir menu administrativo'}).click();
   await adminPage.getByRole('button',{name:/Planos VIP/}).click();
