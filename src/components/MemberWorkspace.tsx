@@ -150,7 +150,7 @@ export const MemberWorkspace: React.FC<{
     let stopped=false;
     let pending=false;
     let failures=0;
-    let retry:ReturnType<typeof setTimeout>|undefined;
+    let retry:number|undefined;
     const run=async()=>{
       if(stopped||pending)return;
       if(document.visibilityState==='hidden'){
