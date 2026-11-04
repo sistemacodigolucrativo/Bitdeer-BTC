@@ -42,6 +42,9 @@ else: raise RuntimeError("PHP server unavailable")
 guest = Client()
 assert guest.call("health")["ok"]
 assert len(guest.call("plans")["plans"]) == 5
+# New registration must reject weak passwords before creating an account.
+assert guest.call("register",{"login":"weaknew","password":"elevenchars"},422)["error"]
+assert guest.call("register",{"login":"weaknew","password":"user"},422)["error"]
 assert guest.call("register",{"login":"alice","password":"longpassword123","displayName":"Alice"},201)["role"]=="member"
 guest.call("register",{"login":"alice","password":"longpassword123"},409)
 guest.call("login",{"login":"alice","password":"incorrect"},401)
@@ -98,9 +101,12 @@ assert alice.call("admin.demo.marcelo.seed",{"confirmDemo":True},403)["error"]
 assert admin.call("admin.demo.marcelo.seed",{"confirmDemo":False},422)["error"]
 assert admin.call("admin.demo.marcelo.seed",{"confirmDemo":True},409)["error"]
 assert admin.call("admin.demo.marcelo.status")["summary"]==demo_status["summary"]
+assert admin.call("admin.password.reset",{
+  "userId":alice_user["id"],"verificationId":1,"newPassword":"elevenchars"},422)["error"]
 random_user=admin.call("admin.demo.random-member.seed",{"confirmRandomUser":True},201)
 assert __import__("re").match(r"^[a-z0-9]{5,40}$",random_user["login"])
-assert random_user["displayName"] and random_user["initialPassword"]=="user"
+assert random_user["displayName"] and len(random_user["initialPassword"])>=12
+assert random_user["initialPassword"]!="user"
 assert random_user["email"].endswith(("example.com","example.org","example.net","mail.test","demo.invalid"))
 assert random_user["summary"]["balanceUsdCents"]==183742
 assert admin.call("admin.members")["total"]==4
