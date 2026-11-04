@@ -1,5 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {api,Plan} from '../../services/api';
+import {LanguageCode} from '../../types';
+import {adminText, adminStatus, adminDateLocale} from '../../i18n/adminTexts';
 
 type Kind='accrual'|'bonus'|'purchase'|'withdrawal'|'subscription';
 type Entry=Record<string,string|number|boolean|null|undefined>&{historyId:string;adminEdited:boolean;simulation:boolean};
@@ -48,8 +50,10 @@ function dateInput(value:string):string{
   const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);
   return local.toISOString().slice(0,16);
 }
-export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];onChanged:()=>void}>=
-({userId,plans,onChanged})=>{
+export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];language:LanguageCode;onChanged:()=>void}>=
+({userId,plans,language,onChanged})=>{
+  const tx=(portuguese:string)=>adminText(language,portuguese);
+  const dateLocale=adminDateLocale(language);
   const [data,setData]=useState<Data|null>(null);
   const [kind,setKind]=useState<Kind>('accrual');
   const [draft,setDraft]=useState<Record<string,string>|null>(null);
@@ -69,7 +73,7 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];onChanged:(
   useEffect(()=>{setData(null);setDraft(null);void load()},[userId]);
   async function submit(action:string,body:Record<string,unknown>){
     setBusy(true);setNotice('');
-    try{await api(action,{userId,...body});await load();onChanged();setNotice('Alteração salva no SQLite.');setDraft(null);}
+    try{await api(action,{userId,...body});await load();onChanged();setNotice(tx("Alteração salva no SQLite."));setDraft(null);}
     catch(e){setNotice((e as Error).message)}
     finally{setBusy(false)}
   }
@@ -87,16 +91,16 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];onChanged:(
     });
   }
   function remove(entry:Entry){
-    if(!window.confirm('Remover este registro do histórico?'))return;
+    if(!window.confirm(tx("Remover este registro do histórico?")))return;
     void submit('admin.member.history.save',{kind,operation:'delete',historyId:entry.historyId,fields:{}});
   }
   const fieldClass='w-full mt-1 rounded-lg bg-[#11182c] border border-[#303a56] p-2 text-xs';
   return <section data-testid="admin-member-records" className="rounded-xl bg-[#1b2137] border border-[#303a56] p-4 space-y-4">
-    <header><h3 className="font-bold">Plano, saldo e históricos do membro #{userId}</h3></header>
+    <header><h3 className="font-bold">{tx('Plano, saldo e históricos do membro')} #{userId}</h3></header>
     {notice&&<p role="status" className="text-xs text-amber-300">{notice}</p>}
-    {!data?<p className="text-xs text-slate-400">Carregando...</p>:<>
+    {!data?<p className="text-xs text-slate-400">{tx("Carregando...")}</p>:<>
       <div className="border-t border-[#303a56] pt-3 space-y-2">
-        <h4 className="font-bold text-sm">Alterar plano em uso</h4>
+        <h4 className="font-bold text-sm">{tx("Alterar plano em uso")}</h4>
         <div className="flex flex-wrap gap-2">
           <select data-testid="admin-member-plan" className={fieldClass+' flex-1 min-w-32'}
             value={planId} onChange={e=>setPlanId(e.target.value)}>
@@ -105,23 +109,27 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];onChanged:(
           <button type="button" disabled={busy||planId===data.planId}
             className="rounded-lg bg-indigo-600 px-3 py-2 text-xs disabled:opacity-50"
             onClick={()=>{
-              if(window.confirm('Aplicar plano '+planId+' ao membro? A sessão de mineração atual será encerrada e o contrato vigente será finalizado.'))
+              if(window.confirm(language==='en'
+                ? 'Apply plan '+planId+' to member? The current mining session and active contract will end.'
+                : language==='es'
+                ? '¿Aplicar el plan '+planId+' al miembro? Terminará la sesión de minería y el contrato vigente.'
+                : 'Aplicar plano '+planId+' ao membro? A sessão de mineração atual será encerrada e o contrato vigente será finalizado.'))
                 void submit('admin.member.plan.assign',{planId});
-            }}>Aplicar plano</button>
+            }}>{tx("Aplicar plano")}</button>
         </div>
-        <p className="text-[11px] text-slate-400">Atual: {data.planId}. Atribuição sem simular pagamento real; mantém o histórico contratual anterior.</p>
+        <p className="text-[11px] text-slate-400">{tx("Atual:")} {data.planId}. {tx('Atribuição sem simular pagamento real; mantém o histórico contratual anterior.')}</p>
       </div>
       <div className="border-t border-[#303a56] pt-3 space-y-2">
-        <h4 className="font-bold text-sm">Saldo interno (USD e BTC equivalente)</h4>
+        <h4 className="font-bold text-sm">{tx("Saldo interno (USD e BTC equivalente)")}</h4>
         <p className="font-mono text-sm" data-testid="admin-member-balance">US$ {data.balanceUsd} · {data.balanceBtc??'—'} BTC</p>
-        <p className="text-xs text-slate-400">{data.btcUsd?'Cotação BTC/USD: US$ '+data.btcUsd+' · '+(data.quoteSource||''):'Cotação indisponível; ajustes bloqueados.'}</p>
+        <p className="text-xs text-slate-400">{data.btcUsd?tx('Cotação BTC/USD: US</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <select className={fieldClass} value={currency} onChange={e=>{setCurrency(e.target.value as 'USD'|'BTC');setAmount('');}}>
-            <option value="USD">Dólar (USD)</option><option value="BTC">Bitcoin (BTC)</option>
+            <option value="USD">{tx("Dólar (USD)")}</option><option value="BTC">Bitcoin (BTC)</option>
           </select>
           <select className={fieldClass} value={mode} onChange={e=>setMode(e.target.value as typeof mode)}>
-            <option value="set">Definir total</option><option value="add">Adicionar</option>
-            <option value="subtract">Remover</option><option value="clear">Zerar</option>
+            <option value="set">{tx("Definir total")}</option><option value="add">{tx("Adicionar")}</option>
+            <option value="subtract">{tx("Remover")}</option><option value="clear">{tx("Zerar")}</option>
           </select>
           <input data-testid="admin-member-balance-amount" className={fieldClass} type="number"
             min="0" step={currency==='USD'?'0.01':'0.00000001'}
@@ -130,31 +138,31 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];onChanged:(
           <button data-testid="admin-member-balance-save" type="button" disabled={busy||!data.btcUsd||(!amount&&mode!=='clear')}
             className="rounded-lg bg-indigo-600 px-3 py-2 text-xs disabled:opacity-50"
             onClick={()=>{
-              if(window.confirm('Confirmar ajuste do saldo interno? A operação será registrada na auditoria.'))
+              if(window.confirm(tx("Confirmar ajuste do saldo interno? A operação será registrada na auditoria.")))
                 void submit('admin.member.balance.adjust',{currency,mode,amount:mode==='clear'?'0':amount});
-            }}>Salvar saldo</button>
+            }}>{tx("Salvar saldo")}</button>
         </div>
-        <p className="text-[11px] text-slate-400">O BTC é equivalência do saldo USD na cotação atual, não uma carteira na blockchain.</p>
+        <p className="text-[11px] text-slate-400">{tx("O BTC é equivalência do saldo USD na cotação atual, não uma carteira na blockchain.")}</p>
       </div>
       <div className="border-t border-[#303a56] pt-3 space-y-3">
-        <h4 className="font-bold text-sm">Adicionar, editar ou ocultar históricos</h4>
+        <h4 className="font-bold text-sm">{tx("Adicionar, editar ou ocultar históricos")}</h4>
         <select data-testid="admin-history-kind" value={kind} className={fieldClass}
           onChange={e=>{setKind(e.target.value as Kind);setDraft(null);}}>
-          {(Object.keys(kinds) as Kind[]).map(k=><option key={k} value={k}>{kinds[k]}</option>)}
+          {(Object.keys(kinds) as Kind[]).map(k=><option key={k} value={k}>{tx(kinds[k])}</option>)}
         </select>
         <button type="button" disabled={busy} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs"
-          onClick={()=>begin()}>Adicionar registro</button>
+          onClick={()=>begin()}>{tx("Adicionar registro")}</button>
         {draft&&<form data-testid="admin-history-form" className="rounded-lg bg-[#11182c] border border-[#303a56] p-3 space-y-2"
           onSubmit={save}>
-          <p className="text-xs font-semibold">{historyId?'Editar':'Adicionar'} — {kinds[kind]}</p>
+          <p className="text-xs font-semibold">{tx(historyId?'Editar':'Adicionar')} — {tx(kinds[kind])}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {fields[kind].map(key=><label key={key} className="text-xs block">{names[key]||key}
+            {fields[kind].map(key=><label key={key} className="text-xs block">{tx(names[key]||key)}
               {key==='plan_id'?<select required className={fieldClass} value={draft[key]||''}
                   onChange={e=>setDraft(d=>d?{...d,[key]:e.target.value}:d)}>
                   {plans.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>:key==='status'?<select required className={fieldClass} value={draft[key]||''}
                     onChange={e=>setDraft(d=>d?{...d,[key]:e.target.value}:d)}>
-                    {statuses[kind as 'purchase'|'withdrawal'].map(x=><option key={x} value={x}>{x}</option>)}
+                    {statuses[kind as 'purchase'|'withdrawal'].map(x=><option key={x} value={x}>{adminStatus(language,x)}</option>)}
                   </select>:dateFields.has(key)?<input required className={fieldClass}
                     type="datetime-local" value={dateInput(draft[key]||'0')}
                     onChange={e=>setDraft(d=>d?{...d,[key]:String(Math.floor(new Date(e.target.value).getTime()/1000))}:d)}/>:
@@ -164,8 +172,8 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];onChanged:(
             </label>)}
           </div>
           <div className="flex gap-2">
-            <button type="submit" disabled={busy} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs">Salvar registro</button>
-            <button type="button" className="text-xs underline" onClick={()=>setDraft(null)}>Cancelar</button>
+            <button type="submit" disabled={busy} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs">{tx("Salvar registro")}</button>
+            <button type="button" className="text-xs underline" onClick={()=>setDraft(null)}>{tx("Cancelar")}</button>
           </div>
         </form>}
         <div data-testid="admin-history-rows" className="space-y-2 max-h-72 overflow-auto">
@@ -173,13 +181,84 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];onChanged:(
             className="bg-[#11182c] border border-[#303a56] rounded-lg p-2 text-xs space-y-1">
             <div className="flex items-center justify-between gap-2"><strong>{entry.historyId}</strong></div>
             <p className="break-words text-slate-300">{fields[kind].map(k=>
-              names[k]+': '+(dateFields.has(k)?new Date(Number(entry[k])*1000).toLocaleString('pt-BR'):String(entry[k]??''))).join(' · ')}</p>
+              tx(names[k]||k)+': '+(dateFields.has(k)?new Date(Number(entry[k])*1000).toLocaleString(dateLocale):k==='status'?adminStatus(language,String(entry[k]??'')):String(entry[k]??''))).join(' · ')}</p>
             <div className="flex gap-3">
-              <button type="button" className="text-indigo-300 underline" onClick={()=>begin(entry)}>Editar</button>
-              <button type="button" className="text-rose-300 underline" onClick={()=>remove(entry)}>Remover</button>
+              <button type="button" className="text-indigo-300 underline" onClick={()=>begin(entry)}>{tx("Editar")}</button>
+              <button type="button" className="text-rose-300 underline" onClick={()=>remove(entry)}>{tx("Remover")}</button>
             </div>
           </div>)}
-          {!data.histories[kind].length&&<p className="text-xs text-slate-400">Nenhum registro neste histórico.</p>}
+          {!data.histories[kind].length&&<p className="text-xs text-slate-400">{tx("Nenhum registro neste histórico.")}</p>}
+        </div>
+      </div>
+    </>}
+  </section>;
+};
+)+' '+data.btcUsd+' · '+(data.quoteSource||''):tx('Cotação indisponível; ajustes bloqueados.')}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <select className={fieldClass} value={currency} onChange={e=>{setCurrency(e.target.value as 'USD'|'BTC');setAmount('');}}>
+            <option value="USD">{tx("Dólar (USD)")}</option><option value="BTC">Bitcoin (BTC)</option>
+          </select>
+          <select className={fieldClass} value={mode} onChange={e=>setMode(e.target.value as typeof mode)}>
+            <option value="set">{tx("Definir total")}</option><option value="add">{tx("Adicionar")}</option>
+            <option value="subtract">{tx("Remover")}</option><option value="clear">{tx("Zerar")}</option>
+          </select>
+          <input data-testid="admin-member-balance-amount" className={fieldClass} type="number"
+            min="0" step={currency==='USD'?'0.01':'0.00000001'}
+            value={amount} onChange={e=>setAmount(e.target.value)}
+            placeholder={currency==='USD'?'0.00':'0.00000000'} disabled={mode==='clear'}/>
+          <button data-testid="admin-member-balance-save" type="button" disabled={busy||!data.btcUsd||(!amount&&mode!=='clear')}
+            className="rounded-lg bg-indigo-600 px-3 py-2 text-xs disabled:opacity-50"
+            onClick={()=>{
+              if(window.confirm(tx("Confirmar ajuste do saldo interno? A operação será registrada na auditoria.")))
+                void submit('admin.member.balance.adjust',{currency,mode,amount:mode==='clear'?'0':amount});
+            }}>{tx("Salvar saldo")}</button>
+        </div>
+        <p className="text-[11px] text-slate-400">{tx("O BTC é equivalência do saldo USD na cotação atual, não uma carteira na blockchain.")}</p>
+      </div>
+      <div className="border-t border-[#303a56] pt-3 space-y-3">
+        <h4 className="font-bold text-sm">{tx("Adicionar, editar ou ocultar históricos")}</h4>
+        <select data-testid="admin-history-kind" value={kind} className={fieldClass}
+          onChange={e=>{setKind(e.target.value as Kind);setDraft(null);}}>
+          {(Object.keys(kinds) as Kind[]).map(k=><option key={k} value={k}>{tx(kinds[k])}</option>)}
+        </select>
+        <button type="button" disabled={busy} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs"
+          onClick={()=>begin()}>{tx("Adicionar registro")}</button>
+        {draft&&<form data-testid="admin-history-form" className="rounded-lg bg-[#11182c] border border-[#303a56] p-3 space-y-2"
+          onSubmit={save}>
+          <p className="text-xs font-semibold">{tx(historyId?'Editar':'Adicionar')} — {tx(kinds[kind])}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {fields[kind].map(key=><label key={key} className="text-xs block">{tx(names[key]||key)}
+              {key==='plan_id'?<select required className={fieldClass} value={draft[key]||''}
+                  onChange={e=>setDraft(d=>d?{...d,[key]:e.target.value}:d)}>
+                  {plans.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>:key==='status'?<select required className={fieldClass} value={draft[key]||''}
+                    onChange={e=>setDraft(d=>d?{...d,[key]:e.target.value}:d)}>
+                    {statuses[kind as 'purchase'|'withdrawal'].map(x=><option key={x} value={x}>{adminStatus(language,x)}</option>)}
+                  </select>:dateFields.has(key)?<input required className={fieldClass}
+                    type="datetime-local" value={dateInput(draft[key]||'0')}
+                    onChange={e=>setDraft(d=>d?{...d,[key]:String(Math.floor(new Date(e.target.value).getTime()/1000))}:d)}/>:
+                <input required type="number" min="0" step="1" className={fieldClass}
+                  value={draft[key]||'0'}
+                  onChange={e=>setDraft(d=>d?{...d,[key]:e.target.value}:d)}/>}
+            </label>)}
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" disabled={busy} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs">{tx("Salvar registro")}</button>
+            <button type="button" className="text-xs underline" onClick={()=>setDraft(null)}>{tx("Cancelar")}</button>
+          </div>
+        </form>}
+        <div data-testid="admin-history-rows" className="space-y-2 max-h-72 overflow-auto">
+          {data.histories[kind].map(entry=><div key={entry.historyId}
+            className="bg-[#11182c] border border-[#303a56] rounded-lg p-2 text-xs space-y-1">
+            <div className="flex items-center justify-between gap-2"><strong>{entry.historyId}</strong></div>
+            <p className="break-words text-slate-300">{fields[kind].map(k=>
+              tx(names[k]||k)+': '+(dateFields.has(k)?new Date(Number(entry[k])*1000).toLocaleString(dateLocale):k==='status'?adminStatus(language,String(entry[k]??'')):String(entry[k]??''))).join(' · ')}</p>
+            <div className="flex gap-3">
+              <button type="button" className="text-indigo-300 underline" onClick={()=>begin(entry)}>{tx("Editar")}</button>
+              <button type="button" className="text-rose-300 underline" onClick={()=>remove(entry)}>{tx("Remover")}</button>
+            </div>
+          </div>)}
+          {!data.histories[kind].length&&<p className="text-xs text-slate-400">{tx("Nenhum registro neste histórico.")}</p>}
         </div>
       </div>
     </>}
