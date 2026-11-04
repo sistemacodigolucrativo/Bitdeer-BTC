@@ -114,6 +114,8 @@ assert random_user["displayName"] and len(random_user["initialPassword"])>=12
 assert random_user["initialPassword"]!="user"
 assert random_user["email"].endswith(("example.com","example.org","example.net","mail.test","demo.invalid"))
 assert random_user["summary"]["balanceUsdCents"]==183742
+assert 10000 <= int(random_user["userId"]) <= 99999
+assert int(random_user["userId"]) % 10000 != 0
 assert admin.call("admin.members")["total"]==4
 # Only actual invited registrations count. The old hardcoded legacy list is not imported.
 assert guest.call("referrals.mine",expected=401)["error"]
@@ -219,6 +221,30 @@ assert float(quote["btcUsd"])==80000
 alice.call("withdraw.request",{"mode":"USD","amount":"0.50"},409)
 alice.call("profile.update",{"displayName":"Alice","email":"alice@example.org",
   "phone":"+5531999999999","walletAddress":"bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z"})
+# Avatar is a one-time action, enforced by SQLite across independent sessions.
+first_avatar="https://images.example.org/avatar-one.png"
+second_avatar="https://images.example.org/avatar-two.png"
+assert alice.call("profile")["profile"]["avatarLocked"] is False
+alice.call("profile.update",{"displayName":"Alice","email":"alice@example.org",
+  "phone":"+5531999999999","walletAddress":walletFixture,"avatarUrl":first_avatar})
+assert alice.call("profile")["profile"]["avatarUrl"]==first_avatar
+assert alice.call("profile")["profile"]["avatarLocked"] is True
+assert "não pode ser alterada" in alice.call("profile.update",{
+  "displayName":"Alice","email":"alice@example.org",
+  "phone":"+5531999999999","walletAddress":walletFixture,
+  "avatarUrl":second_avatar},409)["error"]
+other_session=Client()
+other_session.call("login",{"login":"alice","password":"longpassword123"})
+assert other_session.call("profile")["profile"]["avatarUrl"]==first_avatar
+assert other_session.call("profile")["profile"]["avatarLocked"] is True
+assert "não pode ser alterada" in other_session.call("profile.update",{
+  "displayName":"Alice","email":"alice@example.org",
+  "phone":"+5531999999999","walletAddress":walletFixture,
+  "avatarUrl":second_avatar},409)["error"]
+# Unrelated profile updates must still work without unlocking or changing the image.
+alice.call("profile.update",{"displayName":"Alice","email":"alice@example.org",
+  "phone":"+5531999999999","walletAddress":walletFixture,"avatarUrl":first_avatar})
+assert alice.call("profile")["profile"]["avatarLocked"] is True
 balance_before_withdraw=float(alice.call("profile")["mining"]["balanceUsd"])
 request=alice.call("withdraw.request",{"mode":"USD","amount":"0.50"},201)
 assert request["status"]=="pending" and request["simulation"]
