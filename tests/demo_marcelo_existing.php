@@ -29,16 +29,16 @@ try {
     $seed=atomic($db,static fn():array=>seed_marcelo_demo($db,$admin));
     assert($seed['login']==='user' && $seed['displayName']==='Marcelo');
     $newUser=query_one($db,'SELECT * FROM users WHERE id=?',[$seed['userId']]);
-    assert($seed['initialPassword']==='123456789123');
-    assert(password_verify('123456789123',$newUser['password_hash']));
+    assert($seed['initialPassword']==='user');
+    assert(password_verify('user',$newUser['password_hash']));
     assert(query_one($db,'SELECT COUNT(*) AS n FROM member_history_edits WHERE user_id=?',
         [$seed['userId']])['n']>300);
     $random=atomic($db,static fn():array=>seed_random_member_demo($db,$admin));
     assert((bool)preg_match('/^[a-z0-9]{5,40}$/',$random['login']));
-    assert($random['displayName']!=='' && $random['initialPassword']==='123456789123');
+    assert($random['displayName']!=='' && $random['initialPassword']==='user');
     assert((bool)preg_match('/^[a-z0-9]+@(example\\.(com|org|net)|mail\\.test|demo\\.invalid)$/',$random['email']));
     $randomUser=query_one($db,'SELECT * FROM users WHERE id=?',[$random['userId']]);
-    assert(password_verify('123456789123',$randomUser['password_hash']));
+    assert(password_verify('user',$randomUser['password_hash']));
     assert(query_one($db,'SELECT COUNT(*) AS n FROM member_history_edits WHERE user_id=?',
         [$random['userId']])['n']>300);
     assert((int)query_one($db,'SELECT balance_units FROM mining_state WHERE user_id=?',[$random['userId']])['balance_units']===183742*8640000);

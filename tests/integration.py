@@ -100,7 +100,7 @@ assert admin.call("admin.demo.marcelo.seed",{"confirmDemo":True},409)["error"]
 assert admin.call("admin.demo.marcelo.status")["summary"]==demo_status["summary"]
 random_user=admin.call("admin.demo.random-member.seed",{"confirmRandomUser":True},201)
 assert __import__("re").match(r"^[a-z0-9]{5,40}$",random_user["login"])
-assert random_user["displayName"] and random_user["initialPassword"]=="123456789123"
+assert random_user["displayName"] and random_user["initialPassword"]=="user"
 assert random_user["email"].endswith(("example.com","example.org","example.net","mail.test","demo.invalid"))
 assert random_user["summary"]["balanceUsdCents"]==183742
 assert admin.call("admin.members")["total"]==4

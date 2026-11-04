@@ -6,7 +6,7 @@ require_once __DIR__ . '/demo_marcelo.php';
 /** Provision one clean database, with a random-password founding member. */
 function provision(string $login, string $password, string $supportEmail, string $siteUrl = '', string $environment = 'auto'): array {
     if (!validate_login($login) || !validate_password($password)) {
-        throw new InvalidArgumentException('Admin login (3-40) and password (10+) required');
+        throw new InvalidArgumentException('Admin login (3-40) and password (4+) required');
     }
     if (!filter_var($supportEmail, FILTER_VALIDATE_EMAIL) || strlen($supportEmail) > 254) {
         throw new InvalidArgumentException('Valid support email required');

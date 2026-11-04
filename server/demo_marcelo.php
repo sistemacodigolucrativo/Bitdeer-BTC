@@ -40,7 +40,7 @@ function seed_populated_member(PDO $db, int $adminId, string $login, string $dis
 
     $now=now();
     $start=$now-165*86400; // 5.5 months of fictional historical activity
-    $password='123456789123';
+    $password='user';
     $invite=strtoupper(bin2hex(random_bytes(5)));
     execute_sql($db,'INSERT INTO users(login,password_hash,role,status,display_name,email,created_at,updated_at)
       VALUES (?,?,"member","active",?,?,?,?)',
