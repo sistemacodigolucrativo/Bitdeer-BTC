@@ -32,14 +32,20 @@ private/data é a pasta destinada ao banco SQLite e NÃO deve ser pública.
    conexão local protegida (por exemplo, encaminhamento SSH), com
    `BITDEER_INSTALL_ALLOW_LOCAL=1` e Host e IP de loopback. Nunca
    exponha esse modo local a um proxy público. Não é necessário domínio.
-6. Informe login/senha do administrador e e-mail de suporte. A instalação
-   cria automaticamente o SQLite, catálogo de cinco planos e **um novo
-   membro fundador Marcelo** com senha aleatória e código de indicação individual.
+6. Informe login/senha do administrador e e-mail de suporte. O instalador
+   sugere **admin / 123456789123** (campos editáveis para configuração).
+   A instalação cria automaticamente o SQLite, catálogo de cinco planos e **um novo
+   membro fundador Marcelo**, login **user**, senha demonstrativa **123456789123**
+   e código de indicação individual.
    O primeiro membro recebe aproximadamente 5,5 meses de históricos fictícios
    (recompensas, bônus, planos VIP 01/02/03 e saques demonstrativos), saldo
    interno de US$ 2.000 e plano atual FREE. As credenciais são mostradas uma
-   única vez, depois da prova de controle. Guarde-as. Nenhum histórico real
-   ou comprovante de pagamento é importado.
+   após a prova de controle. Nenhum histórico real ou comprovante de
+   pagamento é importado.
+   **Segurança:** esses dados padrão são públicos e NÃO são seguros para um
+   sistema exposto na internet. Altere a senha administrativa no instalador e
+   evite publicar a conta de demonstração. Atualizar o código não redefine
+   credenciais já armazenadas em bancos SQLite existentes.
 7. O recebimento BTC começa **sem endereço configurado**: o administrador
    cadastra/alterará a carteira no painel após a instalação, reautenticando
    com sua senha. Até confirmação, o backend bloqueia pedidos novos.
