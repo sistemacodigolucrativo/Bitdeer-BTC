@@ -355,7 +355,7 @@ export const MemberWorkspace: React.FC<{
           </label>
           <button type="button" data-testid="settings-top-miners" onClick={()=>setPage('topMiners')}
             className="w-full flex gap-3 items-center rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-[#231905] border border-yellow-300 p-4 font-black text-sm shadow-lg shadow-amber-900/20">
-            <Trophy size={19}/>{language==='es'?'Mejores mineros':'Top Miners'}
+            <Trophy size={19}/>{language==='en'?'Top Miners':language==='es'?'Mejores mineros':'Top Mineradores'}
           </button>
           {([
             ['profile',words.profile,User],
