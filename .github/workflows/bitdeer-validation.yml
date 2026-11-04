@@ -39,6 +39,8 @@ jobs:
         env:
           BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
         run: python3 tests/demo_marcelo.py
+      - name: Legacy SQLite demo creation and idempotence
+        run: php -d zend.assertions=1 -d assert.exception=1 tests/demo_marcelo_existing.php
       - name: API integration regression
         env:
           BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
