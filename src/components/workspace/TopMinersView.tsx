@@ -107,14 +107,14 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd})=>{
     : language==='es'
     ? 'Ranking demostrativo con 200 perfiles y cantidades ficticias, sin minería real.'
     : 'Ranking demonstrativo com 200 perfis fictícios. Os valores não são BTC minerados nem saldos de membros.';
-  const dollar=useMemo(()=>btcUsd&&btcUsd>0?new Intl.NumberFormat('en-US',{minimumFractionDigits:4,maximumFractionDigits:4}):null,[btcUsd]);
+  const dollar=useMemo(()=>btcUsd&&btcUsd>0?new Intl.NumberFormat(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4}):null,[btcUsd,language]);
   return <section className="flex-1 min-h-0 w-full flex flex-col bg-[#121626] text-white overflow-hidden">
     <header className="grid grid-cols-[44px_1fr_44px] items-center gap-2 px-4 py-4 border-b border-[#232943] bg-[#141829]">
       <button type="button" onClick={onBack} aria-label={language==='en'?'Back':language==='es'?'Volver':'Voltar'}
         className="w-10 h-10 rounded-xl bg-[#1b2137] flex items-center justify-center"><ArrowLeft size={20}/></button>
-      <h2 className="font-extrabold text-lg text-center">Top Miners</h2><span aria-hidden="true"/>
+      <h2 className="font-extrabold text-lg text-center">{language==='en'?'Top Miners':language==='es'?'Mejores mineros':'Top Mineradores'}</h2><span aria-hidden="true"/>
     </header>
-    <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
+    <div data-testid="top-miners-scroll" className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y member-vertical-scroll p-4 space-y-3">
       <p className="text-[11px] text-slate-400">{notice}</p>
       <p className="text-[10px] text-slate-500">{btcUsd
         ? language==='en'
@@ -127,9 +127,9 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd})=>{
           : language==='es'
           ? 'Cotización BTC/USD no disponible; los importes USD no se muestran.'
           : 'Cotação BTC/USD indisponível; valores USD não exibidos.'}</p>
-      <div className="space-y-3" aria-label="Ranking demonstrativo Top Miners">
+      <div className="space-y-3" aria-label={language==='en'?'Demonstration miner ranking':language==='es'?'Clasificación demostrativa de mineros':'Ranking demonstrativo de mineradores'}>
         {showcase.map((miner,index)=><article key={miner.name} data-testid="miner-card"
-          className="bg-[#1c2238] border border-[#2a314d] rounded-2xl px-3.5 py-4 shadow-sm flex gap-2.5 items-center">
+          className="miner-card bg-[#1c2238] border border-[#2a314d] rounded-2xl px-3.5 py-4 shadow-sm flex gap-2.5 items-center">
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-[14px] leading-tight text-slate-100 truncate">{miner.name}</h3>
             <p className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-400 min-w-0">
