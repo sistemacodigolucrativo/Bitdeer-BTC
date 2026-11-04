@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Coins, Gift, Clock, Zap, LogOut } from 'lucide-react';
+import { Gift, Clock, Zap, LogOut } from 'lucide-react';
 import { MemberData } from '../services/api';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
@@ -56,6 +56,9 @@ export const ServerHomeView: React.FC<Props> = ({
         <p className="text-sm font-extrabold text-white truncate">{account?.profile.displayName || account?.user.login || (language==='en'?'Member':language==='es'?'Miembro':'Membro')}</p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        <button type="button" data-testid="home-rewards-shortcut" onClick={onRewards}
+          aria-label={d.rewards} title={d.rewards}
+          className="flex items-center justify-center rounded-lg border border-[#4f46e5]/60 bg-indigo-500/15 p-2 text-indigo-400"><Gift size={24}/></button>
         <button type="button" data-testid="home-exit" onClick={onLogout}
           aria-label={language==='en'?'Exit':language==='es'?'Salir':'Sair'} title={language==='en'?'Exit':language==='es'?'Salir':'Sair'}
           className="flex items-center justify-center rounded-lg border border-[#303b59] bg-[#11182c] p-2 text-rose-300"><LogOut size={18}/></button>
@@ -107,29 +110,6 @@ export const ServerHomeView: React.FC<Props> = ({
       </button>
       {status && ends!==null && ends!==undefined && <p className="mt-3 flex items-center gap-2 text-xs text-slate-400"><Clock size={14}/>{d.session}: {stamp(ends)}</p>}
       {isVip && account?.plan.expiresAt && <p className="mt-2 text-xs text-slate-400">{d.vip}: {stamp(account.plan.expiresAt)}</p>}
-    </section>
-    <section data-testid="daily-bonus-card" aria-label={d.daily}
-      className="bg-[#171b2d] border border-[#232a43] rounded-2xl p-4 space-y-4 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-bold text-slate-100">{d.daily}</h3>
-        <span className="text-[11px] text-slate-400">/24h</span>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="min-w-0 rounded-xl bg-[#1e2540] p-3 space-y-2">
-          <p className="flex items-center gap-2 text-[11px] text-slate-300"><Gift size={17} className="text-indigo-400"/> USD</p>
-          <p className="text-lg font-black tabular-nums break-words">US$ {account?.plan.bonusUsd ?? '0.00'}</p>
-        </div>
-        <div className="min-w-0 rounded-xl bg-[#1e2540] p-3 space-y-2">
-          <p className="flex items-center gap-2 text-[11px] text-slate-300"><Coins size={17} className="text-amber-400"/> Satoshis</p>
-          <p className="text-lg font-black tabular-nums break-words">
-            {(account?.plan.bonusSatoshis ?? 0).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR')}
-          </p>
-        </div>
-      </div>
-      <button type="button" onClick={onRewards}
-        className="w-full bg-[#6366f1] hover:bg-[#4f46e5] rounded-xl py-3 font-bold text-sm">
-        {d.claim}
-      </button>
     </section>
   </div>;
 };

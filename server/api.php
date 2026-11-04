@@ -405,16 +405,20 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         // Display-only onboarding history for the standard test member. It is
         // deliberately not inserted in referral_events and therefore cannot
         // affect invitation totals or rewards.
+        $demoReferralCount=0;
+        $demoReferralUnits=0;
         if ((string)$actor['login']==='user') {
             $demo=[['Lu***','-5 days'],['Ca***','-9 days'],['Ra***','-15 days'],['So***','-22 days'],['Mi***','-31 days']];
             foreach($demo as $offset=>$entry) $history[]=[
                 'id'=>-($offset+1),'referredAlias'=>$entry[0],
-                'createdAt'=>strtotime($entry[1],now()),'rewardUsd'=>'0.00'];
+                'createdAt'=>strtotime($entry[1],now()),'rewardUsd'=>'10.00'];
+            $demoReferralCount=count($demo);
+            $demoReferralUnits=$demoReferralCount*10*864000000;
         }
         $total=query_one($db,'SELECT COALESCE(SUM(reward_usd_units),0) AS units,
           COUNT(*) AS count FROM referral_events WHERE inviter_id=?',[$owner]);
         json_out(['code'=>$code,'history'=>$history,
-          'totalUsd'=>units_usd((int)$total['units']),'count'=>(int)$total['count'],
+          'totalUsd'=>units_usd((int)$total['units']+$demoReferralUnits),'count'=>(int)$total['count']+$demoReferralCount,
           'source'=>'sqlite','unit'=>'internal_usd']);
     }
     if ($action === 'register' && $method === 'POST') {
@@ -716,10 +720,12 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         if((string)$actor['login']==='user') {
             $base=now();
             $requests=array_merge($requests,[
-              ['id'=>'D-104','plan_id'=>'VIP_01','status'=>'failed','reason'=>'Endereço de recebimento inválido.','created_at'=>$base-86400*16,'usd_cents'=>7425,'btc_satoshis'=>112300],
-              ['id'=>'D-105','plan_id'=>'VIP_01','status'=>'approved','created_at'=>$base-86400*14,'usd_cents'=>7425,'btc_satoshis'=>112300],
-              ['id'=>'D-106','plan_id'=>'VIP_02','status'=>'failed','reason'=>'Falha temporária no processamento.','created_at'=>$base-86400*8,'usd_cents'=>11840,'btc_satoshis'=>179500],
-              ['id'=>'D-107','plan_id'=>'VIP_02','status'=>'approved','created_at'=>$base-86400*6,'usd_cents'=>11840,'btc_satoshis'=>179500],
+              ['id'=>'D-104','plan_id'=>'VIP_01','status'=>'failed','reason'=>'Endereço de recebimento inválido.','created_at'=>$base-86400*118,'usd_cents'=>7425,'btc_satoshis'=>112300],
+              ['id'=>'D-105','plan_id'=>'VIP_01','status'=>'approved','created_at'=>$base-86400*116,'usd_cents'=>7425,'btc_satoshis'=>112300],
+              ['id'=>'D-106','plan_id'=>'VIP_02','status'=>'failed','reason'=>'Dados de solicitação inconsistentes.','created_at'=>$base-86400*80,'usd_cents'=>11840,'btc_satoshis'=>179500],
+              ['id'=>'D-107','plan_id'=>'VIP_02','status'=>'approved','created_at'=>$base-86400*78,'usd_cents'=>11840,'btc_satoshis'=>179500],
+              ['id'=>'D-108','plan_id'=>'VIP_03','status'=>'failed','reason'=>'Falha temporária no processamento.','created_at'=>$base-86400*42,'usd_cents'=>15320,'btc_satoshis'=>232400],
+              ['id'=>'D-109','plan_id'=>'VIP_03','status'=>'approved','created_at'=>$base-86400*40,'usd_cents'=>15320,'btc_satoshis'=>232400],
             ]);
         }
         json_out(['requests'=>$requests,

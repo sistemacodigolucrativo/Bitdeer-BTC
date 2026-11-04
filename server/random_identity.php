@@ -16,9 +16,12 @@ function random_member_identity(): array {
     $base=strtolower(preg_replace('/[^A-Za-z0-9]/','',$ascii===false?$first.$last:$ascii)??'member');
     $login=$base.random_int(100,9999);
     $domains=['example.com','example.org','example.net','mail.test','demo.invalid'];
+    $dialCodes=['+55','+1','+44','+351','+34','+33'];
+    $dialCode=$dialCodes[random_int(0,count($dialCodes)-1)];
+    $phone=$dialCode.strval(random_int(1000000000,9999999999));
     return ['displayName'=>$identity['name'],'login'=>$login,
       'email'=>$login.'@'.$domains[random_int(0,count($domains)-1)],
-      'nationality'=>'Internacional'];
+      'phone'=>$phone,'nationality'=>'Internacional'];
     /* Legacy compact catalogue retained below for package compatibility. */
     $catalogue=[
       'Brasil'=>[

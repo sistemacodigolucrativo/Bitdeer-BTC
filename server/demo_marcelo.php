@@ -25,13 +25,13 @@ function seed_random_member_demo(PDO $db, int $adminId): array {
     for($attempt=0;$attempt<30;$attempt++) {
         $identity=random_member_identity();
         if(!query_one($db,'SELECT id FROM users WHERE login=? OR email=?',[$identity['login'],$identity['email']]))
-            return seed_populated_member($db,$adminId,$identity['login'],$identity['displayName'],$identity['email'],null,'demo.member.random.seed');
+            return seed_populated_member($db,$adminId,$identity['login'],$identity['displayName'],$identity['email'],null,'demo.member.random.seed',null,$identity['phone']);
     }
     throw new RuntimeException('Não foi possível gerar um usuário aleatório disponível.');
 }
 
 function seed_populated_member(PDO $db, int $adminId, string $login, string $displayName, string $email,
-    ?string $markerName, string $auditAction, ?string $initialPassword=null): array {
+    ?string $markerName, string $auditAction, ?string $initialPassword=null, string $phone=''): array {
     // core.php uses BEGIN IMMEDIATE through SQL, so PDO::inTransaction() may remain false.
     $mode=query_one($db,'SELECT value FROM app_settings WHERE name="payment_mode"');
     if (($mode['value']??'')!=='simulation')
@@ -45,9 +45,9 @@ function seed_populated_member(PDO $db, int $adminId, string $login, string $dis
     // Random User credentials remain unique and cryptographically generated.
     $password=$initialPassword ?? bin2hex(random_bytes(20));
     $invite=strtoupper(bin2hex(random_bytes(5)));
-    execute_sql($db,'INSERT INTO users(login,password_hash,role,status,display_name,email,created_at,updated_at)
-      VALUES (?,?,"member","active",?,?,?,?)',
-      [$login,secure_password($password),$displayName,$email,$start,$now]);
+    execute_sql($db,'INSERT INTO users(login,password_hash,role,status,display_name,email,phone,created_at,updated_at)
+      VALUES (?,?,"member","active",?,?,?,?,?)',
+      [$login,secure_password($password),$displayName,$email,$phone,$start,$now]);
     $userId=(int)$db->lastInsertId();
     execute_sql($db,'INSERT INTO mining_state(user_id,updated_at) VALUES (?,?)',[$userId,$now]);
     execute_sql($db,'INSERT INTO referral_codes(user_id,code,created_at) VALUES (?,?,?)',

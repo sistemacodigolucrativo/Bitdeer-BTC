@@ -1,13 +1,13 @@
 import React, {useEffect, useState} from 'react';
-import { Cpu, ShieldCheck, Zap, Gem, LogOut } from 'lucide-react';
+import { Cpu, ShieldCheck, Zap, Gem } from 'lucide-react';
 import { Plan } from '../services/api';
 import { LanguageCode } from '../types';
 import { memberTexts } from '../i18n/memberTexts';
 
 type Props={plans:Plan[];activePlanId:string;busy:boolean;language:LanguageCode;
   suggestedPlanId?:string|null;
-  onPurchase:(id:string)=>void;onLogout:()=>void};
-export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,onPurchase,onLogout,suggestedPlanId})=>{
+  onPurchase:(id:string)=>void};
+export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,onPurchase,suggestedPlanId})=>{
   const t=memberTexts[language]||memberTexts.pt;
   const options=plans.filter(p=>p.id!=='FREE');
   const [choice,setChoice]=useState('');
@@ -34,11 +34,8 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
           <ShieldCheck className="text-emerald-400 shrink-0" size={16} aria-hidden="true"/></div>
         <p className="font-bold">{currentPlan.name} · US$ {currentPlan.dailyUsd}/{t.day}</p>
       </div>
-      <button type="button" data-testid="store-exit" onClick={onLogout}
-        aria-label={language==='en'?'Exit':language==='es'?'Salir':'Sair'} title={language==='en'?'Exit':language==='es'?'Salir':'Sair'}
-        className="shrink-0 rounded-xl border border-[#303b59] bg-[#11182c] p-2 text-rose-300">
-        <LogOut size={22}/>
-      </button>
+      <span data-testid="store-plan-shield" aria-label={language==='en'?'Active plan':language==='es'?'Plan activo':'Plano ativo'}
+        className="shrink-0 rounded-xl border border-emerald-400/35 bg-emerald-400/10 p-2 text-emerald-300"><ShieldCheck size={22}/></span>
     </div>}
     {selected && <>
       <div data-testid="store-plan-illustration" className="bg-[#191e32] border border-[#262e49] rounded-2xl p-2.5 flex gap-2.5 items-center overflow-hidden shadow-sm">

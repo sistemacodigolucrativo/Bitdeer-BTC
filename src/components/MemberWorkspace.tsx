@@ -45,6 +45,7 @@ export const MemberWorkspace: React.FC<{
   const [plans, setPlans] = useState<Plan[]>([]);
   const [checkout, setCheckout] = useState<PurchaseOrder|null>(null);
   const [checkoutQr, setCheckoutQr] = useState('');
+  const [checkoutCopied,setCheckoutCopied]=useState<'address'|'btc'|null>(null);
   const [ledger, setLedger] = useState<{
     accruals: Array<{plan_id:string;start_ts:number;end_ts:number;earned_units:number}>;
     bonuses: Array<{plan_id:string;claimed_at:number;bonus_usd_units:number;bonus_satoshis:number}>;
@@ -111,7 +112,7 @@ export const MemberWorkspace: React.FC<{
     if(walletStep==='amount'&&!withdrawEdited) setWithdrawAmount(defaultWithdrawAmount);
   },[walletStep,withdrawEdited,defaultWithdrawAmount]);
   useEffect(() => {
-    if (!checkout) {setCheckoutQr('');return;}
+    if (!checkout) {setCheckoutQr('');setCheckoutCopied(null);return;}
     const bip21='bitcoin:'+checkout.btcAddress+'?amount='+checkout.btcAmount;
     let active=true;
     QRCode.toDataURL(bip21,{width:200,margin:1})
@@ -439,7 +440,11 @@ export const MemberWorkspace: React.FC<{
           </section>}
         </>}
         {page==='settings' && <section className="space-y-3">
-          <h2 className="text-lg font-bold">{words.settings}</h2>
+          <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">{words.settings}</h2>
+            <button type="button" data-testid="settings-exit" onClick={onLogout}
+              aria-label={language==='en'?'Exit':language==='es'?'Salir':'Sair'} title={language==='en'?'Exit':language==='es'?'Salir':'Sair'}
+              className="rounded-xl border border-[#303b59] bg-[#11182c] p-2 text-rose-300"><LogOut size={19}/></button>
+          </div>
           <p className="text-xs text-slate-400">{words.account}: {account?.user.login ?? user.login} · {language==='en'?'User ID':language==='es'?'ID de usuario':'ID do usuário'} #{user.id}</p>
           <label className="flex items-center justify-between bg-[#1b2137] rounded-xl border border-[#2b3350] p-4 text-sm">
             <span>{language==='en'?'Language':language==='es'?'Idioma':'Idioma'}</span>
@@ -468,7 +473,7 @@ export const MemberWorkspace: React.FC<{
         {page==='store' && <>
           <ServerStoreView plans={plans} activePlanId={account?.plan.id ?? 'FREE'}
             suggestedPlanId={storeRecommended}
-            language={language} busy={busy} onLogout={onLogout} onPurchase={planId=>void act('orders.create',{planId})}/>
+            language={language} busy={busy} onPurchase={planId=>void act('orders.create',{planId})}/>
           {checkout && <div role="dialog" aria-modal="true" className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm"><section className="w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto bg-[#1b2137] border border-indigo-600/50 rounded-2xl p-4 space-y-3 shadow-2xl">
             <h3 className="font-bold">{tr.order} #{checkout.orderId} — {words.pendingPayment}</h3>
             <p className="text-sm" >{words.price}: US$ {checkout.priceUsd}</p>
@@ -476,10 +481,12 @@ export const MemberWorkspace: React.FC<{
             <p className="text-xs text-slate-400" >{words.quotation}: US$ {checkout.quoteRateUsd} {tr.perBtc} · {checkout.quoteSource}</p>
             <p className="text-xs text-amber-300" >{words.quoteExpiry} {new Date(checkout.expiresAt*1000).toLocaleString(dateLocale)}. {words.expiredWarning}</p>
             {checkoutQr && <img src={checkoutQr} alt={tr.qrAlt} className="mx-auto rounded-lg w-40 h-40"/>}
-            <div className="max-w-full overflow-x-auto rounded-lg bg-[#11182c] p-2"><p className="min-w-max whitespace-nowrap font-mono text-xs">{checkout.btcAddress}</p></div>
+            <p className="w-full break-all rounded-lg bg-[#11182c] p-3 text-center font-mono text-[11px] leading-relaxed text-slate-100">{checkout.btcAddress}</p>
             <div className="flex gap-2">
-              <button className="flex-1 bg-indigo-600 rounded-xl p-2 text-xs" onClick={()=>void copy(checkout.btcAddress)}>{words.copyAddress}</button>
-              <button className="flex-1 bg-indigo-600 rounded-xl p-2 text-xs" onClick={()=>void copy(checkout.btcAmount)}>{words.copyBtc}</button>
+              <button className={'flex-1 rounded-xl p-2 text-xs transition-colors '+(checkoutCopied==='address'?'bg-emerald-600':'bg-indigo-600')}
+                onClick={()=>{void copy(checkout.btcAddress);setCheckoutCopied('address');window.setTimeout(()=>setCheckoutCopied(null),1600);}}>{checkoutCopied==='address'?'✓ '+(language==='en'?'Copied':language==='es'?'Copiado':'Copiado'):words.copyAddress}</button>
+              <button className={'flex-1 rounded-xl p-2 text-xs transition-colors '+(checkoutCopied==='btc'?'bg-emerald-600':'bg-indigo-600')}
+                onClick={()=>{void copy(checkout.btcAmount);setCheckoutCopied('btc');window.setTimeout(()=>setCheckoutCopied(null),1600);}}>{checkoutCopied==='btc'?'✓ '+(language==='en'?'Copied':language==='es'?'Copiado':'Copiado'):words.copyBtc}</button>
             </div>
             <button className="text-indigo-300 text-xs underline" onClick={()=>setCheckout(null)}>{words.close}</button>
           </section></div>}
