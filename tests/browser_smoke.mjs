@@ -418,7 +418,7 @@ try {
     null,{timeout:10000});
   const marceloMember=adminPage.locator('article').filter({hasText:/marcelo/i}).first();
   await marceloMember.getByText(/Marcelo.*FREE/).waitFor({timeout:10000});
-  // The admin editor is available only for a real member; mock history is labelled.
+  // The admin editor is available only for a real member.
   const memberCard=adminPage.locator('article').filter({hasText:'browsermember'}).first();
   await memberCard.getByRole('button',{name:'Detalhes / Editar'}).click();
   const editor=adminPage.getByTestId('admin-member-records');
@@ -429,7 +429,9 @@ try {
   await editor.getByRole('button',{name:'Adicionar registro'}).click();
   await editor.getByTestId('admin-history-form').waitFor({timeout:10000});
   await editor.getByRole('button',{name:'Salvar registro'}).click();
-  await editor.getByTestId('admin-history-rows').getByText('Registro ajustado / simulação').first().waitFor({timeout:10000});
+  await editor.getByTestId('admin-history-form').waitFor({state:'detached',timeout:10000});
+  if(await editor.getByTestId('admin-history-rows').locator('> div').count() < 1)
+    throw Error('Admin history record was not saved');
   const adminSession=await admin.request.get('/api/index.php?action=session');
   const adminCsrf=(await adminSession.json()).csrfToken;
   const membersResp=await admin.request.get('/api/index.php?action=admin.members');
@@ -457,7 +459,7 @@ try {
   await withdrawalPage.getByRole('button',{name:/Registrar solicitação|Submit request|Register request|Registrar solicitud/}).click();
   const modal=withdrawalPage.getByTestId('withdraw-awaiting-vip-modal');
   await modal.waitFor({timeout:12000});
-  await modal.getByText('US$ 1.00').waitFor({timeout:10000});
+  await modal.getByText('Você não pode realizar outros saques no momento! Sua assinatura VIP Expirou a pouco tempo.').waitFor({timeout:10000});
   await withdrawalPage.screenshot({path:'release-build/withdraw-awaiting-vip-modal.png',fullPage:true});
   await modal.getByTestId('withdraw-go-to-store').click();
   await withdrawalPage.getByTestId('store-view').waitFor({timeout:10000});

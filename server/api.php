@@ -712,6 +712,8 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             fail(422,'Valor USD inválido, use até duas casas decimais');
         if ($mode==='BTC' && !preg_match('/^(?:0|[1-9][0-9]{0,3})(?:\\.[0-9]{1,8})?$/D',$amount))
             fail(422,'Valor BTC inválido, use até oito casas decimais');
+        if (!vip_eligible_at($db,(int)$actor['id'],now()))
+            fail(409,'Você não pode realizar outros saques no momento! Sua assinatura VIP Expirou a pouco tempo. Para enviar sua transferência ative novamente um dos planos VIP.');
         $quote=verified_btc_quote($db);
         if ($mode==='USD') {
             $parts=explode('.',$amount);
@@ -745,22 +747,20 @@ function api_dispatch(PDO $db, string $action, string $method): never {
                 fail(409,'Saldo interno insuficiente');
             execute_sql($db,'UPDATE mining_state SET balance_units=balance_units-?,updated_at=? WHERE user_id=?',
                 [$units,$at,$uid]);
-            $vip=vip_eligible_at($db,$uid,$at);
-            $vipState=$vip?'eligible':'awaiting_vip';
+            if (!vip_eligible_at($db,$uid,$at))
+                fail(409,'Você não pode realizar outros saques no momento! Sua assinatura VIP Expirou a pouco tempo. Para enviar sua transferência ative novamente um dos planos VIP.');
             execute_sql($db,'INSERT INTO withdraw_requests
               (user_id,plan_id,btc_address,usd_cents,btc_satoshis,quote_usd_cents,quote_source,status,vip_state,created_at)
               VALUES (?,?,?,?,?,?,?,"pending",?,?)',
               [$uid,$plan['id'],$wallet,$cents,$sats,
-                (int)round($quote['usd']*100),$quote['source'],$vipState,$at]);
-            return ['id'=>(int)$db->lastInsertId(),'status'=>$vip?'pending':'awaiting_vip'];
+                (int)round($quote['usd']*100),$quote['source'],'eligible',$at]);
+            return ['id'=>(int)$db->lastInsertId(),'status'=>'pending'];
         });
         json_out(['id'=>$request['id'],'status'=>$request['status'],
           'usdAmount'=>number_format($cents/100,2,'.',''),
           'btcAmount'=>number_format($sats/100000000,8,'.',''),
           'simulation'=>true,
-          'message'=>$request['status']==='awaiting_vip'
-            ? 'Solicitação registrada: aguardando assinatura VIP ativa. São créditos internos; nenhum BTC foi enviado.'
-            : 'Solicitação interna registrada para conferência administrativa. Nenhum BTC foi enviado.'],201);
+          'message'=>'Solicitação interna registrada para conferência administrativa. Nenhum BTC foi enviado.'],201);
     }
     if ($action === 'orders.mine' && $method === 'GET') {
         $actor=auth_user($db);

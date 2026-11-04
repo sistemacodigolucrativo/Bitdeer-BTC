@@ -115,7 +115,8 @@ guest.call("register",{"login":"charlie","password":"CharlieStrongPassword2026",
   "displayName":"Charlie","inviteCode":code},409)
 assert alice.call("referrals.mine")["count"]==1
 
-# FREE members may record internal payout requests, but approval requires an active VIP tier.
+# Withdrawal requests require an active VIP tier; FREE members cannot reserve
+# balance or create a request.
 charlie=Client()
 charlie.call("login",{"login":"charlie","password":"CharlieStrongPassword2026"})
 charlie.call("profile.update",{"displayName":"Charlie","email":"","phone":"",
@@ -133,16 +134,10 @@ assert float(free_balance)==10.0
 free_quote=charlie.call("withdraw.quote")
 assert free_quote["btcUsd"]=="80000.00" and free_quote["source"]=="CI fixture"
 assert 0<=free_quote["validForSeconds"]<=60
-free_request=charlie.call("withdraw.request",{"mode":"USD","amount":"2.00"},201)
-assert free_request["status"]=="awaiting_vip"
-assert "VIP" in free_request["message"]
-assert charlie.call("withdraw.mine")["requests"][0]["status"]=="awaiting_vip"
-assert any(x["id"]==free_request["id"] and x["status"]=="awaiting_vip"
-           for x in admin.call("admin.withdrawals")["requests"])
-admin.call("admin.withdraw.process",{"requestId":free_request["id"],
-  "status":"approved","reference":"test-no-vip","manualReviewConfirmed":True},409)
-# The original internal balance is reserved, not deleted and not paid out.
-assert abs(float(charlie.call("profile")["mining"]["balanceUsd"])-8.0)<1e-6
+blocked_withdraw=charlie.call("withdraw.request",{"mode":"USD","amount":"2.00"},409)
+assert "VIP" in blocked_withdraw["error"]
+assert charlie.call("withdraw.mine")["requests"]==[]
+assert abs(float(charlie.call("profile")["mining"]["balanceUsd"])-10.0)<1e-6
 vip_checkout=charlie.call("orders.create",{"planId":"VIP_01"},201)
 admin.call("admin.order.approve",{"orderId":vip_checkout["orderId"],
   "paymentConfirmed":True,"paymentReference":"b"*64})
@@ -155,8 +150,10 @@ with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as db:
     legacy_snapshot["withdraw_after_days"]=365
     db.execute("UPDATE contracts SET plan_snapshot_json=? WHERE id=?",
                (json.dumps(legacy_snapshot),contract[0]))
+vip_request=charlie.call("withdraw.request",{"mode":"USD","amount":"2.00"},201)
+assert vip_request["status"]=="pending"
 assert charlie.call("withdraw.mine")["requests"][0]["status"]=="pending"
-admin.call("admin.withdraw.process",{"requestId":free_request["id"],
+admin.call("admin.withdraw.process",{"requestId":vip_request["id"],
   "status":"approved","reference":"test-vip-active","manualReviewConfirmed":True})
 assert charlie.call("withdraw.mine")["requests"][0]["status"]=="approved"
 # Requests cannot be approved after VIP contract expiry, even if previously unlocked.

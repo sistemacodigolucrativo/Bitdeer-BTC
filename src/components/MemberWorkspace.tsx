@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AuthUser, MemberData, Plan, api } from '../services/api';
 import { CustomerSupportView } from './workspace/CustomerSupportView';
 import { LanguageCode } from '../types';
-import { Home, Store, User, Headphones, LogOut, Wallet, Gift, Settings, Trophy, ScrollText, ArrowLeft } from 'lucide-react';
+import { Home, Store, User, Headphones, LogOut, Wallet, Gift, Settings, Trophy, ScrollText, ArrowLeft, Crown, LockKeyhole } from 'lucide-react';
 import { translations } from '../i18n/translations';
 import QRCode from 'qrcode';
 import { ServerHomeView } from './ServerHomeView';
@@ -58,7 +58,7 @@ export const MemberWorkspace: React.FC<{
   const [withdrawMode,setWithdrawMode]=useState<'BTC'|'USD'>('USD');
   const [withdrawAmount,setWithdrawAmount]=useState('');
   const [withdrawEdited,setWithdrawEdited]=useState(false);
-  const [withdrawPopup,setWithdrawPopup]=useState<{id:number;usdAmount:string;recommended:string}|null>(null);
+  const [withdrawPopup,setWithdrawPopup]=useState<{recommended:string}|null>(null);
   const [storeRecommended,setStoreRecommended]=useState<string|null>(null);
   const [purchaseHistory,setPurchaseHistory]=useState<Array<{id:number|string;plan_id:string;status:string;created_at:number;btc_sats:number;adminEdited?:boolean;simulation?:boolean}>>([]);
   type WithdrawRequest={id:number|string;usd_cents:number;btc_satoshis:number;status:'pending'|'awaiting_vip'|'approved'|'rejected';created_at:number;adminEdited?:boolean;simulation?:boolean};
@@ -154,18 +154,20 @@ export const MemberWorkspace: React.FC<{
   async function submitWithdrawal(){
     setBusy(true);setNotice('');
     try{
-      const result=await api<{id:number;status:'pending'|'awaiting_vip';message:string;usdAmount:string}>('withdraw.request',{mode:withdrawMode,amount:withdrawAmount});
+      const result=await api<{id:number;status:'pending';message:string;usdAmount:string}>('withdraw.request',{mode:withdrawMode,amount:withdrawAmount});
       await reload();
       const history=await api<{requests:WithdrawRequest[]}>('withdraw.mine');
       setWithdrawHistory(history.requests);
       setWalletStep('none');setWithdrawAmount('');setPage('wallet');
       setNotice(result.message);
-      if(result.status==='awaiting_vip') {
+    }catch(e){
+      const message=(e as Error).message;
+      if(message.includes('Você não pode realizar outros saques no momento!')) {
         const recommendation:Record<string,string>={FREE:'VIP_01',VIP_01:'VIP_02',VIP_02:'VIP_03',VIP_03:'VIP_04'};
         const selected=recommendation[account?.plan.id??'FREE']||'VIP_01';
-        setWithdrawPopup({id:result.id,usdAmount:result.usdAmount,recommended:selected});
-      }
-    }catch(e){setNotice((e as Error).message);}
+        setWalletStep('none');setPage('wallet');setWithdrawPopup({recommended:selected});
+      } else setNotice(message);
+    }
     finally{setBusy(false);}
   }
   useEffect(() => {
@@ -214,21 +216,26 @@ export const MemberWorkspace: React.FC<{
     <button onClick={()=>{setPage(p);setNotice('');}} className={'flex flex-col items-center text-[11px] gap-1 '+(page===p?'text-white':'text-slate-400')}>
       <Icon size={20}/>{label}</button>;
   return <div className="w-full h-full flex flex-col bg-[#121526] text-white">
-    {withdrawPopup && <div role="dialog" aria-modal="true" aria-label={language==='en'?'Withdrawal registered':language==='es'?'Retiro registrado':'Saque registrado'}
-      data-testid="withdraw-awaiting-vip-modal" className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-[#1b2137] border border-indigo-400/40 p-5 shadow-xl space-y-4">
-        <h2 className="font-extrabold text-lg">{language==='en'?'Withdrawal request registered':language==='es'?'Solicitud de retiro registrada':'Solicitação de saque registrada'}</h2>
-        <p className="text-sm text-slate-200">{language==='en'?'Internal credits reserved: ':language==='es'?'Créditos internos descontados: ':'Créditos internos descontados: '}
-          <strong>US$ {withdrawPopup.usdAmount}</strong>.</p>
-        <p className="text-xs text-amber-300">{language==='en'?'Awaiting an eligible VIP subscription and administrative review; no BTC has been sent.':
-          language==='es'?'En espera de una suscripción VIP elegible y revisión administrativa. No se ha enviado BTC.':
-          'Aguardando assinatura VIP elegível e conferência administrativa. Nenhum BTC foi enviado.'}</p>
+    {withdrawPopup && <div role="dialog" aria-modal="true" aria-label={language==='en'?'Active VIP plan required':language==='es'?'Se requiere un plan VIP activo':'Plano VIP ativo necessário'}
+      data-testid="withdraw-awaiting-vip-modal" className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-amber-300/40 bg-gradient-to-b from-[#26203b] via-[#171b2d] to-[#101423] p-6 shadow-2xl shadow-amber-950/40 space-y-5">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-300 via-yellow-500 to-amber-300"/>
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/50 bg-amber-400/10 text-amber-300 shadow-lg shadow-amber-900/30"><Crown size={29}/></div>
+        <div className="text-center space-y-2">
+          <p className="text-[11px] font-black tracking-[0.18em] text-amber-300">VIP REQUIRED</p>
+          <h2 className="font-extrabold text-xl text-white">{language==='en'?'Activate your VIP plan':language==='es'?'Active su plan VIP':'Ative seu plano VIP'}</h2>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-center space-y-2">
+          <LockKeyhole className="mx-auto text-amber-300" size={19}/>
+          <p className="text-sm font-semibold leading-6 text-slate-100">{language==='en'?'You cannot make other withdrawals right now. Your VIP subscription has recently expired.':language==='es'?'No puede realizar más retiros por ahora. Su suscripción VIP venció recientemente.':'Você não pode realizar outros saques no momento! Sua assinatura VIP Expirou a pouco tempo.'}</p>
+          <p className="text-sm leading-6 text-slate-300">{language==='en'?'To send your transfer, activate one of the VIP plans again.':language==='es'?'Para enviar su transferencia, active nuevamente uno de los planes VIP.':'Para enviar sua transferência ative novamente um dos planos VIP.'}</p>
+        </div>
         <button type="button" data-testid="withdraw-go-to-store"
-          className="w-full rounded-xl bg-indigo-600 p-3 font-bold text-sm"
+          className="w-full rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-500 p-3.5 font-extrabold text-sm text-[#211806] shadow-lg shadow-amber-900/30"
           onClick={()=>{setStoreRecommended(withdrawPopup.recommended);setWithdrawPopup(null);setPage('store');}}>
-          {language==='en'?'See VIP '+withdrawPopup.recommended:language==='es'?'Ver plan '+withdrawPopup.recommended:'Ver plano '+withdrawPopup.recommended}
+          {language==='en'?'Activate '+withdrawPopup.recommended:language==='es'?'Activar '+withdrawPopup.recommended:'Ativar '+withdrawPopup.recommended}
         </button>
-        <button type="button" className="w-full text-xs text-slate-300 underline"
+        <button type="button" className="w-full text-xs text-slate-300 underline underline-offset-4"
           onClick={()=>setWithdrawPopup(null)}>{language==='en'?'Close':language==='es'?'Cerrar':'Fechar'}</button>
       </div>
     </div>}
