@@ -119,7 +119,7 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd,quoteTime})=
   return <section className="flex-1 min-h-0 w-full flex flex-col bg-[#121626] text-white overflow-hidden">
     <header className="grid grid-cols-[44px_1fr_44px] items-center gap-2 px-4 py-4 border-b border-[#232943] bg-[#141829]">
       <button type="button" onClick={onBack} aria-label={language==='en'?'Back':language==='es'?'Volver':'Voltar'}
-        className="w-10 h-10 rounded-xl bg-[#1b2137] flex items-center justify-center"><ArrowLeft size={20}/></button>
+        className="w-10 h-10 rounded-xl bg-[#1b2137] flex items-center justify-center"><ArrowLeft size={24}/></button>
       <h2 className="font-extrabold text-lg text-center">{language==='en'?'Top Miners':language==='es'?'Mejores mineros':'Top Mineradores'}</h2><span aria-hidden="true"/>
     </header>
     <div data-testid="top-miners-scroll" className="top-miners-vertical-scroll flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y member-vertical-scroll p-4 space-y-3">

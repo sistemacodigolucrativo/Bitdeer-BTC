@@ -33,7 +33,7 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
   const largest=Math.max(1,...days.map(d=>d.units));
   return <section className="space-y-4 pb-4">
     <header className="flex items-center justify-between">
-      <h2 className="font-black text-xl">{t.title}</h2><Wallet className="text-indigo-300" size={22}/>
+      <h2 className="font-black text-xl">{t.title}</h2><Wallet className="text-indigo-300" size={24}/>
     </header>
     <div className="relative bg-[#191e32] border border-[#262e49] rounded-3xl p-5 shadow-md overflow-hidden">
       <div className="absolute right-0 top-0 h-28 w-28 bg-indigo-600/10 blur-2xl rounded-full"/>

@@ -463,7 +463,7 @@ export const MemberWorkspace: React.FC<{
           <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">{words.settings}</h2>
             <button type="button" data-testid="settings-exit" onClick={onLogout}
               aria-label={language==='en'?'Exit':language==='es'?'Salir':'Sair'} title={language==='en'?'Exit':language==='es'?'Salir':'Sair'}
-              className="rounded-xl border border-[#303b59] bg-[#11182c] p-2 text-rose-300"><LogOut size={19}/></button>
+              className="rounded-xl border border-[#303b59] bg-[#11182c] p-2 text-rose-300"><LogOut size={24}/></button>
           </div>
           <p className="text-xs text-slate-400">{words.account}: {account?.user.login ?? user.login} · {language==='en'?'User ID':language==='es'?'ID de usuario':'ID do usuário'} #{user.id}</p>
           <label className="flex items-center justify-between bg-[#1b2137] rounded-xl border border-[#2b3350] p-4 text-sm">

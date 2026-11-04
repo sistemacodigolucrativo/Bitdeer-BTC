@@ -65,9 +65,9 @@ export const CustomerSupportView: React.FC<Props> = ({language,onBack}) => {
   }
   return <section className="w-full flex-1 flex flex-col bg-[#121626] text-white overflow-hidden">
     <header className="p-4 border-b border-[#232943] flex items-center gap-3">
-      <button onClick={onBack} aria-label={tr.back}><ArrowLeft size={20}/></button>
+      <button onClick={onBack} aria-label={tr.back}><ArrowLeft size={24}/></button>
       <h2 className="font-bold">{tr.title}</h2>
-      <button className="ml-auto" onClick={()=>void refresh()} aria-label={tr.refresh}><RefreshCw size={18}/></button>
+      <button className="ml-auto" onClick={()=>void refresh()} aria-label={tr.refresh}><RefreshCw size={24}/></button>
     </header>
     <div className="flex-1 min-h-0 p-4 space-y-5 overflow-y-auto overscroll-y-contain touch-pan-y member-vertical-scroll">
       <form onSubmit={e=>void submit(e)} className="space-y-3">

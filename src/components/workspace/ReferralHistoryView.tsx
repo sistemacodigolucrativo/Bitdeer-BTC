@@ -38,10 +38,10 @@ export const ReferralHistoryView:React.FC<Props>=({language,onBack,embedded=fals
     className={embedded?'rounded-2xl border border-[#2a3350] bg-[#151b2e] p-3 space-y-3':
       'flex-1 flex flex-col bg-[#121626] text-white overflow-hidden'}>
     <header className={embedded?'flex items-center justify-between gap-3':'p-4 border-b border-[#232943] flex justify-between items-center'}>
-      {!embedded&&<button onClick={onBack} aria-label={backLabel}><ArrowLeft size={20}/></button>}
+      {!embedded&&<button onClick={onBack} aria-label={backLabel}><ArrowLeft size={24}/></button>}
       <strong className="text-sm flex items-center gap-2"><Users size={17} className="text-indigo-300"/>{copy.title}</strong>
       <button onClick={()=>void refresh()} aria-label={refreshLabel}
-        className="p-2 bg-[#242c47] rounded-lg"><RefreshCw size={16}/></button>
+        className="p-2 bg-[#242c47] rounded-lg"><RefreshCw size={24}/></button>
     </header>
     <div className={embedded?'space-y-3':'p-4 space-y-4 overflow-y-auto overscroll-y-contain touch-pan-y member-vertical-scroll'}>
       {error&&<p className="text-amber-300 text-xs" role="alert">{error}</p>}
