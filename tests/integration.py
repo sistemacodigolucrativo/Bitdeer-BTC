@@ -89,6 +89,11 @@ assert alice.call("profile")["plan"]["id"]=="FREE"
 
 admin=Client()
 assert admin.call("login",{"login":"adminci","password":"StrongCIpassword123!"})["user"]["role"]=="admin"
+# The seeded founding member accepts the documented demonstration credentials.
+founder=Client()
+assert founder.call("login",{"login":"user","password":"123456789123"})["user"]["role"]=="member"
+assert founder.call("profile")["plan"]["id"]=="FREE"
+assert guest.call("login",{"login":"user","password":"user"},401)["error"]
 assert admin.call("admin.members")["total"]==3
 assert admin.call("admin.overview")["members"]==3
 # The founding demo profile is present on clean installs. Existing profiles
