@@ -242,7 +242,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
           </select>
           <button className={btn}>{tx("Pesquisar")}</button>
         </form>
-        <p className="text-xs text-slate-400">{total} membro(s) · exibindo até 50 por página.</p>
+        <p className="text-xs text-slate-400">{total} {language==='en'?'members · up to 50 per page':language==='es'?'miembros · hasta 50 por página':'membro(s) · exibindo até 50 por página'}.</p>
         <div className="space-y-3">{members.map(m=>
           <article key={m.id} className="rounded-xl p-4 bg-[#1b2137] border border-[#2b3350] flex flex-wrap gap-4 items-center justify-between">
             <div><strong>#{m.id} {m.login}</strong><p className="text-xs text-slate-400">{m.display_name} · {adminStatus(language,m.status)} · {m.plan_id}</p></div>
