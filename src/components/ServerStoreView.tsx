@@ -1,13 +1,13 @@
 import React, {useEffect, useState} from 'react';
-import { Cpu, ShieldCheck, Zap, Gem } from 'lucide-react';
+import { Cpu, ShieldCheck, Zap, Gem, LogOut } from 'lucide-react';
 import { Plan } from '../services/api';
 import { LanguageCode } from '../types';
 import { memberTexts } from '../i18n/memberTexts';
 
 type Props={plans:Plan[];activePlanId:string;busy:boolean;language:LanguageCode;
   suggestedPlanId?:string|null;
-  onPurchase:(id:string)=>void};
-export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,onPurchase,suggestedPlanId})=>{
+  onPurchase:(id:string)=>void;onLogout:()=>void};
+export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,onPurchase,onLogout,suggestedPlanId})=>{
   const t=memberTexts[language]||memberTexts.pt;
   const options=plans.filter(p=>p.id!=='FREE');
   const [choice,setChoice]=useState('');
@@ -29,9 +29,16 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
   const currentPlan=plans.find(p=>p.id===activePlanId)||plans.find(p=>p.id==='FREE');
   return <section className="space-y-3" data-testid="store-view">
     {currentPlan && <div data-testid="store-active-plan" className="bg-[#171b2d] border border-[#252c45] p-3 rounded-2xl flex justify-between gap-3 items-center">
-      <div className="min-w-0"><span className="text-xs text-slate-400">{helper.current}</span>
-        <p className="font-bold">{currentPlan.name} · US$ {currentPlan.dailyUsd}/{t.day}</p></div>
-      <ShieldCheck className="text-emerald-400 shrink-0" size={22}/>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5"><span className="text-xs text-slate-400">{helper.current}</span>
+          <ShieldCheck className="text-emerald-400 shrink-0" size={16} aria-hidden="true"/></div>
+        <p className="font-bold">{currentPlan.name} · US$ {currentPlan.dailyUsd}/{t.day}</p>
+      </div>
+      <button type="button" data-testid="store-exit" onClick={onLogout}
+        aria-label={language==='en'?'Exit':language==='es'?'Salir':'Sair'} title={language==='en'?'Exit':language==='es'?'Salir':'Sair'}
+        className="shrink-0 rounded-xl border border-[#303b59] bg-[#11182c] p-2 text-rose-300">
+        <LogOut size={22}/>
+      </button>
     </div>}
     {selected && <>
       <div data-testid="store-plan-illustration" className="bg-[#191e32] border border-[#262e49] rounded-2xl p-2.5 flex gap-2.5 items-center overflow-hidden shadow-sm">
