@@ -60,13 +60,14 @@ export const MemberWorkspace: React.FC<{
   });
   const [walletStep,setWalletStep]=useState<'none'|'register'|'amount'>('none');
   const [walletDraft,setWalletDraft]=useState('');
+  const [walletConfirmation,setWalletConfirmation]=useState(false);
   const [withdrawMode,setWithdrawMode]=useState<'BTC'|'USD'>('USD');
   const [withdrawAmount,setWithdrawAmount]=useState('');
   const [withdrawEdited,setWithdrawEdited]=useState(false);
   const [withdrawPopup,setWithdrawPopup]=useState<{recommended:string}|null>(null);
   const [storeRecommended,setStoreRecommended]=useState<string|null>(null);
   const [purchaseHistory,setPurchaseHistory]=useState<Array<{id:number|string;plan_id:string;status:string;created_at:number;btc_sats:number;adminEdited?:boolean;simulation?:boolean}>>([]);
-  type WithdrawRequest={id:number|string;usd_cents:number;btc_satoshis:number;status:'pending'|'awaiting_vip'|'approved'|'rejected';created_at:number;adminEdited?:boolean;simulation?:boolean};
+  type WithdrawRequest={id:number|string;usd_cents:number;btc_satoshis:number;status:'pending'|'awaiting_vip'|'approved'|'rejected'|'failed';created_at:number;reason?:string;adminEdited?:boolean;simulation?:boolean};
   const [withdrawHistory,setWithdrawHistory]=useState<WithdrawRequest[]>([]);
   const [withdrawPage,setWithdrawPage]=useState(1);
   const withdrawPages=Math.max(1,Math.ceil(withdrawHistory.length/10));
@@ -205,11 +206,13 @@ export const MemberWorkspace: React.FC<{
     setWalletStep('none');
   }
   async function saveWalletForWithdrawal(){
+    if(!walletConfirmation){setWalletConfirmation(true);return;}
     setBusy(true);setNotice('');
     try{
       await api('profile.update',{...profile,walletAddress:walletDraft});
       await reload();
       setWalletStep('none');
+      setWalletConfirmation(false);
       setPage('wallet');
       setNotice(words.saved);
     }catch(e){setNotice((e as Error).message);}
@@ -340,14 +343,20 @@ export const MemberWorkspace: React.FC<{
           {walletStep!=='none' && <section className="bg-[#1b2137] border border-indigo-500 rounded-2xl p-4 space-y-3">
             <div className="flex justify-between items-center">
               <h3 data-testid="withdraw-form-heading" className="font-bold">{walletStep==='register'?tr.walletRegistration:tr.request}</h3>
-              <button onClick={()=>{setWalletStep('none');setPage('wallet');}} className="text-xs underline">{tr.close}</button>
+              <button onClick={()=>{setWalletStep('none');setWalletConfirmation(false);setPage('wallet');}} className="text-xs underline">{tr.close}</button>
             </div>
             {walletStep==='register' ? <form className="space-y-3" onSubmit={e=>{e.preventDefault();void saveWalletForWithdrawal();}}>
               <label className="block text-sm">{tr.address}
-                <input required value={walletDraft} onChange={e=>setWalletDraft(e.target.value)}
+                <input required value={walletDraft} onChange={e=>{setWalletDraft(e.target.value);setWalletConfirmation(false);}}
                   placeholder="bc1..." className="w-full mt-2 bg-[#11182c] rounded-lg p-3 font-mono text-xs"/>
               </label>
-              <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{tr.save}</button>
+              {walletConfirmation&&<div className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-center space-y-2">
+                <p className="text-xs font-bold text-amber-100">{language==='en'?'Confirm Bitcoin address':language==='es'?'Confirme la dirección Bitcoin':'Confirme o endereço Bitcoin'}</p>
+                <p className="break-all font-mono text-[11px] text-white">{walletDraft.trim()}</p>
+                <p className="text-[11px] text-slate-300">{language==='en'?'Confirm that this address is correct before saving.':language==='es'?'Confirme que esta dirección es correcta antes de guardarla.':'Confirme que este endereço está correto antes de salvar.'}</p>
+                <button type="button" onClick={()=>setWalletConfirmation(false)} className="w-full rounded-lg bg-slate-700 p-2 text-xs font-bold">{language==='en'?'Go back and correct':language==='es'?'Volver y corregir':'Voltar e corrigir'}</button>
+              </div>}
+              <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{walletConfirmation?(language==='en'?'Confirm and save':language==='es'?'Confirmar y guardar':'Confirmar e salvar'):tr.save}</button>
             </form> : <form className="space-y-3" onSubmit={e=>{e.preventDefault();void submitWithdrawal();}}>
               <p className="text-xs text-slate-400">{tr.minimum}: US$ {account?.plan.withdrawMinUsd??'0.00'}.</p>
               <div className="flex gap-2">
@@ -363,6 +372,7 @@ export const MemberWorkspace: React.FC<{
                   className="w-full mt-2 bg-[#11182c] rounded-lg p-3"/>
               </label>
               <button disabled={busy || !freshBtcUsd} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{tr.submit}</button>
+              <p className="text-center text-xs leading-relaxed text-slate-400">{tr.withdrawalNotice}</p>
             </form>}
           </section>}
     </div> :
@@ -371,10 +381,10 @@ export const MemberWorkspace: React.FC<{
       page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y member-vertical-scroll p-4 sm:p-5 space-y-4">
         {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
-        {page==='home' && <ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language} busy={busy}
+        {page==='home' && <><ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language} busy={busy}
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
           onRewards={()=>setPage('reward')}
-          onHistory={()=>setPage('history')} onLogout={onLogout}/>}
+          onHistory={()=>setPage('history')} onLogout={onLogout}/><MockPaymentFeed language={language}/></>}
         {page==='reward' && <ServerRewardView account={account} language={language} busy={busy}
           ledger={ledger} onClaim={()=>void act('rewards.claim')}
           onRefreshHistory={()=>{void api<typeof ledger>('ledger').then(setLedger).catch(e=>setNotice((e as Error).message));}}/>}
@@ -383,7 +393,7 @@ export const MemberWorkspace: React.FC<{
             accruals={ledger.accruals} onEdit={()=>setPage('profile')} onHistory={()=>setPage('history')}
             onWithdraw={()=>{
               setWalletDraft(account?.profile.walletAddress??'');
-              setWalletStep(account?.profile.walletAddress?'amount':'register');
+              setWalletStep(account?.profile.walletAddress?'amount':'register');setWalletConfirmation(false);
               setWithdrawMode('USD');
               setWithdrawEdited(false);
               setWithdrawAmount('');
@@ -395,14 +405,15 @@ export const MemberWorkspace: React.FC<{
               aria-label={tr.requests}>
               <div className="min-w-max space-y-2">
                 {visibleWithdrawHistory.map(x=><div key={x.id} data-testid="withdraw-history-row"
-                  className="w-full min-w-max whitespace-nowrap text-xs border-b border-[#2b3350] pb-2 flex items-center gap-3">
+                  className="w-full min-w-max text-xs border-b border-[#2b3350] pb-2 flex items-center gap-3">
                   <span>#{x.id}</span>
                   <span>US$ {(x.usd_cents/100).toFixed(2)}</span>
                   <span>{(x.btc_satoshis/1e8).toFixed(8)} BTC</span>
                   <span data-testid="withdraw-status"
-                    className={x.status==='approved'?'text-emerald-400 font-semibold':'text-slate-300'}>
-                    {x.status==='awaiting_vip'?tr.awaiting:x.status==='pending'?tr.pending:x.status==='approved'?tr.approved:tr.rejected}
+                    className={x.status==='approved'?'text-emerald-400 font-semibold':x.status==='failed'||x.status==='rejected'?'text-rose-300 font-semibold':'text-slate-300'}>
+                    {x.status==='awaiting_vip'?tr.awaiting:x.status==='pending'?tr.pending:x.status==='approved'?tr.approved:x.status==='failed'?tr.failed:tr.rejected}
                   </span>
+                  {x.reason&&<span className="max-w-[220px] whitespace-normal text-[11px] text-rose-200">{x.reason}</span>}
                 </div>)}
               </div>
             </div>
@@ -426,7 +437,6 @@ export const MemberWorkspace: React.FC<{
               </button>
             </nav>}
           </section>}
-          <MockPaymentFeed language={language}/>
         </>}
         {page==='settings' && <section className="space-y-3">
           <h2 className="text-lg font-bold">{words.settings}</h2>
@@ -459,20 +469,20 @@ export const MemberWorkspace: React.FC<{
           <ServerStoreView plans={plans} activePlanId={account?.plan.id ?? 'FREE'}
             suggestedPlanId={storeRecommended}
             language={language} busy={busy} onLogout={onLogout} onPurchase={planId=>void act('orders.create',{planId})}/>
-          {checkout && <section className="bg-[#1b2137] border border-indigo-600/50 rounded-2xl p-4 space-y-3">
+          {checkout && <div role="dialog" aria-modal="true" className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm"><section className="w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto bg-[#1b2137] border border-indigo-600/50 rounded-2xl p-4 space-y-3 shadow-2xl">
             <h3 className="font-bold">{tr.order} #{checkout.orderId} — {words.pendingPayment}</h3>
             <p className="text-sm" >{words.price}: US$ {checkout.priceUsd}</p>
             <p className="text-sm" >{words.exactAmount}: <strong>{checkout.btcAmount} BTC</strong> ({checkout.btcSatoshis} satoshis)</p>
             <p className="text-xs text-slate-400" >{words.quotation}: US$ {checkout.quoteRateUsd} {tr.perBtc} · {checkout.quoteSource}</p>
             <p className="text-xs text-amber-300" >{words.quoteExpiry} {new Date(checkout.expiresAt*1000).toLocaleString(dateLocale)}. {words.expiredWarning}</p>
             {checkoutQr && <img src={checkoutQr} alt={tr.qrAlt} className="mx-auto rounded-lg w-40 h-40"/>}
-            <p className="text-xs break-all font-mono">{checkout.btcAddress}</p>
+            <div className="max-w-full overflow-x-auto rounded-lg bg-[#11182c] p-2"><p className="min-w-max whitespace-nowrap font-mono text-xs">{checkout.btcAddress}</p></div>
             <div className="flex gap-2">
               <button className="flex-1 bg-indigo-600 rounded-xl p-2 text-xs" onClick={()=>void copy(checkout.btcAddress)}>{words.copyAddress}</button>
               <button className="flex-1 bg-indigo-600 rounded-xl p-2 text-xs" onClick={()=>void copy(checkout.btcAmount)}>{words.copyBtc}</button>
             </div>
             <button className="text-indigo-300 text-xs underline" onClick={()=>setCheckout(null)}>{words.close}</button>
-          </section>}
+          </section></div>}
           {purchaseHistory.length>0&&<section data-testid="member-purchase-history" className="bg-[#171b2d] rounded-2xl p-3 space-y-2">
             <h3 className="font-bold text-sm">{language==='en'?'Purchase history':language==='es'?'Historial de compras':'Histórico de compras'}</h3>
             {purchaseHistory.map(x=><p key={x.id} className="border-b border-[#2b3350] pb-2 text-xs">

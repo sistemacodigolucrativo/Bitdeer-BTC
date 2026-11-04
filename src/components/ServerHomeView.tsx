@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Coins, Gift, Info, Clock, Zap, ChevronDown, ChevronUp, LogOut } from 'lucide-react';
+import { Coins, Gift, Clock, Zap, LogOut } from 'lucide-react';
 import { MemberData } from '../services/api';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
@@ -32,7 +32,6 @@ export const ServerHomeView: React.FC<Props> = ({
 }) => {
   const t=translations[language]?.home ?? translations.pt.home;
   const d=details[language] ?? details.pt;
-  const [expanded,setExpanded]=useState(false);
   const [clock,setClock]=useState(Date.now());
   useEffect(()=>{
     const timer=setInterval(()=>setClock(Date.now()),1000);
@@ -131,24 +130,6 @@ export const ServerHomeView: React.FC<Props> = ({
         className="w-full bg-[#6366f1] hover:bg-[#4f46e5] rounded-xl py-3 font-bold text-sm">
         {d.claim}
       </button>
-    </section>
-    <section className="bg-[#171b2d] border border-[#232a43] rounded-2xl p-4">
-      <button className="w-full flex justify-between items-center text-xs font-bold" onClick={()=>setExpanded(v=>!v)}>
-        <span className="flex items-center gap-2"><Info size={16}/>{d.faq}</span>
-        {expanded?<ChevronUp size={16}/>:<ChevronDown size={16}/>}
-      </button>
-      {expanded && <div className="border-t border-[#232a43] mt-3 pt-3 space-y-2 text-xs text-slate-400">
-        <p>{d.notice}</p><p>{language==='en'
-          ? 'FREE: '+(account?.plan.sessionSeconds || 7200)+'s per session, restart immediately afterward. VIP: according to the active contract.'
-          : language==='es'
-          ? 'FREE: '+(account?.plan.sessionSeconds || 7200)+'s por sesión, reinicio inmediato después. VIP: según el contrato vigente.'
-          : 'FREE: '+(account?.plan.sessionSeconds || 7200)+'s por sessão, reinício imediato após encerrar. VIP: conforme contrato vigente.'}</p>
-        <p>{language==='en'
-          ? 'Internal rewards are calculated on the server, not stored as browser balances.'
-          : language==='es'
-          ? 'Las recompensas internas se calculan en el servidor y no se guardan como saldos en el navegador.'
-          : 'Os benefícios são calculados no servidor, não no armazenamento do navegador.'}</p>
-      </div>}
     </section>
   </div>;
 };

@@ -18,7 +18,9 @@ const copy={
     saving:'Salvando carteira…',
     invalid:'Informe um endereço Bitcoin válido.',
     failed:'Não foi possível salvar a carteira. Verifique o endereço e tente novamente.',
-    required:'O cadastro é obrigatório para acessar a Carteira.'
+    required:'O cadastro é obrigatório para acessar a Carteira.',
+    confirmTitle:'Confirme o endereço Bitcoin', confirmQuestion:'Este endereço está correto e deseja salvá-lo?',
+    correct:'Voltar e corrigir', confirm:'Confirmar e salvar'
   },
   en:{
     eyebrow:'BITCOIN WALLET',
@@ -30,7 +32,9 @@ const copy={
     saving:'Saving wallet…',
     invalid:'Enter a valid Bitcoin address.',
     failed:'Could not save the wallet. Check the address and try again.',
-    required:'Registration is required to access your Wallet.'
+    required:'Registration is required to access your Wallet.',
+    confirmTitle:'Confirm the Bitcoin address', confirmQuestion:'Is this address correct and do you want to save it?',
+    correct:'Go back and correct', confirm:'Confirm and save'
   },
   es:{
     eyebrow:'BILLETERA BITCOIN',
@@ -42,7 +46,9 @@ const copy={
     saving:'Guardando billetera…',
     invalid:'Introduzca una dirección Bitcoin válida.',
     failed:'No se pudo guardar la billetera. Revise la dirección e inténtelo de nuevo.',
-    required:'El registro es obligatorio para acceder a la Billetera.'
+    required:'El registro es obligatorio para acceder a la Billetera.',
+    confirmTitle:'Confirme la dirección Bitcoin', confirmQuestion:'¿Esta dirección es correcta y desea guardarla?',
+    correct:'Volver y corregir', confirm:'Confirmar y guardar'
   }
 } as const;
 
@@ -57,6 +63,7 @@ export const WalletRequiredModal:React.FC<Props>=({language,onRegister})=>{
   const [address,setAddress]=useState('');
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
+  const [confirming,setConfirming]=useState(false);
 
   const save=async(e:React.FormEvent<HTMLFormElement>)=>{
     e.preventDefault();
@@ -66,6 +73,7 @@ export const WalletRequiredModal:React.FC<Props>=({language,onRegister})=>{
       setError(t.invalid);
       return;
     }
+    if(!confirming){setConfirming(true);return;}
     setBusy(true);
     setError('');
     try{
@@ -98,16 +106,17 @@ export const WalletRequiredModal:React.FC<Props>=({language,onRegister})=>{
               <input autoFocus required type="text" autoComplete="off" spellCheck={false}
                 inputMode="text" maxLength={150} placeholder="bc1…"
                 data-testid="wallet-required-address" value={address}
-                onChange={e=>{setAddress(e.target.value);if(error)setError('');}}
+                onChange={e=>{setAddress(e.target.value);setConfirming(false);if(error)setError('');}}
                 aria-invalid={!!error}
                 className="w-full rounded-xl border border-[#3b476a] bg-[#101729] p-3 font-mono text-xs text-white outline-none focus:border-indigo-400"
               />
             </label>
             {error&&<p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">{error}</p>}
-            <button type="submit" disabled={busy} data-testid="wallet-required-save"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 p-3.5 text-sm font-extrabold text-white disabled:opacity-50">
-              <ShieldCheck size={18}/>{busy?t.saving:t.save}
-            </button>
+            {confirming?<div className="space-y-3 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-center">
+              <p className="text-sm font-bold text-amber-100">{t.confirmTitle}</p><p className="break-all font-mono text-xs text-white">{address.trim()}</p>
+              <p className="text-xs text-slate-300">{t.confirmQuestion}</p>
+              <div className="grid grid-cols-2 gap-2"><button type="button" onClick={()=>setConfirming(false)} className="rounded-xl bg-slate-700 p-3 text-xs font-bold">{t.correct}</button><button type="submit" disabled={busy} data-testid="wallet-required-save" className="rounded-xl bg-indigo-600 p-3 text-xs font-bold"><ShieldCheck size={16} className="inline mr-1"/>{busy?t.saving:t.confirm}</button></div>
+            </div>:<button type="submit" disabled={busy} data-testid="wallet-required-save" className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 p-3.5 text-sm font-extrabold text-white"><ShieldCheck size={18}/>{t.save}</button>}
           </form>
         : <button type="button" data-testid="wallet-required-start"
             onClick={()=>setEditing(true)}

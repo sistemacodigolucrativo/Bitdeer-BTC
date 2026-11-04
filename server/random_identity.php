@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/demo_identities.php';
 
 /**
  * Fictitious identities used only by the administrative Random User tool.
@@ -7,6 +8,18 @@ declare(strict_types=1);
  * third party's inbox.
  */
 function random_member_identity(): array {
+    $identity=unique_demo_identities(1)[0];
+    $parts=explode(' ',$identity['name']);
+    $first=(string)($parts[0]??'Member');
+    $last=(string)($parts[count($parts)-1]??'User');
+    $ascii=iconv('UTF-8','ASCII//TRANSLIT//IGNORE',$first.$last);
+    $base=strtolower(preg_replace('/[^A-Za-z0-9]/','',$ascii===false?$first.$last:$ascii)??'member');
+    $login=$base.random_int(100,9999);
+    $domains=['example.com','example.org','example.net','mail.test','demo.invalid'];
+    return ['displayName'=>$identity['name'],'login'=>$login,
+      'email'=>$login.'@'.$domains[random_int(0,count($domains)-1)],
+      'nationality'=>'Internacional'];
+    /* Legacy compact catalogue retained below for package compatibility. */
     $catalogue=[
       'Brasil'=>[
         'first'=>['Ana','Beatriz','Camila','Diego','Eduardo','Fernanda','Gabriel','Helena','Igor','Juliana','Larissa','Mateus'],

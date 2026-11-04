@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/demo_identities.php';
 require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/quote.php';
 require_once __DIR__ . '/bitcoin.php';
@@ -401,6 +402,15 @@ function api_dispatch(PDO $db, string $action, string $method): never {
                 'createdAt'=>(int)$row['created_at'],
                 'rewardUsd'=>units_usd((int)$row['reward_usd_units'])];
         }
+        // Display-only onboarding history for the standard test member. It is
+        // deliberately not inserted in referral_events and therefore cannot
+        // affect invitation totals or rewards.
+        if ((string)$actor['login']==='user') {
+            $demo=[['Lu***','-5 days'],['Ca***','-9 days'],['Ra***','-15 days'],['So***','-22 days'],['Mi***','-31 days']];
+            foreach($demo as $offset=>$entry) $history[]=[
+                'id'=>-($offset+1),'referredAlias'=>$entry[0],
+                'createdAt'=>strtotime($entry[1],now()),'rewardUsd'=>'0.00'];
+        }
         $total=query_one($db,'SELECT COALESCE(SUM(reward_usd_units),0) AS units,
           COUNT(*) AS count FROM referral_events WHERE inviter_id=?',[$owner]);
         json_out(['code'=>$code,'history'=>$history,
@@ -668,11 +678,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $currentTime=now();
         // Never use a fixed illustrative BTC/USD rate or an expired quote.
         $quote=verified_btc_quote($db);
-        $given=['Ana','Bruno','Carla','Daniel','Eduarda','Felipe','Gabriela',
-            'Henrique','Isabela','João','Larissa','Marcos','Natália','Pedro',
-            'Renata','Rafael','Camila','Tiago','Luana','Sofia'];
-        $family=['Azevedo','Barros','Costa','Dias','Esteves','Farias',
-            'Gomes','Lopes','Mendes','Nogueira'];
+        $identities=unique_demo_identities(10);
         $records=[];
         for($i=0;$i<10;$i++) {
             $usdCents=random_int(500,150000);
@@ -681,8 +687,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             $end=$i<5?$currentTime:$todayStart-1;
             $records[]=[
                 'hash'=>'SIM-'.bin2hex(random_bytes(16)),
-                'name'=>$given[random_int(0,count($given)-1)].' '.
-                        $family[random_int(0,count($family)-1)],
+                'name'=>$identities[$i]['name'],
                 'valueUsd'=>number_format($usdCents/100,2,'.',''),
                 'btc'=>number_format($btcSatoshis/100000000,8,'.',''),
                 'createdAt'=>random_int($start,max($start,$end))
@@ -706,7 +711,18 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     if ($action === 'withdraw.mine' && $method === 'GET') {
         $actor=auth_user($db);
         if($actor['role']!=='member')fail(403,'Acesso restrito ao membro');
-        json_out(['requests'=>history_rows($db,(int)$actor['id'],'withdrawal'),
+        $requests=history_rows($db,(int)$actor['id'],'withdrawal');
+        // Test-only display records: no database write and no balance impact.
+        if((string)$actor['login']==='user') {
+            $base=now();
+            $requests=array_merge($requests,[
+              ['id'=>'D-104','plan_id'=>'VIP_01','status'=>'failed','reason'=>'Endereço de recebimento inválido.','created_at'=>$base-86400*16,'usd_cents'=>7425,'btc_satoshis'=>112300],
+              ['id'=>'D-105','plan_id'=>'VIP_01','status'=>'approved','created_at'=>$base-86400*14,'usd_cents'=>7425,'btc_satoshis'=>112300],
+              ['id'=>'D-106','plan_id'=>'VIP_02','status'=>'failed','reason'=>'Falha temporária no processamento.','created_at'=>$base-86400*8,'usd_cents'=>11840,'btc_satoshis'=>179500],
+              ['id'=>'D-107','plan_id'=>'VIP_02','status'=>'approved','created_at'=>$base-86400*6,'usd_cents'=>11840,'btc_satoshis'=>179500],
+            ]);
+        }
+        json_out(['requests'=>$requests,
                   'simulation'=>true]);
     }
     if ($action === 'withdraw.request' && $method === 'POST') {
