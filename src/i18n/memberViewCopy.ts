@@ -20,7 +20,7 @@ export const memberViewCopy = {
     request:'REQUEST WITHDRAWAL', close:'Close', address:'Receiving BTC address',
     save:'Save wallet', wallet:'Wallet', quote:'BTC/USD rate',
     unavailable:'unavailable', source:'Source', rateNotice:'The server verifies the rate when the request is submitted.',
-    minimum:'Minimum withdrawal', period:'Plan waiting period', days:'day(s)', usd:'Dollar (USD)',
+    minimum:'Minimum withdrawal', period:'Plan term', days:'day(s)', usd:'Dollar (USD)',
     btc:'Bitcoin (BTC)', amount:'Requested amount', submit:'Submit request',
     terms:'Withdrawal requests require an active VIP 01–04 plan. Without an active VIP, no request is recorded. Approval requires administrative review.',
     requests:'Withdrawal requests', equivalent:'internal equivalent',
