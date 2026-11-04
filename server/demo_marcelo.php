@@ -6,7 +6,8 @@ require_once __DIR__ . '/random_identity.php';
  * Fictional founding-member fixture. History rows are stored ONLY in the
  * audited presentation overlay, never as mined BTC, paid orders or transfers.
  * Run inside the caller's BEGIN IMMEDIATE transaction, after schema setup.
- * A unique cryptographically generated password is returned only to the authorized installer/admin.
+ * The founding user has the requested demonstration password; Random User
+ * accounts retain independent cryptographically generated passwords.
  */
 function seed_marcelo_demo(PDO $db, int $adminId): array {
     if (query_one($db,'SELECT value FROM app_settings WHERE name="demo_marcelo_seed"'))
