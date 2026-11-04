@@ -13,7 +13,7 @@ type Withdraw = {id:number;user_id:number;login:string;plan_id:string;btc_addres
 type Ticket = {id:number;user_id:number;login:string;subject:string;message:string;
   status:'open'|'resolved';ticket_state:'open'|'replied'|'closed';admin_reply:string|null;
   notification_status:'pending'|'accepted'|'failed';created_at:number};
-export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onLogout:()=>void}> = ({user,language,onLogout}) => {
+export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onChangeLanguage:(language:LanguageCode)=>void;onLogout:()=>void}> = ({user,language,onChangeLanguage,onLogout}) => {
   const tx=(portuguese:string)=>adminText(language,portuguese);
   const dateLocale=adminDateLocale(language);
   const [section,setSection]=useState<'overview'|'members'|'plans'|'orders'|'settings'|'audit'|'tickets'|'withdrawals'>('overview');
@@ -120,7 +120,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onLog
       });
       setSelected(null);
     }}>
-    <h3 className="font-semibold">{selected.revision===0?'Cadastrar novo plano':'Editar '+selected.name}</h3>
+    <h3 className="font-semibold">{selected.revision===0?tx('Cadastrar novo plano'):tx('Editar')+' '+selected.name}</h3>
     {selected.revision===0 && <label className="block text-sm">{tx("Identificador do plano")}
       <input required value={selected.id} onChange={e=>setSelected(p=>p?{...p,id:e.target.value.toUpperCase()}:p)}
         className="w-full mt-1 bg-[#11182c] p-3 rounded-lg"/>
@@ -153,11 +153,18 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onLog
   const btn='rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 px-3 py-2 text-xs font-bold';
   return <div className="h-full w-full bg-[#121526] text-white flex flex-col overflow-hidden">
     <header className="relative px-4 py-3 bg-[#171b2d] border-b border-[#2b3350] flex justify-between items-center z-40">
-      <strong>Bitdeer BTC <span className="text-xs text-slate-400">· Administração</span></strong>
+      <strong>Bitdeer BTC <span className="text-xs text-slate-400">· {tx('Administração')}</span></strong>
+      <div className="flex items-center gap-2">
+        <label className="sr-only" htmlFor="admin-language">{language==='en'?'Language':language==='es'?'Idioma':'Idioma'}</label>
+        <select id="admin-language" data-testid="admin-language-selector" aria-label={language==='en'?'Language':language==='es'?'Idioma':'Idioma'}
+          value={language} onChange={e=>onChangeLanguage(e.target.value as LanguageCode)}
+          className="rounded-lg bg-[#262d49] px-2 py-2 text-xs text-white">
+          <option value="pt">PT</option><option value="en">EN</option><option value="es">ES</option>
+        </select>
       <button type="button" aria-label={tx("Abrir menu administrativo")} aria-expanded={menuOpen}
         onClick={()=>setMenuOpen(x=>!x)} className="flex gap-2 items-center bg-[#262d49] rounded-lg px-3 py-2 text-sm">
-        <Menu size={20}/>{menuOpen?'Fechar':'Menu'}<ChevronDown size={14}/>
-      </button>
+        <Menu size={20}/>{tx(menuOpen?'Fechar':'Menu')}<ChevronDown size={14}/>
+      </button></div>
       {menuOpen&&<nav aria-label={tx("Navegação administrativa")}
         className="absolute top-full right-3 left-3 md:left-auto md:w-64 border border-[#2b3350] rounded-xl bg-[#1b2137] p-2 shadow-xl flex flex-col gap-1">
         {([['overview','Visão geral',LayoutDashboard],['members','Membros',Users],['plans','Planos VIP',CreditCard],
@@ -196,7 +203,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onLog
           <p className="text-xs text-slate-400">{tx("Histórico de aproximadamente cinco meses: recompensas, bônus, VIP 01–03 e saques. Plano atual FREE; saldo interno US$ 1.837,42.")}</p>
           <button type="button" data-testid="admin-seed-marcelo" disabled={busy||demoMarceloExists}
             className={btn+' disabled:opacity-50'} onClick={()=>void createMarceloDemo()}>
-            {demoMarceloExists?'Conta padrão já criada':'Criar conta padrão Marcelo'}
+            {tx(demoMarceloExists?'Conta padrão já criada':'Criar conta padrão Marcelo')}
           </button>
           {demoMarceloAccess&&<div role="status" className="rounded-lg border border-amber-400/40 p-3 bg-[#11182c] text-xs space-y-1">
             <p className="text-amber-300 font-semibold">{tx("Credenciais exibidas uma única vez. Guarde-as em local seguro.")}</p>
@@ -217,9 +224,9 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onLog
             <p className="text-cyan-200 font-semibold">{tx("Usuário criado. Credenciais exibidas somente nesta sessão.")}</p>
             <p>{tx("Nome:")} <code className="select-text">{randomUserAccess.displayName}</code></p>
             <div className="flex flex-wrap items-center gap-2"><span>{tx("Usuário:")} <code className="select-text">{randomUserAccess.login}</code></span>
-              <button type="button" className="rounded-md border border-cyan-300/35 px-2 py-1 text-[11px] text-cyan-100" onClick={()=>void copyToClipboard(randomUserAccess.login).then(ok=>setNotice(ok?'Usuário copiado.':'Não foi possível copiar o usuário.'))}>{tx("COPIAR USUÁRIO")}</button></div>
+              <button type="button" className="rounded-md border border-cyan-300/35 px-2 py-1 text-[11px] text-cyan-100" onClick={()=>void copyToClipboard(randomUserAccess.login).then(ok=>setNotice(tx(ok?'Usuário copiado.':'Não foi possível copiar o usuário.')))}>{tx("COPIAR USUÁRIO")}</button></div>
             <div className="flex flex-wrap items-center gap-2"><span>{tx("Senha:")} <code className="select-text break-all">{randomUserAccess.password}</code></span>
-              <button type="button" className="rounded-md border border-cyan-300/35 px-2 py-1 text-[11px] text-cyan-100" onClick={()=>void copyToClipboard(randomUserAccess.password).then(ok=>setNotice(ok?'Senha copiada.':'Não foi possível copiar a senha.'))}>{tx("COPIAR SENHA")}</button></div>
+              <button type="button" className="rounded-md border border-cyan-300/35 px-2 py-1 text-[11px] text-cyan-100" onClick={()=>void copyToClipboard(randomUserAccess.password).then(ok=>setNotice(tx(ok?'Senha copiada.':'Não foi possível copiar a senha.')))}>{tx("COPIAR SENHA")}</button></div>
             <p>{tx("E-mail:")} <code className="select-text break-all">{randomUserAccess.email}</code></p>
             <p>{tx("Indicação:")} <code className="select-text">{randomUserAccess.referralCode}</code></p>
             <button type="button" className="text-indigo-300 underline" onClick={()=>setRandomUserAccess(null)}>{tx("Ocultar credenciais")}</button>
@@ -259,14 +266,14 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onLog
           <button disabled={offset+50>=total} className={btn} onClick={()=>setOffset(offset+50)}>{tx("Próxima")}</button>
         </div>
         {details && <div className="bg-[#1b2137] rounded-xl p-4 space-y-2 text-sm">
-          <h3 className="font-semibold">Detalhes de #{details.member.id} — {details.member.login}</h3>
+          <h3 className="font-semibold">{tx("Detalhes de")} #{details.member.id} — {details.member.login}</h3>
           <p>{tx("Plano(s) contratados:")} {details.contracts.length}</p>
-          <p>Saldo interno: US$ {details.balanceUsd} · satoshis internos: {details.bonusSatoshis}</p>
+          <p>{tx("Saldo interno:")} US$ {details.balanceUsd} · {tx("satoshis internos:")} {details.bonusSatoshis}</p>
           <p>{tx("Últimos pedidos:")} {details.orders.length}</p>
           {details.contracts.length>0 && <section className="mt-4 space-y-2">
             <h4 className="font-bold text-xs">{tx("Histórico de contratos VIP")}</h4>
             {details.contracts.map(c=><div key={c.id} className="p-3 bg-[#101827] border border-[#2b3350] rounded-xl text-xs">
-              <p className="font-bold">{c.plan_id} · Contrato #{c.id}</p>
+              <p className="font-bold">{c.plan_id} · {tx("Contrato")} #{c.id}</p>
               <p>{tx("Ativação:")} {new Date(c.started_at*1000).toLocaleString(dateLocale)}</p>
               <p>{tx("Vencimento:")} {new Date(c.expires_at*1000).toLocaleString(dateLocale)}</p>
             </div>)}
@@ -274,8 +281,8 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onLog
           {details.orders.length>0 && <section className="space-y-2">
             <h4 className="font-bold text-xs">{tx("Últimos pedidos")}</h4>
             {details.orders.map(o=><div key={o.id} className="text-xs p-2 border-b border-[#2b3350]">
-              Pedido #{o.id} · {o.plan_id} · {adminStatus(language,o.status)}
-              <p className="font-mono text-slate-400 break-all mt-1">TXID: {o.payment_ref || (o.status==='approved'?'Não existe — aprovação simulada':'Não informado')}</p>
+              {tx("Pedido")} #{o.id} · {o.plan_id} · {adminStatus(language,o.status)}
+              <p className="font-mono text-slate-400 break-all mt-1">TXID: {o.payment_ref || tx(o.status==='approved'?'Não existe — aprovação simulada':'Não informado')}</p>
             </div>)}
           </section>}
           <button className="text-indigo-300 underline" onClick={()=>setDetails(null)}>{tx("Fechar detalhes")}</button>
@@ -356,7 +363,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onLog
             aria-expanded={selected?.id===p.id}
             className="w-full text-left p-4 flex justify-between items-center gap-2">
             <div><strong>{p.name}</strong>
-              <p className="text-xs text-slate-400 mt-1">US$ {p.priceUsd} · US$ {p.dailyUsd}/dia · revisão {p.revision} · {tx(p.available?'Disponível':'Arquivado')}</p></div>
+              <p className="text-xs text-slate-400 mt-1">US$ {p.priceUsd} · US$ {p.dailyUsd}/{tx('dia')} · {tx('revisão')} {p.revision} · {tx(p.available?'Disponível':'Arquivado')}</p></div>
             {selected?.id===p.id?<ChevronUp size={19}/>:<ChevronDown size={19}/>}
           </button>
           {selected?.id===p.id && <div className="border-t border-[#2b3350] p-4">
@@ -370,9 +377,9 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onLog
       {section==='withdrawals' && <section className="space-y-3">
         {withdrawals.length===0&&<p className="text-xs text-slate-400">{tx("Nenhum saque registrado.")}</p>}
         {withdrawals.map(w=><article key={w.id} className="bg-[#1b2137] rounded-xl border border-[#2b3350] p-4 space-y-2">
-          <strong>Solicitação #{w.id} · {w.login}</strong>
-          <p className="text-xs text-slate-300">{tx("Plano:")} {w.plan_id} · Estado: {w.status==='awaiting_vip'?'Aguardando assinatura VIP':w.status==='pending'?'Pendente de conferência':w.status==='approved'?'Aprovada (simulação interna; sem envio de BTC)':'Rejeitada'}</p>
-          <p className="text-sm">US$ {(w.usd_cents/100).toFixed(2)} · {(w.btc_satoshis/1e8).toFixed(8)} BTC (equivalência interna)</p>
+          <strong>{tx("Solicitação")} #{w.id} · {w.login}</strong>
+          <p className="text-xs text-slate-300">{tx("Plano:")} {w.plan_id} · {tx('Estado:')} {tx(w.status==='awaiting_vip'?'Aguardando assinatura VIP':w.status==='pending'?'Pendente de conferência':w.status==='approved'?'Aprovada (simulação interna; sem envio de BTC)':'Rejeitada')}</p>
+          <p className="text-sm">US$ {(w.usd_cents/100).toFixed(2)} · {(w.btc_satoshis/1e8).toFixed(8)} BTC ({tx("equivalência interna")})</p>
           <p className="text-xs text-slate-400 break-all">{w.btc_address}</p>
           {(w.status==='pending'||w.status==='awaiting_vip')&&<div className="flex flex-wrap gap-2">
             {w.status==='pending'&&<button disabled={busy} className={btn} onClick={()=>{
@@ -391,9 +398,9 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onLog
       </section>}
       {section==='orders' && <div className="space-y-3">
         {orders.map(o=><article key={o.id} className="p-4 rounded-xl bg-[#1b2137] border border-[#2b3350] flex gap-4 flex-wrap justify-between">
-          <div><strong>Pedido #{o.id} · {o.plan_id}</strong>
+          <div><strong>{tx('Pedido')} #{o.id} · {o.plan_id}</strong>
             <p className="text-xs text-slate-400">{o.login} · {adminStatus(language,o.status)} · {(o.btc_sats/100000000).toFixed(8)} BTC</p>
-            <p className="text-xs text-slate-400">{tx("Cotação:")} {o.quote_source || 'indisponível'}</p>
+            <p className="text-xs text-slate-400">{tx("Cotação:")} {o.quote_source || tx('indisponível')}</p>
             {o.payment_ref && <p className="text-xs break-all">TXID: {o.payment_ref}</p>}
           </div>
           {o.status==='pending' && <button disabled={busy} className={btn} onClick={()=>{
@@ -415,7 +422,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onLog
         {tickets.length===0 && <p className="text-sm text-slate-400">{tx("Nenhum ticket registrado.")}</p>}
         {tickets.map(t=><article key={t.id} data-testid="admin-ticket" className="p-4 rounded-xl bg-[#1b2137] border border-[#2b3350] space-y-2">
           <p className="font-bold text-sm">#{t.id} · {t.subject}</p>
-          <p className="text-xs text-slate-400">{t.login} · {adminText(language,t.ticket_state==='replied'?'Respondido':t.ticket_state==='closed'?'Fechado':'Aberto')} · notificação: {adminText(language,t.notification_status==='pending'?'Pendente':t.notification_status==='accepted'?'Encaminhada':'Falhou')}</p>
+          <p className="text-xs text-slate-400">{t.login} · {adminText(language,t.ticket_state==='replied'?'Respondido':t.ticket_state==='closed'?'Fechado':'Aberto')} · {tx('notificação:')} {adminText(language,t.notification_status==='pending'?'Pendente':t.notification_status==='accepted'?'Encaminhada':'Falhou')}</p>
           <p className="whitespace-pre-wrap text-sm">{t.message}</p>
           {t.admin_reply&&<p className="whitespace-pre-wrap text-xs text-emerald-200">{tx("Resposta registrada:")} {t.admin_reply}</p>}
           <p className="text-xs text-slate-400">{new Date(t.created_at*1000).toLocaleString(dateLocale)}</p>
@@ -448,7 +455,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onLog
       {section==='audit' && <div className="space-y-2">
         {audit.map(entry=><div key={entry.id} className="rounded-xl bg-[#1b2137] border border-[#2b3350] p-3 text-xs">
           {new Date(entry.created_at*1000).toLocaleString(dateLocale)} · {entry.action}
-          · administrador #{entry.admin_id} · alvo #{entry.target_user_id ?? '-'}
+          · {tx('administrador')} #{entry.admin_id} · {tx('alvo')} #{entry.target_user_id ?? '-'}
         </div>)}
         {!audit.length && <p className="text-sm text-slate-400">{tx("Nenhuma ação registrada.")}</p>}
       </div>}
@@ -500,7 +507,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onLog
             ['Carteira BTC confirmada',diagnostics.btcAddressConfirmed?'Sim':'Não']
           ] as const).map(([label,value])=><div key={label}
             className="flex gap-3 justify-between text-xs border-b border-[#2b3350] pb-2">
-            <span className="text-slate-400">{label}</span><strong>{value}</strong>
+            <span className="text-slate-400">{tx(label)}</span><strong>{tx(value)}</strong>
           </div>):<p className="text-xs text-slate-400">{tx("Diagnóstico indisponível.")}</p>}
           <p className="text-xs text-slate-400">{tx("Cotações: Coinbase e CoinGecko; a disponibilidade de rede deve ser verificada no domínio real. O sistema não confirma blockchain nem entrega de e-mail automaticamente.")}</p>
         </section>
