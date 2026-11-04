@@ -213,8 +213,10 @@ export const MemberWorkspace: React.FC<{
     finally {setBusy(false);}
   }
   const tab = (p:Page, label:string, Icon:typeof Home) =>
-    <button onClick={()=>{setPage(p);setNotice('');}} className={'flex flex-col items-center text-[11px] gap-1 '+(page===p?'text-white':'text-slate-400')}>
-      <Icon size={20}/>{label}</button>;
+    <button type="button" onClick={()=>{setPage(p);setNotice('');}}
+      aria-current={page===p?'page':undefined}
+      className={'flex flex-1 min-w-0 flex-col items-center justify-center text-[10px] sm:text-[11px] gap-1 rounded-xl py-1.5 transition-colors '+(page===p?'text-white bg-indigo-500/15':'text-slate-400 hover:text-white')}>
+      <Icon size={20} className="shrink-0"/><span className="w-full truncate text-center">{label}</span></button>;
   return <div className="w-full h-full flex flex-col bg-[#121526] text-white">
     {withdrawPopup && <div role="dialog" aria-modal="true" aria-label={language==='en'?'Active VIP plan required':language==='es'?'Se requiere un plan VIP activo':'Plano VIP ativo necessário'}
       data-testid="withdraw-awaiting-vip-modal" className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
@@ -222,7 +224,7 @@ export const MemberWorkspace: React.FC<{
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-300 via-yellow-500 to-amber-300"/>
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/50 bg-amber-400/10 text-amber-300 shadow-lg shadow-amber-900/30"><Crown size={29}/></div>
         <div className="text-center space-y-2">
-          <p className="text-[11px] font-black tracking-[0.18em] text-amber-300">VIP REQUIRED</p>
+          <p className="text-[11px] font-black tracking-[0.18em] text-amber-300">{language==='en'?'VIP REQUIRED':language==='es'?'SE REQUIERE VIP':'VIP NECESSÁRIO'}</p>
           <h2 className="font-extrabold text-xl text-white">{language==='en'?'Activate your VIP plan':language==='es'?'Active su plan VIP':'Ative seu plano VIP'}</h2>
         </div>
         <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-center space-y-2">
@@ -239,21 +241,7 @@ export const MemberWorkspace: React.FC<{
           onClick={()=>setWithdrawPopup(null)}>{language==='en'?'Close':language==='es'?'Cerrar':'Fechar'}</button>
       </div>
     </div>}
-    <div className="px-5 pb-3 flex justify-between items-center border-b border-[#2b3350] shrink-0"
-      style={{paddingTop:'max(12px, env(safe-area-inset-top))'}}>
-      <div><strong>Bitdeer BTC</strong><p className="text-xs text-slate-400">{account?.user.login ?? user.login} · {account?.plan.id || '...'}</p></div>
-      <button onClick={onLogout} title={words.signOutTitle} aria-label={words.signOutTitle}><LogOut size={20}/></button>
-    </div>
-    <nav data-testid="member-top-nav"
-      className="w-full min-h-16 shrink-0 bg-[#101322] border-b border-[#1f253d] flex items-center justify-around gap-1 px-2 py-2 z-30 select-none"
-      aria-label={language==='en'?'Primary navigation':language==='es'?'Navegación principal':'Navegação principal'}>
-      {tab('home',tabNames.home,Home)}
-      {tab('store',tabNames.store,Store)}
-      {tab('reward',tabNames.reward,Gift)}
-      {tab('wallet',tabNames.wallet,Wallet)}
-      {tab('settings',tabNames.setting,Settings)}
-    </nav>
-    {page==='withdraw' ? <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
+    {page==='withdraw' ? <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y member-vertical-scroll p-4 sm:p-5 space-y-4">
       <button type="button" className="inline-flex gap-2 items-center text-sm text-indigo-200"
         onClick={()=>{setWalletStep('none');setPage('wallet');}}><ArrowLeft size={18}/> {tr.back}</button>
       <h2 className="text-xl font-bold">{tr.title}</h2>
@@ -314,13 +302,13 @@ export const MemberWorkspace: React.FC<{
       page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('settings')}/> :
       page==='topMiners' ? <TopMinersView language={language} btcUsd={freshBtcUsd} onBack={()=>setPage('settings')}/> :
       page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y member-vertical-scroll p-4 sm:p-5 space-y-4">
         {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
         {page==='home' && <ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} quoteStatus={quoteStatus}
           onRetryQuote={()=>{void refreshQuote();}} language={language} busy={busy}
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
           onRefresh={()=>void reload()} onRewards={()=>setPage('reward')}
-          onHistory={()=>setPage('history')}/>}
+          onHistory={()=>setPage('history')} onLogout={onLogout}/>}
         {page==='reward' && <ServerRewardView account={account} language={language} busy={busy}
           ledger={ledger} onClaim={()=>void act('rewards.claim')}
           onRefreshHistory={()=>{void api<typeof ledger>('ledger').then(setLedger).catch(e=>setNotice((e as Error).message));}}/>}
@@ -338,7 +326,7 @@ export const MemberWorkspace: React.FC<{
             }}/>
           {withdrawHistory.length>0 && <section className="bg-[#171b2d] rounded-2xl p-4 space-y-2 min-w-0">
             <h3 className="font-bold text-sm">{tr.requests}</h3>
-            <div data-testid="withdraw-history-scroll" className="w-full max-w-full overflow-x-auto overscroll-x-contain touch-pan-x" tabIndex={0}
+            <div data-testid="withdraw-history-scroll" className="w-full max-w-full overflow-x-auto overscroll-x-contain touch-auto member-horizontal-scroll" tabIndex={0}
               aria-label={tr.requests}>
               <div className="min-w-max space-y-2">
                 {withdrawHistory.map(x=><div key={x.id} data-testid="withdraw-history-row"
@@ -383,7 +371,7 @@ export const MemberWorkspace: React.FC<{
         {page==='store' && <>
           <ServerStoreView plans={plans} activePlanId={account?.plan.id ?? 'FREE'}
             suggestedPlanId={storeRecommended}
-            language={language} busy={busy} onPurchase={planId=>void act('orders.create',{planId})}/>
+            language={language} busy={busy} onLogout={onLogout} onPurchase={planId=>void act('orders.create',{planId})}/>
           {checkout && <section className="bg-[#1b2137] border border-indigo-600/50 rounded-2xl p-4 space-y-3">
             <h3 className="font-bold">{tr.order} #{checkout.orderId} — {words.pendingPayment}</h3>
             <p className="text-sm" >{words.price}: US$ {checkout.priceUsd}</p>
@@ -401,7 +389,7 @@ export const MemberWorkspace: React.FC<{
           {purchaseHistory.length>0&&<section data-testid="member-purchase-history" className="bg-[#171b2d] rounded-2xl p-3 space-y-2">
             <h3 className="font-bold text-sm">{language==='en'?'Purchase history':language==='es'?'Historial de compras':'Histórico de compras'}</h3>
             {purchaseHistory.map(x=><p key={x.id} className="border-b border-[#2b3350] pb-2 text-xs">
-              #{x.id} · {x.plan_id} · {x.status} · {(x.btc_sats/1e8).toFixed(8)} BTC
+              #{x.id} · {x.plan_id} · {x.status==='pending'?tr.orderPending:x.status==='approved'?tr.orderApproved:x.status==='rejected'?tr.orderRejected:x.status==='expired'?tr.orderExpired:x.status} · {(x.btc_sats/1e8).toFixed(8)} BTC
             </p>)}
           </section>}
         </>}
@@ -423,5 +411,14 @@ export const MemberWorkspace: React.FC<{
         </form>}
       </div>}
 
+    <nav data-testid="member-bottom-nav"
+      className="w-full min-h-16 shrink-0 bg-[#101322] border-t border-[#1f253d] flex items-stretch justify-around gap-0.5 px-2 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] z-30 select-none"
+      aria-label={language==='en'?'Primary navigation':language==='es'?'Navegación principal':'Navegação principal'}>
+      {tab('home',tabNames.home,Home)}
+      {tab('store',tabNames.store,Store)}
+      {tab('reward',tabNames.reward,Gift)}
+      {tab('wallet',tabNames.wallet,Wallet)}
+      {tab('settings',tabNames.setting,Settings)}
+    </nav>
   </div>;
 };
