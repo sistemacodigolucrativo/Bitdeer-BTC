@@ -70,6 +70,24 @@ function normalizeLanguage(lang: unknown): LanguageCode {
 }
 
 export default function App() {
+  // Android WebViews can report an outdated 100vh after address/navigation bars
+  // change. Follow the actually visible viewport so the fixed bottom tabs fit.
+  useEffect(()=>{
+    const updateHeight=()=>{
+      const height=window.visualViewport?.height??window.innerHeight;
+      if(Number.isFinite(height)&&height>0)
+        document.documentElement.style.setProperty('--btc-app-height',Math.round(height)+'px');
+    };
+    updateHeight();
+    window.addEventListener('resize',updateHeight);
+    window.addEventListener('orientationchange',updateHeight);
+    window.visualViewport?.addEventListener('resize',updateHeight);
+    return ()=>{
+      window.removeEventListener('resize',updateHeight);
+      window.removeEventListener('orientationchange',updateHeight);
+      window.visualViewport?.removeEventListener('resize',updateHeight);
+    };
+  },[]);
   const [language, setLanguage] = useState<LanguageCode>(() => {
     return normalizeLanguage(storageService.getPreferences().language);
   });
@@ -222,9 +240,9 @@ export default function App() {
 
   return (
     <AppErrorBoundary language={language}>
-      <div className={`min-h-screen ${theme === 'light' ? 'theme-light bg-slate-100 text-slate-900' : 'bg-[#090c17] text-slate-100'} flex flex-col items-center justify-center p-0 md:p-6 overflow-x-hidden transition-colors duration-200`}>
+      <div className={`btc-app-shell ${theme === 'light' ? 'theme-light bg-slate-100 text-slate-900' : 'bg-[#121526] text-slate-100'} flex flex-col items-center justify-center p-0 md:p-6 overflow-hidden transition-colors duration-200`}>
         {/* Mobile App Viewport Container */}
-        <main className={`w-full ${authUser?.role === 'admin' ? 'max-w-6xl' : 'max-w-[420px]'} h-[100dvh] md:h-[840px] md:rounded-3xl md:shadow-2xl ${theme === 'light' ? 'bg-white border md:border-slate-200 text-slate-800' : 'bg-[#121626] border-0 md:border md:border-[#20263f] text-slate-100'} overflow-hidden flex flex-col relative transition-colors duration-200`}>
+        <main className={`btc-app-viewport w-full min-h-0 ${authUser?.role === 'admin' ? 'max-w-6xl' : 'max-w-[420px]'} md:rounded-3xl md:shadow-2xl ${theme === 'light' ? 'bg-white border md:border-slate-200 text-slate-800' : 'bg-[#121626] border-0 md:border md:border-[#20263f] text-slate-100'} overflow-hidden flex flex-col relative transition-colors duration-200`}>
           {checkingSession && <div className="p-8 text-center">{language==='en'?'Checking secure session...':language==='es'?'Verificando sesión segura...':'Verificando sessão segura...'}</div>}
           {/* First-time member language choice, skipped when saved on device or SQLite */}
           {!checkingSession && activeScreen === 'language' && (
