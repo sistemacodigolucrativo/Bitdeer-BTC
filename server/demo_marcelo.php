@@ -8,7 +8,7 @@ declare(strict_types=1);
  * A one-time random password is returned to the authorized installer/admin.
  */
 function seed_marcelo_demo(PDO $db, int $adminId): array {
-    if (!$db->inTransaction()) throw new LogicException('Demo seed requires a transaction');
+    // core.php uses BEGIN IMMEDIATE through SQL, so PDO::inTransaction() may remain false.
     $mode=query_one($db,'SELECT value FROM app_settings WHERE name="payment_mode"');
     if (($mode['value']??'')!=='simulation')
         throw new RuntimeException('A conta Marcelo somente pode ser criada em modo de simulação.');
