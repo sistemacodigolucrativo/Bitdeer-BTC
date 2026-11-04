@@ -180,6 +180,8 @@ try {
      mockFeed.records.some(record=>Math.abs(Number(record.valueUsd)-
       Number(record.btc)*rate)>.01))
     throw Error('Mock BTC and USD amounts must match the verified market quote');
+  if(await page.getByTestId('btc-payments-scroll').evaluate(el=>getComputedStyle(el).touchAction)!=='auto')
+    throw Error('Horizontal history must not intercept vertical swipe gestures');
   await page.screenshot({path:'release-build/wallet-feed-mobile.png',fullPage:true});
   const walletBtc=displayedBtc(await page.getByTestId('wallet-live-btc').innerText());
   if(!Number.isFinite(walletBtc)||Math.abs(walletBtc-displayedUsd(secondWallet)/quoteRate)>0.000000011)
@@ -264,6 +266,12 @@ try {
   }))throw Error('Top Miners reduction must match the 1–4 BTC mapping at every rank');
   if(brazilian.at(-1).rank<185 || brazilian[1].rank>18)
     throw Error('Brazilian profiles must be distributed across the whole ranking');
+  const minerScroller=page.getByTestId('top-miners-scroll');
+  if(await minerScroller.evaluate(el=>getComputedStyle(el).touchAction)!=='pan-y')
+    throw Error('Top Miners scrolling must allow vertical touch gestures');
+  await minerScroller.evaluate(el=>{el.scrollTop=250;});
+  if(await minerScroller.evaluate(el=>el.scrollTop)<150)
+    throw Error('Top Miners list did not scroll independently');
   await page.screenshot({path:'release-build/top-miners-mobile.png',fullPage:true});
   await page.getByText(/Ranking demonstrativo|Demonstration ranking|Ranking demostrativo/i).waitFor({timeout:10000});
   const navBox=await bottomMenu.boundingBox();
@@ -463,6 +471,18 @@ try {
   if(!setBalance.ok())throw Error('Admin balance adjustment failed: '+setBalance.status());
   await adminPage.screenshot({path:'release-build/admin-desktop.png',fullPage:true});
   if(await adminPage.getByText('Sincronizando interface...').count())throw Error('Admin React error boundary shown');
+  // All administration sections, not just member pages, must follow the selected language.
+  await adminPage.getByTestId('admin-language-selector').selectOption('en');
+  await adminPage.getByRole('heading',{name:'Member management'}).waitFor({timeout:10000});
+  await editor.getByText(/Member plan, balance and history/).waitFor({timeout:10000});
+  await adminPage.getByRole('button',{name:'Open administration menu'}).click();
+  await adminPage.getByRole('button',{name:'Overview',exact:true}).click();
+  await adminPage.getByRole('heading',{name:'Overview'}).waitFor({timeout:10000});
+  await adminPage.getByTestId('admin-language-selector').selectOption('es');
+  await adminPage.getByRole('heading',{name:'Resumen general'}).waitFor({timeout:10000});
+  await adminPage.getByRole('button',{name:'Abrir menú de administración'}).click();
+  await adminPage.getByRole('button',{name:'Miembros',exact:true}).click();
+  await adminPage.getByRole('heading',{name:'Gestión de miembros'}).waitFor({timeout:10000});
   await admin.close();
   const withdrawal=await browser.newContext({viewport:{width:390,height:844},baseURL:base});
   const memberAuth=await withdrawal.request.post('/api/index.php?action=login',{
