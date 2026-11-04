@@ -485,9 +485,30 @@ try {
     throw Error('Manual BTC quote retry must not be required');
   await page.getByTestId('member-bottom-nav').locator('button').nth(4).click();
   await page.getByTestId('settings-top-miners').click();
-  const cachedMinerUsd=await page.getByTestId('miner-usd-amount').first().innerText();
-  if(!cachedMinerUsd.includes('$')||cachedMinerUsd.includes('—'))
-    throw Error('Top Miners must reuse last BTC/USD price during quote outages');
+  // content-visibility:auto deliberately defers offscreen ranking cards.
+  // Scroll the first card into view and check its rendered numerical value
+  // against the last verified quote; do not mistake offscreen innerText for
+  // a missing USD amount.
+  const firstMiner=page.getByTestId('miner-card').first();
+  await firstMiner.scrollIntoViewIfNeeded();
+  const cachedMinerUsd=await firstMiner.getByTestId('miner-usd-amount').evaluate(node=>{
+    const btcNode=node.closest('[data-testid="miner-card"]')?.querySelector('p.font-mono');
+    const btc=Number((btcNode?.textContent||'').replace(' BTC','').trim());
+    const quote=JSON.parse(localStorage.getItem('bitdeer_btc_usd_last_quote_v1')||'null');
+    const rate=Number(node.getAttribute('data-btc-usd-rate'));
+    const observed=(node.textContent||'').trim();
+    const render=node.innerText.trim();
+    const expected=['pt-BR','en-US','es-ES'].map(locale=>
+      '$ '+new Intl.NumberFormat(locale,{minimumFractionDigits:4,maximumFractionDigits:4})
+        .format(btc*Number(quote?.rate)));
+    return {btc,rate,cachedRate:quote?.rate,observed,render,expected};
+  });
+  if(!(cachedMinerUsd.btc>0)||!(cachedMinerUsd.rate>0)||
+     Math.abs(cachedMinerUsd.rate-cachedMinerUsd.cachedRate)>0.000001||
+     !cachedMinerUsd.expected.includes(cachedMinerUsd.observed)||
+     cachedMinerUsd.render!==cachedMinerUsd.observed)
+    throw Error('Top Miners must reuse last BTC/USD price during quote outages: '+
+      JSON.stringify(cachedMinerUsd));
   const recovered=page.waitForResponse(response=>
     response.url().includes('action=withdraw.quote')&&response.status()===200,{timeout:30000});
   await page.unroute(quotePattern);
