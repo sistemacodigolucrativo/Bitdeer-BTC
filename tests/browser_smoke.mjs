@@ -433,7 +433,7 @@ try {
   }));
   await page.reload();
   await page.locator('nav button').first().click();
-  await page.waitForFunction(()=>/^\\d+\\.\\d{8} BTC$/.test(
+  await page.waitForFunction(()=>/^\d+\.\d{8} BTC$/.test(
     document.querySelector('[data-testid="mining-live-btc"]')?.textContent?.trim()||''),
     null,{timeout:10000});
   if(await page.getByText(/BTC quote unavailable|Cotação BTC indisponível|Cotización BTC no disponible/).count())
@@ -450,7 +450,7 @@ try {
   await page.unroute(quotePattern);
   await recovered;
   await page.locator('nav button').first().click();
-  await page.waitForFunction(()=>/^\\d+\\.\\d{8} BTC$/.test(
+  await page.waitForFunction(()=>/^\d+\.\d{8} BTC$/.test(
     document.querySelector('[data-testid="mining-live-btc"]')?.textContent?.trim()||''),
     null,{timeout:10000});
   await page.evaluate(()=>{
