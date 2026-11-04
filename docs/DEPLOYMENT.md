@@ -34,10 +34,12 @@ private/data é a pasta destinada ao banco SQLite e NÃO deve ser pública.
    exponha esse modo local a um proxy público. Não é necessário domínio.
 6. Informe login/senha do administrador e e-mail de suporte. A instalação
    cria automaticamente o SQLite, catálogo de cinco planos e **um novo
-   membro fundador** com senha aleatória e código de indicação individual.
-   As credenciais do fundador são mostradas uma única vez, depois da prova
-   de controle. Guarde-as. Nenhum usuário, código ou histórico do mockup
-   (inclusive 8ZPTC) é importado.
+   membro fundador Marcelo** com senha aleatória e código de indicação individual.
+   O primeiro membro recebe aproximadamente 5,5 meses de históricos fictícios
+   (recompensas, bônus, planos VIP 01/02/03 e saques demonstrativos), saldo
+   interno de US$ 2.000 e plano atual FREE. As credenciais são mostradas uma
+   única vez, depois da prova de controle. Guarde-as. Nenhum histórico real
+   ou comprovante de pagamento é importado.
 7. O recebimento BTC começa **sem endereço configurado**: o administrador
    cadastra/alterará a carteira no painel após a instalação, reautenticando
    com sua senha. Até confirmação, o backend bloqueia pedidos novos.
@@ -76,3 +78,24 @@ Esta é uma compilação para homologação; não houve deploy ou merge na main.
 Suspensão de membro VIP: o vencimento continua correndo (opção A).
 Não há crédito durante o período de suspensão ou crédito retroativo.
 A paridade visual completa com o frontend legado requer revisão.
+
+## Conta demonstrativa Marcelo
+
+Novas instalações criam Marcelo automaticamente como primeiro membro,
+com login `marcelo` e senha **aleatória, mostrada uma vez** ao final da
+instalação (ou `marcelo-demo` se o administrador usar o login `marcelo`).
+Para instalações SQLite existentes, o administrador pode abrir **Membros**
+e usar **Criar conta padrão Marcelo**. Não sobrescreve contas com o mesmo login;
+se a conta demonstrativa já existir, a ação fica indisponível.
+
+Os históricos são salvos em `member_history_edits` como **apresentações
+demonstrativas**, sem criar pagamentos reais, contratos ativos, TXIDs ou saques
+na blockchain. Um crédito inicial explicitamente fictício, contabilizado
+em `app_settings.demo_marcelo_seed` e `admin_audit`, reconcilia:
+
+`crédito inicial + recompensas + bônus - saques fictícios = US$ 2.000`.
+
+As equivalências BTC dos registros antigos usam uma **cotação ilustrativa**,
+não uma cotação histórica verificada. O saldo BTC atual é calculado pela
+cotação pública recente via servidor. O fundador pode navegar normalmente no
+painel, e o administrador pode editar os históricos simulados depois.
