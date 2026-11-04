@@ -186,8 +186,6 @@ try {
   if(await requiredWallet.count())
     throw Error('Required wallet dialog appeared again after successful registration');
   await page.getByTestId('member-bottom-nav').locator('button').first().click();
-  const mockFeedResponse=page.waitForResponse(response=>
-    response.url().includes('action=mock.payments.latest'),{timeout:15000});
   // Fake only the response for this browser to verify real UI pagination.
   const withdrawFixture=Array.from({length:25},(_,i)=>({
     id:1000+i,usd_cents:1000+i,btc_satoshis:5000+i,
@@ -222,6 +220,13 @@ try {
   await page.waitForTimeout(2100);
   const secondWallet=await walletBalance.innerText();
   if(!(displayedUsd(secondWallet)>displayedUsd(firstWallet)))throw Error('Live wallet USD not increasing');
+  const walletBtc=displayedBtc(await page.getByTestId('wallet-live-btc').innerText());
+  if(!Number.isFinite(walletBtc)||Math.abs(walletBtc-displayedUsd(secondWallet)/quoteRate)>0.000000011)
+    throw Error('Wallet BTC/USD equivalents not synchronized at quoted rate');
+  // Payment feed moved from Wallet to Home; fetch records from the visible Home visit.
+  const mockFeedResponse=page.waitForResponse(response=>
+    response.url().includes('action=mock.payments.latest'),{timeout:15000});
+  await page.getByTestId('member-bottom-nav').locator('button').first().click();
   const mockFeed=await (await mockFeedResponse).json();
   const feed=page.getByTestId('simulated-payments');
   await feed.waitFor({timeout:10000});
@@ -272,10 +277,6 @@ try {
      paymentScroll.scrollWidth<=paymentScroll.clientWidth||paymentScroll.scrollLeft<100)
     throw Error('Payments table must scroll horizontally without blocking vertical gestures');
   await page.screenshot({path:'release-build/wallet-feed-mobile.png',fullPage:true});
-  const walletBtc=displayedBtc(await page.getByTestId('wallet-live-btc').innerText());
-  if(!Number.isFinite(walletBtc)||Math.abs(walletBtc-displayedUsd(secondWallet)/quoteRate)>0.000000011)
-    throw Error('Wallet BTC/USD equivalents not synchronized at quoted rate');
-  await page.getByTestId('member-bottom-nav').locator('button').first().click();
   if(await page.getByText(/Próxima sessão|Next session|Próxima sesión/).count())
     throw Error('Legacy cooldown warning is still shown');
   await page.getByRole('button',{name:/Mineração Ativa|Mining Active|Minería Activa/}).click();
