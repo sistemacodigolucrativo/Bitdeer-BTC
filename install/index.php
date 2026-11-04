@@ -182,7 +182,8 @@ small{color:#94a3b8}
 <label>Usuário administrador
 <input name="admin_login" value="admin" required minlength="3" maxlength="40" autocomplete="off" pattern="[a-zA-Z0-9_.-]+"></label>
 <label>Senha inicial do administrador
-<input type="password" name="admin_password" required minlength="12" maxlength="256" autocomplete="new-password"></label>
+<input type="password" name="admin_password" value="123456789123" required minlength="12" maxlength="256" autocomplete="new-password"></label>
+<p><small>Atenção: a senha preenchida é apenas um padrão de demonstração. Altere-a antes de expor o sistema à internet.</small></p>
 <label>E-mail de suporte
 <input type="email" name="support_email" maxlength="254" required></label>
 <label>Endereço público do sistema — detectado automaticamente
