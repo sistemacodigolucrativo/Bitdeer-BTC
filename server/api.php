@@ -822,9 +822,18 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $body=request_body();
         if(($body['confirmDemo']??null)!==true)
             fail(422,'Confirme que os históricos serão exclusivamente demonstrativos.');
-        $result=atomic($db,static function()use($db,$actor):array {
-            return seed_marcelo_demo($db,(int)$actor['id']);
-        });
+        if(query_one($db,'SELECT name FROM app_settings WHERE name="demo_marcelo_seed"'))
+            fail(409,'A conta demonstrativa Marcelo já existe; nenhum dado foi alterado.');
+        try{
+            $result=atomic($db,static function()use($db,$actor):array {
+                return seed_marcelo_demo($db,(int)$actor['id']);
+            });
+        }catch(RuntimeException $e){
+            if(str_contains($e->getMessage(),'já existe')||
+               str_contains($e->getMessage(),'já foi criada'))
+                fail(409,$e->getMessage());
+            throw $e;
+        }
         // The random password is shown only once to the authenticated admin.
         json_out(['ok'=>true,'simulation'=>true]+$result,201);
     }
