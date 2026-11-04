@@ -1,6 +1,7 @@
 import React, {useMemo} from 'react';
 import {ArrowLeft} from 'lucide-react';
 import {LanguageCode} from '../../types';
+import {readLastKnownQuote} from '../../utils/lastKnownQuote';
 
 type Miner = {name:string;country:string;flag:string;location:string;message:string;btcSats:number};
 /** Fictional profile showcase, not member data, not a blockchain transaction list. */
@@ -102,12 +103,19 @@ const descriptions = {
 } as const;
 type Props={language:LanguageCode;onBack:()=>void;btcUsd?:number|null;quoteTime?:number|null};
 export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd,quoteTime})=>{
+  // The ranking is informational. A previously verified public quote is safe
+  // for DISPLAY, even while the background refresh endpoint is unavailable.
+  // Never use this fallback to authorize or calculate a withdrawal request.
+  const cachedQuote=readLastKnownQuote();
+  const displayRate=typeof btcUsd==='number'&&Number.isFinite(btcUsd)&&btcUsd>0
+    ?btcUsd:cachedQuote?.rate??null;
+  const displayQuotedAt=quoteTime??cachedQuote?.quotedAt??null;
   const notice=language==='en'
     ? 'Demonstration ranking with 200 fictional profiles and illustrative BTC values; these are not actual mining results.'
     : language==='es'
     ? 'Ranking demostrativo con 200 perfiles y cantidades ficticias, sin minería real.'
     : 'Ranking demonstrativo com 200 perfis fictícios. Os valores não são BTC minerados nem saldos de membros.';
-  const dollar=useMemo(()=>btcUsd&&btcUsd>0?new Intl.NumberFormat(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4}):null,[btcUsd,language]);
+  const dollar=useMemo(()=>displayRate!==null?new Intl.NumberFormat(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4}):null,[displayRate,language]);
   return <section className="flex-1 min-h-0 w-full flex flex-col bg-[#121626] text-white overflow-hidden">
     <header className="grid grid-cols-[44px_1fr_44px] items-center gap-2 px-4 py-4 border-b border-[#232943] bg-[#141829]">
       <button type="button" onClick={onBack} aria-label={language==='en'?'Back':language==='es'?'Volver':'Voltar'}
@@ -116,7 +124,7 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd,quoteTime})=
     </header>
     <div data-testid="top-miners-scroll" className="top-miners-vertical-scroll flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y member-vertical-scroll p-4 space-y-3">
       <p className="text-[11px] text-slate-400">{notice}</p>
-      {btcUsd!==null&&btcUsd!==undefined&&btcUsd>0&&
+      {displayRate!==null&&
         <p className="text-[10px] text-slate-500">
           {language==='en'?'USD uses the last available BTC/USD quote. BTC profiles are fictional.':
             language==='es'?'USD utiliza la última cotización BTC/USD disponible. Los perfiles BTC son ficticios.':
@@ -136,9 +144,11 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd,quoteTime})=
             <p className="font-semibold font-mono text-[12px] text-slate-100 tabular-nums whitespace-nowrap">
               {(miner.btcSats/100000000).toFixed(8)} BTC
             </p>
-            <p data-testid="miner-usd-amount" data-quote-at={quoteTime??undefined} title={quoteTime?new Date(quoteTime*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR'):undefined}
+            <p data-testid="miner-usd-amount" data-quote-at={displayQuotedAt??undefined}
+              data-btc-usd-rate={displayRate??undefined}
+              title={displayQuotedAt?new Date(displayQuotedAt*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR'):undefined}
               className="font-mono mt-1.5 text-[11px] text-slate-400 tabular-nums whitespace-nowrap">
-              {dollar&&btcUsd?'$ '+dollar.format(miner.btcSats/100000000*btcUsd):'USD —'}
+              {dollar&&displayRate!==null?'$ '+dollar.format(miner.btcSats/100000000*displayRate):'USD —'}
             </p>
           </div>
         </article>)}
