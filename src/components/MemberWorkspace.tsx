@@ -351,8 +351,7 @@ export const MemberWorkspace: React.FC<{
       page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y member-vertical-scroll p-4 sm:p-5 space-y-4">
         {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
-        {page==='home' && <ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} quoteStatus={quoteStatus}
-          onRetryQuote={()=>{void refreshQuote();}} language={language} busy={busy}
+        {page==='home' && <ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language} busy={busy}
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
           onRefresh={()=>void reload()} onRewards={()=>setPage('reward')}
           onHistory={()=>setPage('history')} onLogout={onLogout}/>}
@@ -360,8 +359,7 @@ export const MemberWorkspace: React.FC<{
           ledger={ledger} onClaim={()=>void act('rewards.claim')}
           onRefreshHistory={()=>{void api<typeof ledger>('ledger').then(setLedger).catch(e=>setNotice((e as Error).message));}}/>}
         {page==='wallet' && <>
-          <ServerWalletView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} quoteStatus={quoteStatus}
-            onRetryQuote={()=>{void refreshQuote();}} language={language}
+          <ServerWalletView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language}
             accruals={ledger.accruals} onEdit={()=>setPage('profile')} onHistory={()=>setPage('history')}
             onWithdraw={()=>{
               setWalletDraft(account?.profile.walletAddress??'');
