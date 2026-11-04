@@ -408,9 +408,17 @@ try {
   await ticketCard.getByRole('button',{name:'Enviar resposta'}).click();
   await ticketCard.getByText('Respondido').waitFor({timeout:10000});
   await adminPage.screenshot({path:'release-build/support-admin-reply.png',fullPage:true});
-  // The admin editor is available only for a real member; mock history is labelled.
+  // The founding Marcelo fixture must be visible but protected from reseeding.
   await adminPage.getByRole('button',{name:'Abrir menu administrativo'}).click();
   await adminPage.getByRole('button',{name:'Membros',exact:true}).click();
+  const marceloSeedButton=adminPage.getByTestId('admin-seed-marcelo');
+  await marceloSeedButton.waitFor({timeout:10000});
+  await adminPage.waitForFunction(()=>
+    document.querySelector('[data-testid="admin-seed-marcelo"]')?.hasAttribute('disabled'),
+    null,{timeout:10000});
+  const marceloMember=adminPage.locator('article').filter({hasText:/marcelo/i}).first();
+  await marceloMember.getByText(/Marcelo.*FREE/).waitFor({timeout:10000});
+  // The admin editor is available only for a real member; mock history is labelled.
   const memberCard=adminPage.locator('article').filter({hasText:'browsermember'}).first();
   await memberCard.getByRole('button',{name:'Detalhes / Editar'}).click();
   const editor=adminPage.getByTestId('admin-member-records');
