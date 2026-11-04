@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AuthUser, MemberData, Plan, api } from '../services/api';
 import { CustomerSupportView } from './workspace/CustomerSupportView';
 import { LanguageCode } from '../types';
@@ -17,6 +17,7 @@ import { TopMinersView } from './workspace/TopMinersView';
 import { SubscriptionHistoryView } from './workspace/SubscriptionHistoryView';
 import { memberTexts } from '../i18n/memberTexts';
 import { memberViewCopy } from '../i18n/memberViewCopy';
+import { readLastKnownQuote, saveLastKnownQuote } from '../utils/lastKnownQuote';
 
 type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'withdraw';
 type PurchaseOrder = {
@@ -50,9 +51,12 @@ export const MemberWorkspace: React.FC<{
   const [profile, setProfile] = useState({displayName:'',email:'',phone:'',walletAddress:''});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
-  const [btcUsd,setBtcUsd]=useState<number|null>(null);
+  const [btcUsd,setBtcUsd]=useState<number|null>(()=>readLastKnownQuote()?.rate??null);
   const [quotePhase,setQuotePhase]=useState<'loading'|'ready'|'unavailable'>('loading');
-  const [btcQuote,setBtcQuote]=useState<{source:string;quotedAt:number}|null>(null);
+  const [btcQuote,setBtcQuote]=useState<{source:string;quotedAt:number}|null>(()=>{
+    const quote=readLastKnownQuote();
+    return quote?{source:quote.source,quotedAt:quote.quotedAt}:null;
+  });
   const [walletStep,setWalletStep]=useState<'none'|'register'|'amount'>('none');
   const [walletDraft,setWalletDraft]=useState('');
   const [withdrawMode,setWithdrawMode]=useState<'BTC'|'USD'>('USD');
@@ -63,6 +67,13 @@ export const MemberWorkspace: React.FC<{
   const [purchaseHistory,setPurchaseHistory]=useState<Array<{id:number|string;plan_id:string;status:string;created_at:number;btc_sats:number;adminEdited?:boolean;simulation?:boolean}>>([]);
   type WithdrawRequest={id:number|string;usd_cents:number;btc_satoshis:number;status:'pending'|'awaiting_vip'|'approved'|'rejected';created_at:number;adminEdited?:boolean;simulation?:boolean};
   const [withdrawHistory,setWithdrawHistory]=useState<WithdrawRequest[]>([]);
+  const [withdrawPage,setWithdrawPage]=useState(1);
+  const withdrawPages=Math.max(1,Math.ceil(withdrawHistory.length/10));
+  const currentWithdrawPage=Math.min(withdrawPage,withdrawPages);
+  const visibleWithdrawHistory=useMemo(()=>[...withdrawHistory]
+    .sort((a,b)=>Number(b.created_at)-Number(a.created_at)||Number(b.id)-Number(a.id))
+    .slice((currentWithdrawPage-1)*10,currentWithdrawPage*10),
+    [withdrawHistory,currentWithdrawPage]);
   // The PHP/SQLite profile is authoritative. Only complete USD cents can be
   // requested; fractional accruals are not counted as withdrawable cents.
   // The BTC figure is a quote-based equivalent of that very same USD balance,
@@ -70,9 +81,10 @@ export const MemberWorkspace: React.FC<{
   const liveBalanceUsd = projectInternalBalance(account,lastSnapshotReceivedAt,balanceTick);
   const freshBtcUsd=btcQuote && balanceTick/1000-btcQuote.quotedAt>=0 &&
     balanceTick/1000-btcQuote.quotedAt<60 && btcUsd!==null && btcUsd>0 ? btcUsd : null;
-  // Both screens show the same one-second USD projection converted with a
-  // single backend-issued BTC/USD quote, rounded to eight decimal places.
-  const liveBtc=freshBtcUsd===null ? null : (liveBalanceUsd/freshBtcUsd).toFixed(8);
+  // Display the last successfully verified quote across temporary outages.
+  // Strict freshness is still required for withdrawals (validQuote below).
+  const displayBtcUsd=btcUsd!==null&&Number.isFinite(btcUsd)&&btcUsd>0?btcUsd:null;
+  const liveBtc=displayBtcUsd===null ? null : (liveBalanceUsd/displayBtcUsd).toFixed(8);
   const quoteStatus=freshBtcUsd!==null?'ready':quotePhase==='loading'?'loading':'unavailable';
   const availableUsdCents=Math.max(0,Math.floor((account?.mining.balanceUnits??0)/8640000));
   const validQuote=freshBtcUsd!==null && Number.isFinite(freshBtcUsd) && freshBtcUsd>0 &&
@@ -115,25 +127,59 @@ export const MemberWorkspace: React.FC<{
       acceptSnapshot(data); setProfile({...data.profile,phone:formatInternationalPhone(data.profile.phone)});
     } catch(e) { setNotice((e as Error).message); }
   }
-  function refreshQuote() {
+  function refreshQuote():Promise<boolean> {
     setQuotePhase('loading');
     return api<{btcUsd:string;source:string;quotedAt:number}>('withdraw.quote')
       .then(x=>{
         const rate=Number(x.btcUsd);
-        if(!Number.isFinite(rate)||rate<=0||!Number.isFinite(x.quotedAt))
-          throw new Error('Cotação inválida');
+        if(!Number.isFinite(rate)||rate<=0||!Number.isFinite(x.quotedAt)||
+           x.quotedAt<=0||x.quotedAt>Date.now()/1000+60)
+          throw new Error('Invalid server BTC/USD quote');
         setBtcUsd(rate);
         setBtcQuote({source:x.source,quotedAt:x.quotedAt});
+        saveLastKnownQuote(rate,x.source,x.quotedAt);
         setQuotePhase('ready');
+        return true;
       }).catch(()=>{
-        setBtcUsd(null);setBtcQuote(null);setQuotePhase('unavailable');
+        // Do not clear the last known quote; never use it for transfers.
+        setQuotePhase('unavailable');
+        return false;
       });
   }
-  useEffect(() => {
-    void refreshQuote();
-    const timer=window.setInterval(()=>{void refreshQuote();},45000);
-    return ()=>window.clearInterval(timer);
-  }, []);
+  useEffect(()=>{
+    let stopped=false;
+    let pending=false;
+    let failures=0;
+    let retry:ReturnType<typeof setTimeout>|undefined;
+    const run=async()=>{
+      if(stopped||pending)return;
+      if(document.visibilityState==='hidden'){
+        retry=window.setTimeout(()=>{void run();},45000);
+        return;
+      }
+      pending=true;
+      const succeeded=await refreshQuote();
+      pending=false;
+      failures=succeeded?0:failures+1;
+      if(!stopped){
+        const delay=succeeded?45000:Math.min(60000,5000*2**Math.min(failures-1,4));
+        retry=window.setTimeout(()=>{void run();},delay);
+      }
+    };
+    const onVisibility=()=>{
+      if(document.visibilityState==='visible'&&!pending){
+        if(retry!==undefined)window.clearTimeout(retry);
+        void run();
+      }
+    };
+    void run();
+    document.addEventListener('visibilitychange',onVisibility);
+    return ()=>{
+      stopped=true;
+      if(retry!==undefined)window.clearTimeout(retry);
+      document.removeEventListener('visibilitychange',onVisibility);
+    };
+  },[]);
   useEffect(()=>{
     if(page==='wallet')void api<{requests:WithdrawRequest[]}>('withdraw.mine')
       .then(x=>setWithdrawHistory(x.requests)).catch(()=>{});
@@ -158,6 +204,7 @@ export const MemberWorkspace: React.FC<{
       await reload();
       const history=await api<{requests:WithdrawRequest[]}>('withdraw.mine');
       setWithdrawHistory(history.requests);
+      setWithdrawPage(1);
       setWalletStep('none');setWithdrawAmount('');setPage('wallet');
       setNotice(result.message);
     }catch(e){
@@ -300,7 +347,7 @@ export const MemberWorkspace: React.FC<{
           </section>}
     </div> :
       page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('settings')}/> :
-      page==='topMiners' ? <TopMinersView language={language} btcUsd={freshBtcUsd} onBack={()=>setPage('settings')}/> :
+      page==='topMiners' ? <TopMinersView language={language} btcUsd={displayBtcUsd} quoteTime={btcQuote?.quotedAt??null} onBack={()=>setPage('settings')}/> :
       page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y member-vertical-scroll p-4 sm:p-5 space-y-4">
         {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
@@ -329,15 +376,37 @@ export const MemberWorkspace: React.FC<{
             <div data-testid="withdraw-history-scroll" className="w-full max-w-full overflow-x-auto overscroll-x-contain touch-auto member-horizontal-scroll" tabIndex={0}
               aria-label={tr.requests}>
               <div className="min-w-max space-y-2">
-                {withdrawHistory.map(x=><div key={x.id} data-testid="withdraw-history-row"
+                {visibleWithdrawHistory.map(x=><div key={x.id} data-testid="withdraw-history-row"
                   className="w-full min-w-max whitespace-nowrap text-xs border-b border-[#2b3350] pb-2 flex items-center gap-3">
                   <span>#{x.id}</span>
                   <span>US$ {(x.usd_cents/100).toFixed(2)}</span>
-                  <span>{(x.btc_satoshis/1e8).toFixed(8)} BTC ({tr.equivalent})</span>
-                  <span>{x.status==='awaiting_vip'?tr.awaiting:x.status==='pending'?tr.pending:x.status==='approved'?tr.approved:tr.rejected}</span>
+                  <span>{(x.btc_satoshis/1e8).toFixed(8)} BTC</span>
+                  <span data-testid="withdraw-status"
+                    className={x.status==='approved'?'text-emerald-400 font-semibold':'text-slate-300'}>
+                    {x.status==='awaiting_vip'?tr.awaiting:x.status==='pending'?tr.pending:x.status==='approved'?tr.approved:tr.rejected}
+                  </span>
                 </div>)}
               </div>
             </div>
+            {withdrawPages>1&&<nav data-testid="withdraw-pagination"
+              aria-label={language==='en'?'Withdrawal history pages':language==='es'?'Páginas del historial de retiros':'Páginas do histórico de saques'}
+              className="flex items-center justify-between gap-2 pt-2 text-xs">
+              <button type="button" data-testid="withdraw-page-prev"
+                disabled={currentWithdrawPage<=1}
+                onClick={()=>setWithdrawPage(p=>Math.max(1,p-1))}
+                className="px-3 py-2 rounded-lg bg-[#252b46] disabled:opacity-40">
+                {language==='en'?'Previous':language==='es'?'Anterior':'Anterior'}
+              </button>
+              <span data-testid="withdraw-page-indicator" className="text-slate-300 font-mono tabular-nums">
+                {currentWithdrawPage} / {withdrawPages}
+              </span>
+              <button type="button" data-testid="withdraw-page-next"
+                disabled={currentWithdrawPage>=withdrawPages}
+                onClick={()=>setWithdrawPage(p=>Math.min(withdrawPages,p+1))}
+                className="px-3 py-2 rounded-lg bg-[#252b46] disabled:opacity-40">
+                {language==='en'?'Next':language==='es'?'Siguiente':'Próxima'}
+              </button>
+            </nav>}
           </section>}
           <MockPaymentFeed language={language}/>
         </>}
