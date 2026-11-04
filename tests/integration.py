@@ -88,6 +88,16 @@ admin=Client()
 assert admin.call("login",{"login":"adminci","password":"StrongCIpassword123!"})["user"]["role"]=="admin"
 assert admin.call("admin.members")["total"]==3
 assert admin.call("admin.overview")["members"]==3
+# The founding demo profile is present on clean installs. Existing profiles
+# cannot be overwritten or credited twice by the admin seed endpoint.
+demo_status=admin.call("admin.demo.marcelo.status")
+assert demo_status["exists"] is True and demo_status["summary"]["balanceUsdCents"]==200000
+assert demo_status["summary"]["historyCounts"]["withdrawal"]==60
+assert Client().call("admin.demo.marcelo.status",expected=401)["error"]
+assert alice.call("admin.demo.marcelo.seed",{"confirmDemo":True},403)["error"]
+assert admin.call("admin.demo.marcelo.seed",{"confirmDemo":False},422)["error"]
+assert admin.call("admin.demo.marcelo.seed",{"confirmDemo":True},409)["error"]
+assert admin.call("admin.demo.marcelo.status")["summary"]==demo_status["summary"]
 # Only actual invited registrations count. The old hardcoded legacy list is not imported.
 assert guest.call("referrals.mine",expected=401)["error"]
 code=alice.call("referrals.mine")["code"]
