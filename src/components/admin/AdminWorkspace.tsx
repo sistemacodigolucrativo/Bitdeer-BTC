@@ -41,6 +41,8 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   const [newMemberPassword,setNewMemberPassword]=useState('');
   const [verificationId,setVerificationId]=useState<number|null>(null);
   const [busy,setBusy]=useState(false);
+  const [demoMarceloExists,setDemoMarceloExists]=useState(false);
+  const [demoMarceloAccess,setDemoMarceloAccess]=useState<{login:string;password:string;referralCode:string}|null>(null);
   async function refresh() {
     try {
       const [m,p,o,s]=await Promise.all([
@@ -50,6 +52,8 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         api<{email:string}>('support'),
       ]);
       setMembers(m.members);setTotal(m.total);setPlans(p.plans);setOrders(o.orders);setEmail(s.email);
+      void api<{exists:boolean}>('admin.demo.marcelo.status')
+        .then(x=>setDemoMarceloExists(x.exists)).catch(()=>{});
       api<{actions:typeof audit}>('admin.audit').then(x=>setAudit(x.actions)).catch(()=>{});
       api<typeof overview>('admin.overview').then(setOverview).catch(()=>{});
       api<{tickets:Ticket[]}>('admin.support.tickets').then(x=>setTickets(x.tickets)).catch(()=>{});
@@ -66,6 +70,20 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
     try {await api(action,body);setNotice('Alteração registrada.');await refresh();}
     catch(e){setNotice((e as Error).message);}
     finally{setBusy(false);}
+  }
+  async function createMarceloDemo(){
+    if(!window.confirm('Criar a conta Marcelo com histórico inteiramente fictício e saldo demonstrativo? Uma conta existente não será modificada.'))return;
+    setBusy(true);setNotice('');
+    try{
+      const created=await api<{login:string;initialPassword:string;referralCode:string}>(
+        'admin.demo.marcelo.seed',{confirmDemo:true});
+      setDemoMarceloAccess({login:created.login,password:created.initialPassword,
+        referralCode:created.referralCode});
+      setDemoMarceloExists(true);
+      setNotice('Conta demonstrativa Marcelo criada no SQLite. Guarde as credenciais exibidas apenas nesta sessão.');
+      await refresh();
+    }catch(e){setNotice((e as Error).message)}
+    finally{setBusy(false)}
   }
   const renderPlanEditor=()=>selected&&<form className="space-y-3"
     onSubmit={e=>{
@@ -154,6 +172,21 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         <p className="col-span-full text-xs text-slate-400">Contagens obtidas do banco SQLite; não representam faturamento ou BTC confirmado na blockchain.</p>
       </div>}
       {section==='members' && <>
+        <section className="rounded-xl border border-[#303a56] bg-[#1b2137] p-3 space-y-2" data-testid="admin-marcelo-demo">
+          <p className="text-sm font-semibold">Conta padrão Marcelo (demonstração)</p>
+          <p className="text-xs text-slate-400">Histórico fictício de aproximadamente cinco meses: recompensas, bônus, VIP 01–03 e saques simulados. Plano atual FREE; saldo interno US$ 2.000,00. Não são pagamentos reais.</p>
+          <button type="button" data-testid="admin-seed-marcelo" disabled={busy||demoMarceloExists}
+            className={btn+' disabled:opacity-50'} onClick={()=>void createMarceloDemo()}>
+            {demoMarceloExists?'Conta demonstrativa já criada':'Criar conta padrão Marcelo'}
+          </button>
+          {demoMarceloAccess&&<div role="status" className="rounded-lg border border-amber-400/40 p-3 bg-[#11182c] text-xs space-y-1">
+            <p className="text-amber-300 font-semibold">Credenciais exibidas uma única vez. Guarde-as em local seguro.</p>
+            <p>Usuário: <code className="select-text">{demoMarceloAccess.login}</code></p>
+            <p>Senha: <code className="select-text break-all">{demoMarceloAccess.password}</code></p>
+            <p>Indicação: <code className="select-text">{demoMarceloAccess.referralCode}</code></p>
+            <button type="button" className="text-indigo-300 underline" onClick={()=>setDemoMarceloAccess(null)}>Ocultar credenciais</button>
+          </div>}
+        </section>
         <form className="flex flex-wrap gap-2" onSubmit={e=>{e.preventDefault();setOffset(0);void refresh();}}>
           <input placeholder="Buscar por usuário, nome ou e-mail" value={filter} onChange={e=>setFilter(e.target.value)}
             className="flex-1 min-w-40 bg-[#1b2137] p-3 rounded-xl border border-[#2b3350]"/>
