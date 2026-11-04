@@ -17,7 +17,7 @@ function seed_marcelo_demo(PDO $db, int $adminId): array {
     if($conflict && $conflict['role']==='admin')$login='user-member';
     if(query_one($db,'SELECT id FROM users WHERE login=?',[$login]))
         throw new RuntimeException('Já existe a conta padrão; nenhum dado foi alterado.');
-    return seed_populated_member($db,$adminId,$login,'Marcelo','','demo_marcelo_seed','demo.member.seed');
+    return seed_populated_member($db,$adminId,$login,'Marcelo','','demo_marcelo_seed','demo.member.seed','123456789123');
 }
 
 function seed_random_member_demo(PDO $db, int $adminId): array {
@@ -30,7 +30,7 @@ function seed_random_member_demo(PDO $db, int $adminId): array {
 }
 
 function seed_populated_member(PDO $db, int $adminId, string $login, string $displayName, string $email,
-    ?string $markerName, string $auditAction): array {
+    ?string $markerName, string $auditAction, ?string $initialPassword=null): array {
     // core.php uses BEGIN IMMEDIATE through SQL, so PDO::inTransaction() may remain false.
     $mode=query_one($db,'SELECT value FROM app_settings WHERE name="payment_mode"');
     if (($mode['value']??'')!=='simulation')
@@ -40,7 +40,9 @@ function seed_populated_member(PDO $db, int $adminId, string $login, string $dis
 
     $now=now();
     $start=$now-165*86400; // 5.5 months of fictional historical activity
-    $password=bin2hex(random_bytes(20));
+    // Only the explicitly requested founding demo account uses the fixed password.
+    // Random User credentials remain unique and cryptographically generated.
+    $password=$initialPassword ?? bin2hex(random_bytes(20));
     $invite=strtoupper(bin2hex(random_bytes(5)));
     execute_sql($db,'INSERT INTO users(login,password_hash,role,status,display_name,email,created_at,updated_at)
       VALUES (?,?,"member","active",?,?,?,?)',
