@@ -43,7 +43,7 @@ export const ReferralHistoryView:React.FC<Props>=({language,onBack,embedded=fals
       <button onClick={()=>void refresh()} aria-label={refreshLabel}
         className="p-2 bg-[#242c47] rounded-lg"><RefreshCw size={16}/></button>
     </header>
-    <div className={embedded?'space-y-3':'p-4 space-y-4 overflow-y-auto'}>
+    <div className={embedded?'space-y-3':'p-4 space-y-4 overflow-y-auto overscroll-y-contain touch-pan-y member-vertical-scroll'}>
       {error&&<p className="text-amber-300 text-xs" role="alert">{error}</p>}
       {notice&&<p className="text-emerald-300 text-xs" role="status">{notice}</p>}
       {data&&<><div className="bg-[#1b2137] border border-[#272e4b] rounded-xl p-3 space-y-2">
