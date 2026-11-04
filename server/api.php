@@ -88,7 +88,7 @@ function member_snapshot(PDO $db, int $userId): array {
        'asOf'=>now(),
        'user'=>public_user($user),
        'profile'=>['displayName'=>$user['display_name'], 'email'=>$user['email'],
-         'phone'=>$user['phone'],'walletAddress'=>$user['wallet_address']],
+         'phone'=>$user['phone'],'avatarUrl'=>$user['avatar_url'] ?? '', 'walletAddress'=>$user['wallet_address']],
        'mining'=>['running'=>(bool)$mining['running'],
          'balanceUnits'=>(int)$mining['balance_units'],
          'balanceUsd'=>units_usd((int)$mining['balance_units']),
@@ -194,6 +194,9 @@ function own_referral_code(PDO $db, int $owner): string {
 /** Add fields to preexisting SQLite databases without erasing members or balances. */
 function ensure_member_features(PDO $db): void {
     ensure_member_history_tables($db);
+    $userCols=array_column(query_all($db,'PRAGMA table_info(users)'),'name');
+    if(!in_array('avatar_url',$userCols,true))
+        $db->exec("ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''");
     $cols=array_column(query_all($db,'PRAGMA table_info(plans)'),'name');
     if (!in_array('withdraw_min_cents',$cols,true))
         $db->exec('ALTER TABLE plans ADD COLUMN withdraw_min_cents INTEGER NOT NULL DEFAULT 0');
@@ -522,10 +525,13 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $body=request_body();
         $name=string_field($body,'displayName',120);$email=string_field($body,'email',254);
         $phone=normalize_member_phone(string_field($body,'phone',30));$wallet=string_field($body,'walletAddress',150);
+        $avatar=string_field($body,'avatarUrl',2048);
         if ($name === '' || !is_email_or_empty($email) || $phone===null) fail(422,'Nome, e-mail ou telefone inválido');
         if ($wallet!=='' && !btc_receive_address_valid($wallet)) fail(422,'Carteira Bitcoin inválida');
-        execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=?,wallet_address=?,updated_at=? WHERE id=?',
-          [$name,$email,$phone,$wallet,now(),$actor['id']]);
+        if($avatar!=='' && (!filter_var($avatar,FILTER_VALIDATE_URL) || !in_array((string)parse_url($avatar,PHP_URL_SCHEME),['https','http'],true)))
+            fail(422,'URL da imagem inválida');
+        execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=?,avatar_url=?,wallet_address=?,updated_at=? WHERE id=?',
+          [$name,$email,$phone,$avatar,$wallet,now(),$actor['id']]);
         json_out(['ok'=>true]);
     }
     if ($action === 'mining.start' && $method === 'POST') {
@@ -692,6 +698,8 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             $records[]=[
                 'hash'=>'SIM-'.bin2hex(random_bytes(16)),
                 'name'=>$identities[$i]['name'],
+                'country'=>$identities[$i]['country'],
+                'flag'=>$identities[$i]['flag'],
                 'valueUsd'=>number_format($usdCents/100,2,'.',''),
                 'btc'=>number_format($btcSatoshis/100000000,8,'.',''),
                 'createdAt'=>random_int($start,max($start,$end))

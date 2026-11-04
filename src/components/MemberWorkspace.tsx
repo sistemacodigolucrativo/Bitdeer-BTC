@@ -50,7 +50,9 @@ export const MemberWorkspace: React.FC<{
     accruals: Array<{plan_id:string;start_ts:number;end_ts:number;earned_units:number}>;
     bonuses: Array<{plan_id:string;claimed_at:number;bonus_usd_units:number;bonus_satoshis:number}>;
   }>({accruals:[],bonuses:[]});
-  const [profile, setProfile] = useState({displayName:'',email:'',phone:'',walletAddress:''});
+  const [profile, setProfile] = useState({displayName:'',email:'',phone:'',avatarUrl:'',walletAddress:''});
+  const [avatarModal,setAvatarModal]=useState(false);
+  const [avatarDraft,setAvatarDraft]=useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [btcUsd,setBtcUsd]=useState<number|null>(()=>readLastKnownQuote()?.rate??null);
@@ -281,6 +283,16 @@ export const MemberWorkspace: React.FC<{
     } catch(e) { setNotice((e as Error).message); }
     finally {setBusy(false);}
   }
+  async function saveAvatar(){
+    setBusy(true);setNotice('');
+    try{
+      await api('profile.update',{...profile,avatarUrl:avatarDraft.trim()});
+      await reload();
+      setAvatarModal(false);
+      setNotice(words.saved);
+    }catch(e){setNotice((e as Error).message);}
+    finally{setBusy(false);}
+  }
   const tab = (p:Page, label:string, Icon:typeof Home) =>
     <button type="button" onClick={()=>{setPage(p);setNotice('');}}
       aria-current={page===p?'page':undefined}
@@ -311,6 +323,14 @@ export const MemberWorkspace: React.FC<{
         <button type="button" className="w-full text-xs text-slate-300 underline underline-offset-4"
           onClick={()=>setWithdrawPopup(null)}>{language==='en'?'Close':language==='es'?'Cerrar':'Fechar'}</button>
       </div>
+    </div>}
+    {avatarModal&&<div role="dialog" aria-modal="true" aria-label={language==='en'?'Profile image':language==='es'?'Imagen de perfil':'Imagem de perfil'} className="fixed inset-0 z-[105] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm">
+      <form onSubmit={e=>{e.preventDefault();void saveAvatar();}} className="w-full max-w-sm rounded-3xl border border-indigo-400/35 bg-[#171b2d] p-5 shadow-2xl space-y-4">
+        <h2 className="text-lg font-extrabold">{language==='en'?'Profile image':language==='es'?'Imagen de perfil':'Imagem de perfil'}</h2>
+        <p className="text-xs leading-relaxed text-slate-300">{language==='en'?'Paste a direct HTTP or HTTPS image URL.':language==='es'?'Pegue una URL directa de imagen HTTP o HTTPS.':'Informe uma URL direta de imagem HTTP ou HTTPS.'}</p>
+        <input autoFocus type="url" inputMode="url" maxLength={2048} value={avatarDraft} onChange={e=>setAvatarDraft(e.target.value)} placeholder="https://..." className="w-full rounded-xl bg-[#11182c] p-3 text-xs outline-none ring-indigo-400 focus:ring-1"/>
+        <div className="grid grid-cols-2 gap-2"><button type="button" onClick={()=>setAvatarModal(false)} className="rounded-xl bg-slate-700 p-3 text-xs font-bold">{language==='en'?'Cancel':language==='es'?'Cancelar':'Cancelar'}</button><button disabled={busy} className="rounded-xl bg-indigo-600 p-3 text-xs font-bold">{language==='en'?'Save':language==='es'?'Guardar':'Salvar'}</button></div>
+      </form>
     </div>}
     {page==='withdraw' ? <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y member-vertical-scroll p-4 sm:p-5 space-y-4">
       <button type="button" className="inline-flex gap-2 items-center text-sm text-indigo-200"
@@ -385,7 +405,7 @@ export const MemberWorkspace: React.FC<{
         {page==='home' && <><ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language} busy={busy}
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
           onRewards={()=>setPage('reward')}
-          onHistory={()=>setPage('history')} onLogout={onLogout}/><MockPaymentFeed language={language}/></>}
+          onHistory={()=>setPage('history')} onAvatarClick={()=>{setAvatarDraft(profile.avatarUrl);setAvatarModal(true);}}/><MockPaymentFeed language={language}/></>}
         {page==='reward' && <ServerRewardView account={account} language={language} busy={busy}
           ledger={ledger} onClaim={()=>void act('rewards.claim')}
           onRefreshHistory={()=>{void api<typeof ledger>('ledger').then(setLedger).catch(e=>setNotice((e as Error).message));}}/>}

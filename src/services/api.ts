@@ -14,7 +14,7 @@ export type Plan = {
 export type MemberData = {
   asOf: number;
   user: AuthUser;
-  profile: { displayName: string; email: string; phone: string; walletAddress: string };
+  profile: { displayName: string; email: string; phone: string; avatarUrl: string; walletAddress: string };
   mining: { running: boolean; balanceUnits: number; balanceUsd: string; bonusSatoshisBalance: number; lastBonusAt: number | null;
     sessionEndsAt: number | null; cooldownUntil: number | null };
   plan: { id: string; revision: number; dailyUsd: string; bonusUsd: string;

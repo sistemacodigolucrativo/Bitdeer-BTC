@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Gift, Clock, Zap, LogOut } from 'lucide-react';
+import { Gift, Clock, Zap } from 'lucide-react';
 import { MemberData } from '../services/api';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
@@ -8,7 +8,7 @@ type Props = {
   account: MemberData | null; language: LanguageCode; busy: boolean;
   liveBtc:string|null; liveBalanceUsd:number;
   onStart: () => void; onStop: () => void;
-  onRewards: () => void; onHistory: () => void; onLogout: () => void;
+  onRewards: () => void; onHistory: () => void; onAvatarClick:()=>void;
 };
 const details = {
   pt:{balance:'Saldo interno (USD)',mining:'Painel de mineração', active:'Mineração ativa',
@@ -28,11 +28,14 @@ const details = {
     vip:'Plan VIP hasta', noHash:'Capacidad de minería'}
 };
 export const ServerHomeView: React.FC<Props> = ({
-  account,language,busy,liveBtc,liveBalanceUsd,onStart,onStop,onRewards,onHistory,onLogout
+  account,language,busy,liveBtc,liveBalanceUsd,onStart,onStop,onRewards,onHistory,onAvatarClick
 }) => {
   const t=translations[language]?.home ?? translations.pt.home;
   const d=details[language] ?? details.pt;
   const [clock,setClock]=useState(Date.now());
+  const [avatarFailed,setAvatarFailed]=useState(false);
+  const avatarUrl=account?.profile.avatarUrl ?? '';
+  useEffect(()=>setAvatarFailed(false),[avatarUrl]);
   useEffect(()=>{
     const timer=setInterval(()=>setClock(Date.now()),1000);
     return ()=>clearInterval(timer);
@@ -48,20 +51,18 @@ export const ServerHomeView: React.FC<Props> = ({
   const stamp=(v:number)=>new Date(v*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR');
   return <div className="space-y-4 select-none pb-4">
     <div data-testid="home-welcome-card" className="flex items-center gap-3 bg-[#171b2d] border border-[#252c45] rounded-2xl p-3 shadow-sm">
-      <div className="w-10 h-10 rounded-full bg-emerald-600 flex justify-center items-center text-white font-bold">
-        {(account?.profile.displayName || account?.user.login || 'M').charAt(0).toUpperCase()}
-      </div>
+      <button type="button" onClick={onAvatarClick} aria-label={language==='en'?'Set profile image':language==='es'?'Definir imagen de perfil':'Definir imagem de perfil'}
+        className="w-10 h-10 shrink-0 overflow-hidden rounded-full bg-emerald-600 flex justify-center items-center text-white font-bold">
+        {avatarUrl&&!avatarFailed?<img src={avatarUrl} alt="" onError={()=>setAvatarFailed(true)} className="h-full w-full object-cover"/>:(account?.profile.displayName || account?.user.login || 'M').charAt(0).toUpperCase()}
+      </button>
       <div className="min-w-0 flex-1">
         <p className="text-[11px] text-slate-400 truncate">{language==='en'?'Welcome back':language==='es'?'Bienvenido de nuevo':'Boas-vindas'}</p>
         <p className="text-sm font-extrabold text-white truncate">{account?.profile.displayName || account?.user.login || (language==='en'?'Member':language==='es'?'Miembro':'Membro')}</p>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center">
         <button type="button" data-testid="home-rewards-shortcut" onClick={onRewards}
           aria-label={d.rewards} title={d.rewards}
           className="flex items-center justify-center rounded-lg border border-[#4f46e5]/60 bg-indigo-500/15 p-2 text-indigo-400"><Gift size={24}/></button>
-        <button type="button" data-testid="home-exit" onClick={onLogout}
-          aria-label={language==='en'?'Exit':language==='es'?'Salir':'Sair'} title={language==='en'?'Exit':language==='es'?'Salir':'Sair'}
-          className="flex items-center justify-center rounded-lg border border-[#303b59] bg-[#11182c] p-2 text-rose-300"><LogOut size={18}/></button>
       </div>
     </div>
     <section className="bg-[#191e32] border border-[#262e49] rounded-3xl p-5 overflow-hidden shadow-md">

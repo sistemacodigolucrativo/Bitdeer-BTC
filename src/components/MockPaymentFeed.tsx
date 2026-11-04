@@ -2,7 +2,7 @@ import React,{useEffect,useState} from 'react';
 import {api} from '../services/api';
 import {LanguageCode} from '../types';
 
-type Entry={hash:string;name:string;valueUsd:string;btc:string;createdAt:number};
+type Entry={hash:string;name:string;country:string;flag:string;valueUsd:string;btc:string;createdAt:number};
 type LatestPayments={records:Entry[];total:number;simulation:true};
 
 export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
@@ -59,7 +59,7 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
       tabIndex={0} aria-label={tr.title}>
       <table className="w-full min-w-[750px] table-fixed border-separate border-spacing-y-1.5">
         <colgroup>
-          <col className="w-[19%]"/><col className="w-[21%]"/>
+          <col className="w-[22%]"/><col className="w-[18%]"/>
           <col className="w-[26%]"/><col className="w-[15%]"/><col className="w-[19%]"/>
         </colgroup>
         <thead>
@@ -72,6 +72,7 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
           {rows.map(row=><tr data-testid="simulated-payment-row" key={row.hash}>
             <td className={cell+' border-l rounded-l-lg'}>
               <span className="block truncate font-semibold" title={row.name}>{row.name}</span>
+              <span className="mt-1 flex items-center justify-center gap-1 truncate text-[10px] text-slate-400"><span aria-label={row.country}>{row.flag}</span>{row.country}</span>
             </td>
             <td className={cell+' tabular-nums whitespace-nowrap'}>
               {new Date(row.createdAt*1000).toLocaleString(locale)}

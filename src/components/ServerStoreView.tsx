@@ -30,8 +30,7 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
   return <section className="space-y-3" data-testid="store-view">
     {currentPlan && <div data-testid="store-active-plan" className="bg-[#171b2d] border border-[#252c45] p-3 rounded-2xl flex justify-between gap-3 items-center">
       <div className="min-w-0">
-        <div className="flex items-center gap-1.5"><span className="text-xs text-slate-400">{helper.current}</span>
-          <ShieldCheck className="text-emerald-400 shrink-0" size={16} aria-hidden="true"/></div>
+        <div className="flex items-center gap-1.5"><span className="text-xs text-slate-400">{helper.current}</span></div>
         <p className="font-bold">{currentPlan.name} · US$ {currentPlan.dailyUsd}/{t.day}</p>
       </div>
       <span data-testid="store-plan-shield" aria-label={language==='en'?'Active plan':language==='es'?'Plan activo':'Plano ativo'}

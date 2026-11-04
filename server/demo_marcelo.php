@@ -24,8 +24,13 @@ function seed_marcelo_demo(PDO $db, int $adminId): array {
 function seed_random_member_demo(PDO $db, int $adminId): array {
     for($attempt=0;$attempt<30;$attempt++) {
         $identity=random_member_identity();
-        if(!query_one($db,'SELECT id FROM users WHERE login=? OR email=?',[$identity['login'],$identity['email']]))
+        if(!query_one($db,'SELECT id FROM users WHERE login=? OR email=?',[$identity['login'],$identity['email']])) {
+            // Advance only the AUTOINCREMENT cursor. Existing members and all
+            // foreign-key relationships keep their original identifiers.
+            $updated=execute_sql($db,"UPDATE sqlite_sequence SET seq=MAX(seq,9999) WHERE name='users'");
+            if($updated===0) execute_sql($db,"INSERT INTO sqlite_sequence(name,seq) VALUES ('users',9999)");
             return seed_populated_member($db,$adminId,$identity['login'],$identity['displayName'],$identity['email'],null,'demo.member.random.seed',null,$identity['phone']);
+        }
     }
     throw new RuntimeException('Não foi possível gerar um usuário aleatório disponível.');
 }
