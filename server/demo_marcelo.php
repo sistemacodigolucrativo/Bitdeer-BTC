@@ -8,19 +8,34 @@ declare(strict_types=1);
  * The standard Marcelo password is returned to the authorized installer/admin.
  */
 function seed_marcelo_demo(PDO $db, int $adminId): array {
-    // core.php uses BEGIN IMMEDIATE through SQL, so PDO::inTransaction() may remain false.
-    $mode=query_one($db,'SELECT value FROM app_settings WHERE name="payment_mode"');
-    if (($mode['value']??'')!=='simulation')
-        throw new RuntimeException('A conta Marcelo somente pode ser criada em modo de simulação.');
     if (query_one($db,'SELECT value FROM app_settings WHERE name="demo_marcelo_seed"'))
-        throw new RuntimeException('A conta demonstrativa Marcelo já foi criada; nenhum dado foi alterado.');
-
+        throw new RuntimeException('A conta padrão Marcelo já foi criada; nenhum dado foi alterado.');
     $login='marcelo';
     // Preserve the administrator's chosen login; never take over an existing member.
     $conflict=query_one($db,'SELECT id,role FROM users WHERE login=?',[$login]);
     if($conflict && $conflict['role']==='admin')$login='marcelo-demo';
     if(query_one($db,'SELECT id FROM users WHERE login=?',[$login]))
         throw new RuntimeException('Já existe a conta Marcelo; nenhum dado foi alterado.');
+    return seed_populated_member($db,$adminId,$login,'Marcelo','demo_marcelo_seed','demo.member.seed');
+}
+
+function seed_random_member_demo(PDO $db, int $adminId): array {
+    for($attempt=0;$attempt<30;$attempt++) {
+        $login='bitdeer_'.random_int(100,999);
+        if(!query_one($db,'SELECT id FROM users WHERE login=?',[$login]))
+            return seed_populated_member($db,$adminId,$login,'Random User',null,'demo.member.random.seed');
+    }
+    throw new RuntimeException('Não foi possível gerar um usuário aleatório disponível.');
+}
+
+function seed_populated_member(PDO $db, int $adminId, string $login, string $displayName,
+    ?string $markerName, string $auditAction): array {
+    // core.php uses BEGIN IMMEDIATE through SQL, so PDO::inTransaction() may remain false.
+    $mode=query_one($db,'SELECT value FROM app_settings WHERE name="payment_mode"');
+    if (($mode['value']??'')!=='simulation')
+        throw new RuntimeException('A criação de contas povoadas exige o modo de simulação.');
+    if(query_one($db,'SELECT id FROM users WHERE login=?',[$login]))
+        throw new RuntimeException('O usuário já existe; nenhum dado foi alterado.');
 
     $now=now();
     $start=$now-165*86400; // 5.5 months of fictional historical activity
@@ -28,7 +43,7 @@ function seed_marcelo_demo(PDO $db, int $adminId): array {
     $invite=strtoupper(bin2hex(random_bytes(5)));
     execute_sql($db,'INSERT INTO users(login,password_hash,role,status,display_name,created_at,updated_at)
       VALUES (?,?,"member","active",?,?,?)',
-      [$login,secure_password($password),'Marcelo',$start,$now]);
+      [$login,secure_password($password),$displayName,$start,$now]);
     $userId=(int)$db->lastInsertId();
     execute_sql($db,'INSERT INTO mining_state(user_id,updated_at) VALUES (?,?)',[$userId,$now]);
     execute_sql($db,'INSERT INTO referral_codes(user_id,code,created_at) VALUES (?,?,?)',
@@ -149,9 +164,9 @@ function seed_marcelo_demo(PDO $db, int $adminId): array {
       'withdrawUsdCents'=>$withdrawCents,'balanceUsdCents'=>183742,
       'historicalQuote'=>'illustrative, not verified market history',
       'historyCounts'=>$counts];
-    execute_sql($db,'INSERT INTO app_settings(name,value) VALUES ("demo_marcelo_seed",?)',
-      [json_encode($metadata,JSON_THROW_ON_ERROR)]);
-    audit($db,$adminId,'demo.member.seed',$userId,$metadata);
-    return ['userId'=>$userId,'login'=>$login,'displayName'=>'Marcelo',
+    if($markerName!==null) execute_sql($db,'INSERT INTO app_settings(name,value) VALUES (?,?)',
+      [$markerName,json_encode($metadata,JSON_THROW_ON_ERROR)]);
+    audit($db,$adminId,$auditAction,$userId,$metadata);
+    return ['userId'=>$userId,'login'=>$login,'displayName'=>$displayName,
       'initialPassword'=>$password,'referralCode'=>$invite,'summary'=>$metadata];
 }

@@ -98,6 +98,11 @@ assert alice.call("admin.demo.marcelo.seed",{"confirmDemo":True},403)["error"]
 assert admin.call("admin.demo.marcelo.seed",{"confirmDemo":False},422)["error"]
 assert admin.call("admin.demo.marcelo.seed",{"confirmDemo":True},409)["error"]
 assert admin.call("admin.demo.marcelo.status")["summary"]==demo_status["summary"]
+random_user=admin.call("admin.demo.random-member.seed",{"confirmRandomUser":True},201)
+assert __import__("re").match(r"^bitdeer_[0-9]{3}$",random_user["login"])
+assert random_user["displayName"]=="Random User" and random_user["initialPassword"]=="123456789123"
+assert random_user["summary"]["balanceUsdCents"]==183742
+assert admin.call("admin.members")["total"]==4
 # Only actual invited registrations count. The old hardcoded legacy list is not imported.
 assert guest.call("referrals.mine",expected=401)["error"]
 code=alice.call("referrals.mine")["code"]

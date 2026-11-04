@@ -834,7 +834,17 @@ function api_dispatch(PDO $db, string $action, string $method): never {
                 fail(409,$e->getMessage());
             throw $e;
         }
-        // The random password is shown only once to the authenticated admin.
+        // The standard password is shown only once to the authenticated admin.
+        json_out(['ok'=>true,'simulation'=>true]+$result,201);
+    }
+    if ($action === 'admin.demo.random-member.seed' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);
+        $body=request_body();
+        if(($body['confirmRandomUser']??null)!==true)
+            fail(422,'Confirme a criação do usuário aleatório.');
+        $result=atomic($db,static function()use($db,$actor):array {
+            return seed_random_member_demo($db,(int)$actor['id']);
+        });
         json_out(['ok'=>true,'simulation'=>true]+$result,201);
     }
     if ($action === 'admin.member.details' && $method === 'GET') {

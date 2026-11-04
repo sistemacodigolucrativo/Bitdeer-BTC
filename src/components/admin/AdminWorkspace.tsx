@@ -43,6 +43,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   const [busy,setBusy]=useState(false);
   const [demoMarceloExists,setDemoMarceloExists]=useState(false);
   const [demoMarceloAccess,setDemoMarceloAccess]=useState<{login:string;password:string;referralCode:string}|null>(null);
+  const [randomUserAccess,setRandomUserAccess]=useState<{login:string;password:string;referralCode:string}|null>(null);
   async function refresh() {
     try {
       const [m,p,o,s]=await Promise.all([
@@ -81,6 +82,19 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         referralCode:created.referralCode});
       setDemoMarceloExists(true);
       setNotice('Conta padrão Marcelo criada. Guarde as credenciais exibidas apenas nesta sessão.');
+      await refresh();
+    }catch(e){setNotice((e as Error).message)}
+    finally{setBusy(false)}
+  }
+  async function createRandomUser(){
+    if(!window.confirm('Criar um Random User povoado com os mesmos dados padrão do Marcelo?'))return;
+    setBusy(true);setNotice('');
+    try{
+      const created=await api<{login:string;initialPassword:string;referralCode:string}>(
+        'admin.demo.random-member.seed',{confirmRandomUser:true});
+      setRandomUserAccess({login:created.login,password:created.initialPassword,
+        referralCode:created.referralCode});
+      setNotice('Random User criado com sucesso. Guarde as credenciais exibidas apenas nesta sessão.');
       await refresh();
     }catch(e){setNotice((e as Error).message)}
     finally{setBusy(false)}
@@ -185,6 +199,21 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
             <p>Senha: <code className="select-text break-all">{demoMarceloAccess.password}</code></p>
             <p>Indicação: <code className="select-text">{demoMarceloAccess.referralCode}</code></p>
             <button type="button" className="text-indigo-300 underline" onClick={()=>setDemoMarceloAccess(null)}>Ocultar credenciais</button>
+          </div>}
+        </section>
+        <section className="rounded-xl border border-cyan-400/25 bg-gradient-to-br from-[#17283a] to-[#1b2137] p-3 space-y-2" data-testid="admin-random-user">
+          <p className="text-sm font-semibold">Random User</p>
+          <p className="text-xs text-slate-300">Cria uma conta povoada no padrão <code>bitdeer_###</code>, com o mesmo saldo e histórico do Marcelo.</p>
+          <button type="button" data-testid="admin-seed-random-user" disabled={busy}
+            className={btn+' disabled:opacity-50'} onClick={()=>void createRandomUser()}>
+            Random User
+          </button>
+          {randomUserAccess&&<div role="status" className="rounded-lg border border-cyan-300/30 p-3 bg-[#11182c] text-xs space-y-1">
+            <p className="text-cyan-200 font-semibold">Usuário criado. Credenciais exibidas somente nesta sessão.</p>
+            <p>Usuário: <code className="select-text">{randomUserAccess.login}</code></p>
+            <p>Senha: <code className="select-text break-all">{randomUserAccess.password}</code></p>
+            <p>Indicação: <code className="select-text">{randomUserAccess.referralCode}</code></p>
+            <button type="button" className="text-indigo-300 underline" onClick={()=>setRandomUserAccess(null)}>Ocultar credenciais</button>
           </div>}
         </section>
         <form className="flex flex-wrap gap-2" onSubmit={e=>{e.preventDefault();setOffset(0);void refresh();}}>
