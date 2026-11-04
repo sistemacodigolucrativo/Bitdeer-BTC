@@ -26,13 +26,13 @@ export const SubscriptionHistoryView:React.FC<Props>=({language,onBack})=>{
     finally{setLoading(false);}
   };
   useEffect(()=>{void refresh();},[]);
-  return <section className="flex-1 flex flex-col bg-[#121626] text-white overflow-hidden">
+  return <section className="flex-1 min-h-0 flex flex-col bg-[#121626] text-white overflow-hidden">
     <header className="flex items-center justify-between p-4 border-b border-[#232943]">
       <button onClick={onBack} aria-label={tr.back}><ArrowLeft size={20}/></button>
       <h2 className="font-bold">{title}</h2>
       <button onClick={()=>void refresh()} aria-label={tr.refresh}><RefreshCw size={18}/></button>
     </header>
-    <div className="p-4 overflow-y-auto space-y-3">
+    <div className="flex-1 min-h-0 p-4 overflow-y-auto overscroll-y-contain touch-pan-y member-vertical-scroll space-y-3">
       <p className="text-xs text-slate-400">{tr.notice}</p>
       {loading&&<p>...</p>}
       {error&&<p role="alert" className="text-xs text-amber-300">{error}</p>}
