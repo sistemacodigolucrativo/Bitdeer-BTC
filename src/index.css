@@ -103,3 +103,25 @@
 }
 
 /* Dark mode default remains standard high-contrast dark theme */
+
+
+/* Nested horizontal histories must not capture vertical swipes on Android.
+   Retain horizontal scrolling for long identifiers, while allowing the page
+   or its nearest vertical scroller to handle vertical pointer gestures. */
+.member-horizontal-scroll {
+  touch-action: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Independent content panes under the persistent bottom navigation. */
+.member-vertical-scroll {
+  min-height: 0;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Defer offscreen layout/paint of the 200 fictional ranking cards. */
+.miner-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 90px;
+}
