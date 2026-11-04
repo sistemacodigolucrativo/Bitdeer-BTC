@@ -88,7 +88,7 @@ function member_snapshot(PDO $db, int $userId): array {
        'asOf'=>now(),
        'user'=>public_user($user),
        'profile'=>['displayName'=>$user['display_name'], 'email'=>$user['email'],
-         'phone'=>$user['phone'],'avatarUrl'=>$user['avatar_url'] ?? '', 'walletAddress'=>$user['wallet_address']],
+         'phone'=>$user['phone'],'avatarUrl'=>$user['avatar_url'] ?? '', 'avatarLocked'=>(bool)($user['avatar_locked'] ?? false), 'walletAddress'=>$user['wallet_address']],
        'mining'=>['running'=>(bool)$mining['running'],
          'balanceUnits'=>(int)$mining['balance_units'],
          'balanceUsd'=>units_usd((int)$mining['balance_units']),
@@ -197,6 +197,10 @@ function ensure_member_features(PDO $db): void {
     $userCols=array_column(query_all($db,'PRAGMA table_info(users)'),'name');
     if(!in_array('avatar_url',$userCols,true))
         $db->exec("ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''");
+    if(!in_array('avatar_locked',$userCols,true)) {
+        $db->exec("ALTER TABLE users ADD COLUMN avatar_locked INTEGER NOT NULL DEFAULT 0 CHECK(avatar_locked IN (0,1))");
+        $db->exec("UPDATE users SET avatar_locked=1 WHERE avatar_url<>''");
+    }
     $cols=array_column(query_all($db,'PRAGMA table_info(plans)'),'name');
     if (!in_array('withdraw_min_cents',$cols,true))
         $db->exec('ALTER TABLE plans ADD COLUMN withdraw_min_cents INTEGER NOT NULL DEFAULT 0');
@@ -528,10 +532,14 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $avatar=string_field($body,'avatarUrl',2048);
         if ($name === '' || !is_email_or_empty($email) || $phone===null) fail(422,'Nome, e-mail ou telefone inválido');
         if ($wallet!=='' && !btc_receive_address_valid($wallet)) fail(422,'Carteira Bitcoin inválida');
+        $current=query_one($db,'SELECT avatar_url,avatar_locked FROM users WHERE id=?',[$actor['id']]);
+        if($current===null) fail(404,'Perfil indisponível');
+        if((int)$current['avatar_locked']===1 && $avatar!==(string)$current['avatar_url'])
+            fail(409,'A imagem de perfil já foi definida e não pode ser alterada');
         if($avatar!=='' && (!filter_var($avatar,FILTER_VALIDATE_URL) || !in_array((string)parse_url($avatar,PHP_URL_SCHEME),['https','http'],true)))
             fail(422,'URL da imagem inválida');
-        execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=?,avatar_url=?,wallet_address=?,updated_at=? WHERE id=?',
-          [$name,$email,$phone,$avatar,$wallet,now(),$actor['id']]);
+        execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=?,avatar_url=?,avatar_locked=?,wallet_address=?,updated_at=? WHERE id=?',
+          [$name,$email,$phone,$avatar,$avatar!==''?1:(int)$current['avatar_locked'],$wallet,now(),$actor['id']]);
         json_out(['ok'=>true]);
     }
     if ($action === 'mining.start' && $method === 'POST') {

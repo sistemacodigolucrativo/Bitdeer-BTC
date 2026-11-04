@@ -1,4 +1,4 @@
-import React from 'react';
+import React,{useMemo,useState} from 'react';
 import {LanguageCode} from '../types';
 import {memberTexts} from '../i18n/memberTexts';
 import {memberViewCopy} from '../i18n/memberViewCopy';
@@ -7,28 +7,36 @@ export type RewardHistoryData={
   accruals:Array<{plan_id:string;start_ts:number;end_ts:number;earned_units:number;adminEdited?:boolean}>;
   bonuses:Array<{plan_id:string;claimed_at:number;bonus_usd_units:number;bonus_satoshis:number;adminEdited?:boolean}>;
 };
+type Row={kind:'accrual'|'bonus';at:number;plan:string;detail:string};
 
-export const RewardHistoryLog:React.FC<{
-  language:LanguageCode;ledger:RewardHistoryData;onRefresh:()=>void;
-}>=({language,ledger,onRefresh})=>{
+export const RewardHistoryLog:React.FC<{language:LanguageCode;ledger:RewardHistoryData;onRefresh:()=>void;}>=({language,ledger,onRefresh})=>{
+  const [page,setPage]=useState(1);
   const words=memberTexts[language]||memberTexts.pt;
   const tr=memberViewCopy[language];
   const dateLocale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
+  const labels=language==='en'?{accrual:'Mining credit',bonus:'Daily bonus',previous:'Previous',next:'Next',page:'Page'}:
+    language==='es'?{accrual:'Crédito de minería',bonus:'Bono diario',previous:'Anterior',next:'Siguiente',page:'Página'}:
+    {accrual:'Crédito de mineração',bonus:'Bônus diário',previous:'Anterior',next:'Próxima',page:'Página'};
+  const rows=useMemo<Row[]>(()=>[
+    ...ledger.accruals.map(r=>({kind:'accrual' as const,at:r.end_ts,plan:r.plan_id,detail:`${words.earnedUnits}: ${r.earned_units}`})),
+    ...ledger.bonuses.map(r=>({kind:'bonus' as const,at:r.claimed_at,plan:r.plan_id,detail:`${r.bonus_satoshis} ${tr.satoshis} · ${r.bonus_usd_units} ${tr.units}`})),
+  ].sort((a,b)=>b.at-a.at),[ledger,words.earnedUnits,tr.satoshis,tr.units]);
+  const pages=Math.max(1,Math.ceil(rows.length/10));
+  const current=Math.min(page,pages);
+  const visible=rows.slice((current-1)*10,current*10);
   return <div data-testid="reward-history-log" className="space-y-3">
-    <h2 className="font-bold text-lg">{words.rewardLog}</h2>
-    <button type="button" className="text-xs border border-slate-600 rounded-lg p-2"
-      onClick={onRefresh}>{words.updateLog}</button>
-    <h3 className="text-sm font-semibold">{words.accrual}</h3>
-    {ledger.accruals.length===0&&<p className="text-xs text-slate-400">{words.noAccrual}</p>}
-    {ledger.accruals.map((r,i)=><div key={i} className="p-3 bg-[#1b2137] rounded-xl text-xs">
-      {r.plan_id} · {new Date(r.start_ts*1000).toLocaleString(dateLocale)} — {new Date(r.end_ts*1000).toLocaleString(dateLocale)}
-      <p>{words.earnedUnits}: {r.earned_units}</p>
+    <div className="flex items-center justify-between gap-2"><h2 className="font-bold text-lg">{words.rewardLog}</h2>
+      <button type="button" className="text-xs border border-slate-600 rounded-lg p-2" onClick={onRefresh}>{words.updateLog}</button></div>
+    {visible.length===0&&<p className="text-xs text-slate-400">{words.noAccrual}</p>}
+    {visible.map((row,index)=><div key={`${row.kind}-${row.at}-${index}`} className="p-3 bg-[#1b2137] rounded-xl text-xs">
+      <p className="font-semibold">{row.kind==='accrual'?labels.accrual:labels.bonus} · {row.plan}</p>
+      <p className="mt-1 text-slate-400">{new Date(row.at*1000).toLocaleString(dateLocale)}</p>
+      <p className="mt-1">{row.detail}</p>
     </div>)}
-    <h3 className="text-sm font-semibold">{words.dailyBonusClaims}</h3>
-    {ledger.bonuses.length===0&&<p className="text-xs text-slate-400">{words.noBonus}</p>}
-    {ledger.bonuses.map((r,i)=><div key={i} className="p-3 bg-[#1b2137] rounded-xl text-xs">
-      {r.plan_id} · {new Date(r.claimed_at*1000).toLocaleString(dateLocale)}
-      <p>{r.bonus_satoshis} {tr.satoshis} · {r.bonus_usd_units} {tr.units}</p>
-    </div>)}
+    {pages>1&&<nav className="flex items-center justify-between gap-2 text-xs" aria-label={words.rewardLog}>
+      <button type="button" disabled={current===1} onClick={()=>setPage(p=>Math.max(1,p-1))} className="rounded-lg bg-[#252b46] px-3 py-2 disabled:opacity-40">{labels.previous}</button>
+      <span className="font-mono text-slate-300">{labels.page} {current} / {pages}</span>
+      <button type="button" disabled={current===pages} onClick={()=>setPage(p=>Math.min(pages,p+1))} className="rounded-lg bg-[#252b46] px-3 py-2 disabled:opacity-40">{labels.next}</button>
+    </nav>}
   </div>;
 };

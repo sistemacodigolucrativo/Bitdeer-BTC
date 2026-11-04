@@ -25,18 +25,21 @@ function seed_random_member_demo(PDO $db, int $adminId): array {
     for($attempt=0;$attempt<30;$attempt++) {
         $identity=random_member_identity();
         if(!query_one($db,'SELECT id FROM users WHERE login=? OR email=?',[$identity['login'],$identity['email']])) {
-            // Advance only the AUTOINCREMENT cursor. Existing members and all
-            // foreign-key relationships keep their original identifiers.
-            $updated=execute_sql($db,"UPDATE sqlite_sequence SET seq=MAX(seq,9999) WHERE name='users'");
-            if($updated===0) execute_sql($db,"INSERT INTO sqlite_sequence(name,seq) VALUES ('users',9999)");
-            return seed_populated_member($db,$adminId,$identity['login'],$identity['displayName'],$identity['email'],null,'demo.member.random.seed',null,$identity['phone']);
+            $id=null;
+            for($idAttempt=0;$idAttempt<100;$idAttempt++) {
+                $candidate=random_int(10001,99999);
+                if($candidate%10000===0)continue;
+                if(!query_one($db,'SELECT id FROM users WHERE id=?',[$candidate])) {$id=$candidate;break;}
+            }
+            if($id===null) throw new RuntimeException('Não foi possível gerar um identificador aleatório disponível.');
+            return seed_populated_member($db,$adminId,$identity['login'],$identity['displayName'],$identity['email'],null,'demo.member.random.seed',null,$identity['phone'],$id);
         }
     }
     throw new RuntimeException('Não foi possível gerar um usuário aleatório disponível.');
 }
 
 function seed_populated_member(PDO $db, int $adminId, string $login, string $displayName, string $email,
-    ?string $markerName, string $auditAction, ?string $initialPassword=null, string $phone=''): array {
+    ?string $markerName, string $auditAction, ?string $initialPassword=null, string $phone='', ?int $explicitUserId=null): array {
     // core.php uses BEGIN IMMEDIATE through SQL, so PDO::inTransaction() may remain false.
     $mode=query_one($db,'SELECT value FROM app_settings WHERE name="payment_mode"');
     if (($mode['value']??'')!=='simulation')
@@ -50,9 +53,12 @@ function seed_populated_member(PDO $db, int $adminId, string $login, string $dis
     // Random User credentials remain unique and cryptographically generated.
     $password=$initialPassword ?? bin2hex(random_bytes(20));
     $invite=strtoupper(bin2hex(random_bytes(5)));
-    execute_sql($db,'INSERT INTO users(login,password_hash,role,status,display_name,email,phone,created_at,updated_at)
+    if($explicitUserId===null) execute_sql($db,'INSERT INTO users(login,password_hash,role,status,display_name,email,phone,created_at,updated_at)
       VALUES (?,?,"member","active",?,?,?,?,?)',
       [$login,secure_password($password),$displayName,$email,$phone,$start,$now]);
+    else execute_sql($db,'INSERT INTO users(id,login,password_hash,role,status,display_name,email,phone,created_at,updated_at)
+      VALUES (?,?,?,"member","active",?,?,?,?,?)',
+      [$explicitUserId,$login,secure_password($password),$displayName,$email,$phone,$start,$now]);
     $userId=(int)$db->lastInsertId();
     execute_sql($db,'INSERT INTO mining_state(user_id,updated_at) VALUES (?,?)',[$userId,$now]);
     execute_sql($db,'INSERT INTO referral_codes(user_id,code,created_at) VALUES (?,?,?)',

@@ -1,24 +1,24 @@
 import React, {useMemo} from 'react';
-import {Wallet, Coins, Lock, TrendingUp, ArrowRight} from 'lucide-react';
+import {Wallet, Coins, Lock, TrendingUp} from 'lucide-react';
 import {MemberData} from '../services/api';
 import {LanguageCode} from '../types';
 type RecordItem={start_ts:number;earned_units:number;end_ts:number;plan_id:string};
 type Props={account:MemberData|null;language:LanguageCode;accruals:RecordItem[];
-  onEdit:()=>void;onHistory:()=>void;onWithdraw:()=>void;liveBtc:string|null;
+  onEdit:()=>void;onWithdraw:()=>void;liveBtc:string|null;
   liveBalanceUsd:number;};
-export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit,onHistory,onWithdraw,liveBtc,liveBalanceUsd})=>{
+export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit,onWithdraw,liveBtc,liveBalanceUsd})=>{
   const locale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const t=language==='en'
     ?{title:'Wallet',balance:'Internal rewards',sats:'Internal satoshi bonuses',
       address:'BTC address registered',empty:'No address registered',edit:'Edit wallet',
-      history:'View reward history',chart:'Earned USD — last 7 days',withdraw:'Withdraw',btc:'BTC equivalent'}
+      chart:'Earned USD — last 7 days',withdraw:'Withdraw',btc:'BTC equivalent'}
     :language==='es'
     ?{title:'Billetera',balance:'Recompensas internas',sats:'Bonos internos en satoshis',
       address:'Dirección BTC registrada',empty:'Ninguna dirección registrada',edit:'Editar billetera',
-      history:'Ver historial',chart:'USD acreditados — últimos 7 días',withdraw:'Retirar',btc:'Equivalente en BTC'}
+      chart:'USD acreditados — últimos 7 días',withdraw:'Retirar',btc:'Equivalente en BTC'}
     :{title:'Carteira',balance:'Recompensas internas',sats:'Bônus internos em satoshis',
       address:'Endereço BTC cadastrado',empty:'Nenhum endereço cadastrado',edit:'Editar carteira',
-      history:'Ver histórico de recompensas',chart:'USD creditados — últimos 7 dias',withdraw:'Sacar',btc:'Equivalente em BTC'};
+      chart:'USD creditados — últimos 7 dias',withdraw:'Sacar',btc:'Equivalente em BTC'};
   const days=useMemo(()=>{
     const today=new Date();today.setHours(0,0,0,0);
     const result=Array.from({length:7},(_,i)=>({
@@ -68,8 +68,5 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
       <p className="font-mono text-xs text-slate-400 break-all mt-2">{t.empty}</p>
       <button onClick={onEdit} className="w-full bg-indigo-600 p-3 rounded-xl mt-4 text-xs font-bold">{t.edit}</button>
     </div>}
-    <button onClick={onHistory} className="w-full flex justify-between items-center p-4 bg-[#171b2d] border border-[#262e49] rounded-2xl text-sm">
-      {t.history}<ArrowRight size={18}/>
-    </button>
   </section>;
 };

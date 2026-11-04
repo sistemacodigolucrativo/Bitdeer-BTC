@@ -8,7 +8,7 @@ type Props = {
   account: MemberData | null; language: LanguageCode; busy: boolean;
   liveBtc:string|null; liveBalanceUsd:number;
   onStart: () => void; onStop: () => void;
-  onRewards: () => void; onHistory: () => void; onAvatarClick:()=>void;
+  onRewards: () => void; onHistory: () => void; onAvatarClick:()=>void; avatarLocked:boolean;
 };
 const details = {
   pt:{balance:'Saldo interno (USD)',mining:'Painel de mineração', active:'Mineração ativa',
@@ -28,7 +28,7 @@ const details = {
     vip:'Plan VIP hasta', noHash:'Capacidad de minería'}
 };
 export const ServerHomeView: React.FC<Props> = ({
-  account,language,busy,liveBtc,liveBalanceUsd,onStart,onStop,onRewards,onHistory,onAvatarClick
+  account,language,busy,liveBtc,liveBalanceUsd,onStart,onStop,onRewards,onHistory,onAvatarClick,avatarLocked
 }) => {
   const t=translations[language]?.home ?? translations.pt.home;
   const d=details[language] ?? details.pt;
@@ -51,7 +51,8 @@ export const ServerHomeView: React.FC<Props> = ({
   const stamp=(v:number)=>new Date(v*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR');
   return <div className="space-y-4 select-none pb-4">
     <div data-testid="home-welcome-card" className="flex items-center gap-3 bg-[#171b2d] border border-[#252c45] rounded-2xl p-3 shadow-sm">
-      <button type="button" onClick={onAvatarClick} aria-label={language==='en'?'Set profile image':language==='es'?'Definir imagen de perfil':'Definir imagem de perfil'}
+      <button type="button" onClick={onAvatarClick} disabled={avatarLocked} aria-label={language==='en'?'Set profile image':language==='es'?'Definir imagen de perfil':'Definir imagem de perfil'}
+        title={avatarLocked?(language==='en'?'Profile image already set':language==='es'?'Imagen de perfil ya definida':'Imagem de perfil já definida'):undefined}
         className="w-10 h-10 shrink-0 overflow-hidden rounded-full bg-emerald-600 flex justify-center items-center text-white font-bold">
         {avatarUrl&&!avatarFailed?<img src={avatarUrl} alt="" onError={()=>setAvatarFailed(true)} className="h-full w-full object-cover"/>:(account?.profile.displayName || account?.user.login || 'M').charAt(0).toUpperCase()}
       </button>

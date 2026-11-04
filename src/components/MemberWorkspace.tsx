@@ -50,7 +50,7 @@ export const MemberWorkspace: React.FC<{
     accruals: Array<{plan_id:string;start_ts:number;end_ts:number;earned_units:number}>;
     bonuses: Array<{plan_id:string;claimed_at:number;bonus_usd_units:number;bonus_satoshis:number}>;
   }>({accruals:[],bonuses:[]});
-  const [profile, setProfile] = useState({displayName:'',email:'',phone:'',avatarUrl:'',walletAddress:''});
+  const [profile, setProfile] = useState({displayName:'',email:'',phone:'',avatarUrl:'',avatarLocked:false,walletAddress:''});
   const [avatarModal,setAvatarModal]=useState(false);
   const [avatarDraft,setAvatarDraft]=useState('');
   const [busy, setBusy] = useState(false);
@@ -405,13 +405,13 @@ export const MemberWorkspace: React.FC<{
         {page==='home' && <><ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language} busy={busy}
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
           onRewards={()=>setPage('reward')}
-          onHistory={()=>setPage('history')} onAvatarClick={()=>{setAvatarDraft(profile.avatarUrl);setAvatarModal(true);}}/><MockPaymentFeed language={language}/></>}
+          onHistory={()=>setPage('history')} avatarLocked={profile.avatarLocked} onAvatarClick={()=>{setAvatarDraft(profile.avatarUrl);setAvatarModal(true);}}/><MockPaymentFeed language={language}/></>}
         {page==='reward' && <ServerRewardView account={account} language={language} busy={busy}
           ledger={ledger} onClaim={()=>void act('rewards.claim')}
           onRefreshHistory={()=>{void api<typeof ledger>('ledger').then(setLedger).catch(e=>setNotice((e as Error).message));}}/>}
         {page==='wallet' && <>
           <ServerWalletView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language}
-            accruals={ledger.accruals} onEdit={()=>setPage('profile')} onHistory={()=>setPage('history')}
+            accruals={ledger.accruals} onEdit={()=>setPage('profile')}
             onWithdraw={()=>{
               setWalletDraft(account?.profile.walletAddress??'');
               setWalletStep(account?.profile.walletAddress?'amount':'register');setWalletConfirmation(false);
@@ -434,6 +434,7 @@ export const MemberWorkspace: React.FC<{
                     className={x.status==='approved'?'text-emerald-400 font-semibold':x.status==='failed'||x.status==='rejected'?'text-rose-300 font-semibold':'text-slate-300'}>
                     {x.status==='awaiting_vip'?tr.awaiting:x.status==='pending'?tr.pending:x.status==='approved'?tr.approved:x.status==='failed'?tr.failed:tr.rejected}
                   </span>
+                  <span className="whitespace-nowrap text-[11px] text-slate-400">{new Date(x.created_at*1000).toLocaleString(dateLocale)}</span>
                   {x.reason&&<span className="max-w-[220px] whitespace-normal text-[11px] text-rose-200">{x.reason}</span>}
                 </div>)}
               </div>
@@ -466,15 +467,6 @@ export const MemberWorkspace: React.FC<{
               className="rounded-xl border border-[#303b59] bg-[#11182c] p-2 text-rose-300"><LogOut size={24}/></button>
           </div>
           <p className="text-xs text-slate-400">{words.account}: {account?.user.login ?? user.login} · {language==='en'?'User ID':language==='es'?'ID de usuario':'ID do usuário'} #{user.id}</p>
-          <label className="flex items-center justify-between bg-[#1b2137] rounded-xl border border-[#2b3350] p-4 text-sm">
-            <span>{language==='en'?'Language':language==='es'?'Idioma':'Idioma'}</span>
-            <select value={language} onChange={e=>onChangeLanguage(e.target.value as LanguageCode)}
-              className="bg-[#11182c] rounded-lg px-3 py-2 text-xs text-white">
-              <option value="pt">Português</option>
-              <option value="en">English</option>
-              <option value="es">Español</option>
-            </select>
-          </label>
           <button type="button" data-testid="settings-top-miners" onClick={()=>setPage('topMiners')}
             className="w-full flex gap-3 items-center rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-[#231905] border border-yellow-300 p-4 font-black text-sm shadow-lg shadow-amber-900/20">
             <Trophy size={19}/>{language==='en'?'Top Miners':language==='es'?'Mejores mineros':'Top Mineradores'}
@@ -487,6 +479,15 @@ export const MemberWorkspace: React.FC<{
             <button key={target} onClick={()=>setPage(target)}
               className="w-full flex gap-3 items-center rounded-xl bg-[#1b2137] border border-[#2b3350] p-4 text-sm">
               <Icon size={18}/>{label}</button>)}
+          <label className="flex items-center justify-between bg-[#1b2137] rounded-xl border border-[#2b3350] p-4 text-sm">
+            <span>{language==='en'?'Language':language==='es'?'Idioma':'Idioma'}</span>
+            <select value={language} onChange={e=>onChangeLanguage(e.target.value as LanguageCode)}
+              className="bg-[#11182c] rounded-lg px-3 py-2 text-xs text-white">
+              <option value="pt">Português</option>
+              <option value="en">English</option>
+              <option value="es">Español</option>
+            </select>
+          </label>
           <button className="w-full flex gap-3 items-center rounded-xl bg-[#1b2137] border border-[#2b3350] p-4 text-sm"
             onClick={onLogout}><LogOut size={18}/> {words.signOut}</button>
         </section>}

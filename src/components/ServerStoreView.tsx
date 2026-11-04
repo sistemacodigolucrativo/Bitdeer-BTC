@@ -34,7 +34,7 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
         <p className="font-bold">{currentPlan.name} · US$ {currentPlan.dailyUsd}/{t.day}</p>
       </div>
       <span data-testid="store-plan-shield" aria-label={language==='en'?'Active plan':language==='es'?'Plan activo':'Plano ativo'}
-        className="shrink-0 rounded-xl border border-emerald-400/35 bg-emerald-400/10 p-2 text-emerald-300"><ShieldCheck size={22}/></span>
+        className="shrink-0 rounded-xl border border-emerald-400/35 bg-emerald-400/10 p-2 text-emerald-300"><ShieldCheck size={24}/></span>
     </div>}
     {selected && <>
       <div data-testid="store-plan-illustration" className="bg-[#191e32] border border-[#262e49] rounded-2xl p-2.5 flex gap-2.5 items-center overflow-hidden shadow-sm">

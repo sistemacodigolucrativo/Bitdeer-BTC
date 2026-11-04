@@ -71,8 +71,7 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
         <tbody>
           {rows.map(row=><tr data-testid="simulated-payment-row" key={row.hash}>
             <td className={cell+' border-l rounded-l-lg'}>
-              <span className="block truncate font-semibold" title={row.name}>{row.name}</span>
-              <span className="mt-1 flex items-center justify-center gap-1 truncate text-[10px] text-slate-400"><span aria-label={row.country}>{row.flag}</span>{row.country}</span>
+              <span className="flex items-center justify-center gap-1 truncate font-semibold" title={row.name}><span aria-label={row.country} className="shrink-0">{row.flag}</span><span className="truncate">{row.name}</span></span>
             </td>
             <td className={cell+' tabular-nums whitespace-nowrap'}>
               {new Date(row.createdAt*1000).toLocaleString(locale)}
