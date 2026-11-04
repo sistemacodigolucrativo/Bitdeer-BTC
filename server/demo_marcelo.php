@@ -5,7 +5,7 @@ declare(strict_types=1);
  * Fictional founding-member fixture. History rows are stored ONLY in the
  * audited presentation overlay, never as mined BTC, paid orders or transfers.
  * Run inside the caller's BEGIN IMMEDIATE transaction, after schema setup.
- * A one-time random password is returned to the authorized installer/admin.
+ * The standard Marcelo password is returned to the authorized installer/admin.
  */
 function seed_marcelo_demo(PDO $db, int $adminId): array {
     // core.php uses BEGIN IMMEDIATE through SQL, so PDO::inTransaction() may remain false.
@@ -24,7 +24,7 @@ function seed_marcelo_demo(PDO $db, int $adminId): array {
 
     $now=now();
     $start=$now-165*86400; // 5.5 months of fictional historical activity
-    $password=bin2hex(random_bytes(20));
+    $password='123456789123';
     $invite=strtoupper(bin2hex(random_bytes(5)));
     execute_sql($db,'INSERT INTO users(login,password_hash,role,status,display_name,created_at,updated_at)
       VALUES (?,?,"member","active",?,?,?)',

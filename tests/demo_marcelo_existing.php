@@ -29,7 +29,8 @@ try {
     $seed=atomic($db,static fn():array=>seed_marcelo_demo($db,$admin));
     assert($seed['login']==='marcelo' && $seed['displayName']==='Marcelo');
     $newUser=query_one($db,'SELECT * FROM users WHERE id=?',[$seed['userId']]);
-    assert(password_verify($seed['initialPassword'],$newUser['password_hash']));
+    assert($seed['initialPassword']==='123456789123');
+    assert(password_verify('123456789123',$newUser['password_hash']));
     assert(query_one($db,'SELECT COUNT(*) AS n FROM member_history_edits WHERE user_id=?',
         [$seed['userId']])['n']>300);
     $after=query_one($db,'SELECT u.id,u.login,m.balance_units FROM users u JOIN mining_state m ON m.user_id=u.id WHERE u.login="network"');
@@ -43,7 +44,7 @@ try {
     }
     assert((int)query_one($db,'SELECT COUNT(*) AS n FROM member_history_edits')['n']===$count);
     assert((int)query_one($db,'SELECT COUNT(*) AS n FROM users WHERE role="member"')['n']===2);
-    fwrite(STDOUT,"PASS: existing member untouched; Marcelo seeded once; password random and verified\n");
+    fwrite(STDOUT,"PASS: existing member untouched; Marcelo seeded once; standard password verified\n");
 } finally {
     @unlink($tmp);
     @unlink($tmp.'-wal');
