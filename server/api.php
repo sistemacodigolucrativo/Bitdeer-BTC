@@ -743,6 +743,18 @@ function api_dispatch(PDO $db, string $action, string $method): never {
               ['id'=>'D-108','plan_id'=>'VIP_03','status'=>'failed','reason'=>'Falha temporária no processamento.','created_at'=>$base-86400*42,'usd_cents'=>15320,'btc_satoshis'=>232400],
               ['id'=>'D-109','plan_id'=>'VIP_03','status'=>'approved','created_at'=>$base-86400*40,'usd_cents'=>15320,'btc_satoshis'=>232400],
             ]);
+            // Only presentation fixtures for the standard test member: spread
+            // their displayed timestamps over roughly six months with varied
+            // intervals. SQLite rows, balances and real withdrawal requests
+            // are never changed here.
+            usort($requests,static fn($a,$b)=>(int)$a['created_at']<=>(int)$b['created_at']);
+            $at=$base-169*86400;
+            $gaps=[2,3,2,3,3,2,4,2,3,2,4,3];
+            foreach($requests as $index=>&$request) {
+                if($index>0)$at+=$gaps[($index-1)%count($gaps)]*86400+((($index*37)%9)-4)*3600;
+                $request['created_at']=$at;
+            }
+            unset($request);
         }
         json_out(['requests'=>$requests,
                   'simulation'=>true]);
