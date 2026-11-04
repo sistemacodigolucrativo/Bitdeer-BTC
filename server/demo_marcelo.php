@@ -119,7 +119,7 @@ function seed_marcelo_demo(PDO $db, int $adminId): array {
     foreach($segments as $seg){
         if($seg['plan']==='FREE')continue;
         for($day=$seg['from']+1;$day<$seg['to'];$day+=2){
-            $cents=600+$day*24+($index%9)*160;
+            $cents=600+$day*24+$index*32+($index%5)*18;
             $sats=(int)round(($cents/100)*100000000/$rateForDay($day));
             $save('withdrawal',['plan_id'=>$seg['plan'],'status'=>'approved',
               'created_at'=>$start+$day*86400+7200,
