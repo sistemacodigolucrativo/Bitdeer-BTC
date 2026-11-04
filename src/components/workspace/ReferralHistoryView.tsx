@@ -13,15 +13,15 @@ export const ReferralHistoryView:React.FC<Props>=({language,onBack,embedded=fals
   const copy=language==='en'?{
     title:'Referrals',total:'Internal referral rewards',empty:'No registered referrals',
     registrations:'Registered members',copy:'Copy invitation',history:'Referral history',
-    warn:'Only real, completed registrations are counted. USD is an internal credit, not BTC.'}
+    warn:'Only completed registrations appear in the history.'}
     :language==='es'?{
     title:'Referidos',total:'Créditos internos por invitación',empty:'No hay referidos registrados',
     registrations:'Miembros registrados',copy:'Copiar invitación',history:'Historial de referidos',
-    warn:'Solo se cuentan registros completados. USD es un crédito interno, no BTC.'}
+    warn:'Solo los registros completados aparecen en el historial.'}
     :{
     title:'Indicações',total:'Créditos internos por indicação',empty:'Nenhuma indicação cadastrada',
     registrations:'Membros cadastrados',copy:'Copiar convite',history:'Histórico de indicações',
-    warn:'Somente cadastros concluídos entram no histórico. USD é crédito interno, não BTC.'};
+    warn:'Somente cadastros concluídos entram no histórico.'};
   const locale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const refresh=async()=>{try{
     setData(await api<Data>('referrals.mine'));setError('');
