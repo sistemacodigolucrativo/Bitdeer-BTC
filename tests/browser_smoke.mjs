@@ -68,6 +68,15 @@ try {
   if(!menuPosition||!welcomePosition||menuPosition.y<=welcomePosition.y||
      menuPosition.y+menuPosition.height<page.viewportSize().height-24)
     throw Error('Member navigation must remain beneath content at viewport bottom');
+  const mobileBounds=await page.evaluate(()=>{
+    const shell=document.querySelector('.btc-app-shell')?.getBoundingClientRect();
+    const menu=document.querySelector('[data-testid="member-bottom-nav"]')?.getBoundingClientRect();
+    return {shellBottom:shell?.bottom??0,menuBottom:menu?.bottom??0,
+      visualHeight:window.visualViewport?.height??window.innerHeight};
+  });
+  if(mobileBounds.shellBottom>mobileBounds.visualHeight+3 ||
+     mobileBounds.menuBottom>mobileBounds.visualHeight+3)
+    throw Error('Mobile viewport clips the bottom menu or app shell');
   const contentScroller=page.locator('.member-vertical-scroll').first();
   await contentScroller.evaluate(el=>{el.scrollTop=300;});
   const scrolledMenu=await bottomMenu.boundingBox();
@@ -138,7 +147,34 @@ try {
       JSON.stringify({btc:initialBtc,usd:syncedUsd,expected:syncedUsd/quoteRate}));
   const mockFeedResponse=page.waitForResponse(response=>
     response.url().includes('action=mock.payments.latest'),{timeout:15000});
+  // Fake only the response for this browser to verify real UI pagination.
+  const withdrawFixture=Array.from({length:25},(_,i)=>({
+    id:1000+i,usd_cents:1000+i,btc_satoshis:5000+i,
+    status:i%3===0?'approved':'pending',created_at:1800000000-i*60
+  }));
+  const withdrawalRoute='**/api/index.php?action=withdraw.mine';
+  await page.route(withdrawalRoute,route=>route.fulfill({
+    status:200,contentType:'application/json',
+    body:JSON.stringify({requests:withdrawFixture,simulation:true})
+  }));
   await page.locator('nav button').nth(3).click();
+  await page.getByTestId('withdraw-history-row').first().waitFor({timeout:10000});
+  if(await page.getByTestId('withdraw-history-row').count()!==10)
+    throw Error('Withdrawals must show ten rows on the first page');
+  if((await page.getByTestId('withdraw-page-indicator').innerText()).trim()!=='1 / 3')
+    throw Error('Withdrawal pagination should display three pages');
+  if(!((await page.getByTestId('withdraw-status').first().getAttribute('class'))||'').includes('text-emerald'))
+    throw Error('Approved withdrawals must be displayed in green');
+  if((await page.getByTestId('withdraw-history-row').first().innerText()).includes('equivalência interna'))
+    throw Error('The redundant internal equivalent label is still visible');
+  await page.getByTestId('withdraw-page-next').click();
+  if(!(await page.getByTestId('withdraw-history-row').first().innerText()).includes('#1010'))
+    throw Error('Withdrawal page two did not show the next ten records');
+  await page.getByTestId('withdraw-page-next').click();
+  if(await page.getByTestId('withdraw-history-row').count()!==5)
+    throw Error('Withdrawal last page should contain only the remaining five');
+  await page.getByTestId('withdraw-page-prev').click();
+  await page.unroute(withdrawalRoute);
   const walletBalance=page.getByTestId('wallet-live-usd');
   await walletBalance.waitFor({timeout:10000});
   const firstWallet=await walletBalance.innerText();
@@ -158,10 +194,14 @@ try {
      await page.getByTestId('simulated-payments-exhausted').count() ||
      await feed.getByText(/200 registros demonstrativos/i).count())
     throw Error('Wallet must not show the legacy pagination or 200-record footer');
+  if(await feed.locator('table thead th').count()!==5)
+    throw Error('Latest BTC payments must have five aligned columns');
+  if(await feed.getByText(/Registros fictícios de demonstração|Fictional demonstration records|Datos ficticios de demostración/).count())
+    throw Error('Remove the technical demonstration paragraph from payment table');
   const hashes=mockFeed.records.map(record=>record.hash);
   if(new Set(hashes).size!==10||hashes.some(hash=>!hash.startsWith('SIM-')))
     throw Error('Wallet mock hashes must be unique and clearly fictional');
-  const displayedIds=await page.getByTestId('simulated-payment-row').locator('p.font-mono').allTextContents();
+  const displayedIds=await page.getByTestId('payment-hash').evaluateAll(nodes=>nodes.map(x=>x.getAttribute('title')||''));
   if(displayedIds.join('|')!==hashes.join('|'))
     throw Error('Wallet must render the backend mock samples in descending date order');
   const localDates=await page.evaluate(stamps=>{
@@ -210,6 +250,8 @@ try {
   await page.getByTestId('claim-daily-rewards').waitFor({timeout:10000});
   await page.getByTestId('referrals-in-rewards').waitFor({timeout:10000});
   await page.getByTestId('referrals-in-rewards').getByRole('button',{name:'Copiar convite'}).waitFor({timeout:10000});
+  if(await page.getByText('USD é crédito interno, não BTC.').count())
+    throw Error('Redundant USD/BTC referral note remains visible');
   const rewardToggle=page.getByTestId('reward-history-toggle');
   if(await rewardToggle.getAttribute('aria-expanded')!=='false')throw Error('Reward history should start collapsed');
   await rewardToggle.click();
@@ -283,6 +325,8 @@ try {
   await page.getByRole('button',{name:/Histórico VIP|Subscriptions|Suscripciones/}).click();
   await page.getByText(/Histórico de assinaturas|Subscription history|Historial de suscripciones/).first()
     .waitFor({timeout:10000});
+  if(await page.getByText(/Histórico dos contratos registrados|Subscription contracts saved|Contratos de suscripción guardados/).count())
+    throw Error('Technical VIP contract notice must be removed');
   await page.locator('nav button').nth(4).click();
   await page.locator('nav button').nth(3).click();
   await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
@@ -378,18 +422,36 @@ try {
   await page.getByRole('button',{name:'Withdraw'}).click();
   await page.getByRole('heading',{name:'Withdrawal Request'}).waitFor({timeout:10000});
   await page.getByRole('button',{name:'Back to wallet'}).click();
-  // A real outage cannot be described indefinitely as "being calculated".
-  // Stub only the public quote request in this browser, not any PHP balances.
+  // Outages preserve a stored display quote and recover automatically without
+  // exposing technical errors. Fresh quotes are still required for withdrawals.
   const quotePattern='**/api/index.php?action=withdraw.quote';
+  const cachedBefore=await page.evaluate(()=>localStorage.getItem('bitdeer_btc_usd_last_quote_v1'));
+  if(!cachedBefore||!(JSON.parse(cachedBefore).rate>0))
+    throw Error('Verified BTC/USD rate must be cached for reload recovery');
   await page.route(quotePattern,route=>route.fulfill({
     status:503,contentType:'application/json',body:'{"error":"BTC/USD price unavailable"}'
   }));
   await page.reload();
   await page.locator('nav button').first().click();
-  await page.getByRole('status').filter({hasText:'BTC quote unavailable'}).waitFor({timeout:10000});
+  await page.waitForFunction(()=>/^\\d+\\.\\d{8} BTC$/.test(
+    document.querySelector('[data-testid="mining-live-btc"]')?.textContent?.trim()||''),
+    null,{timeout:10000});
+  if(await page.getByText(/BTC quote unavailable|Cotação BTC indisponível|Cotización BTC no disponible/).count())
+    throw Error('Last-known quote failures must not be shown to the member');
+  if(await page.getByRole('button',{name:/Retry|Reintentar|Tentar novamente/}).count())
+    throw Error('Manual BTC quote retry must not be required');
+  await page.locator('nav button').nth(4).click();
+  await page.getByTestId('settings-top-miners').click();
+  const cachedMinerUsd=await page.getByTestId('miner-usd-amount').first().innerText();
+  if(!cachedMinerUsd.includes('$')||cachedMinerUsd.includes('—'))
+    throw Error('Top Miners must reuse last BTC/USD price during quote outages');
+  const recovered=page.waitForResponse(response=>
+    response.url().includes('action=withdraw.quote')&&response.status()===200,{timeout:30000});
   await page.unroute(quotePattern);
-  await page.getByRole('button',{name:'Retry'}).click();
-  await page.waitForFunction(()=>document.querySelector('[data-testid="mining-live-btc"]')?.textContent?.trim()!=='— BTC',
+  await recovered;
+  await page.locator('nav button').first().click();
+  await page.waitForFunction(()=>/^\\d+\\.\\d{8} BTC$/.test(
+    document.querySelector('[data-testid="mining-live-btc"]')?.textContent?.trim()||''),
     null,{timeout:10000});
   await page.evaluate(()=>{
     const key='btc_mining_user_preferences_v1';
