@@ -44,7 +44,8 @@ try {
   await enter.waitFor({timeout:15000});
   await enter.click({timeout:15000});
   await screen.getByTestId('member-bottom-nav').waitFor({timeout:15000});
-  await screen.getByRole('button',{name:'Sair'}).click();
+  await screen.getByTestId('member-bottom-nav').locator('button').nth(4).click();
+  await screen.getByTestId('settings-exit').click();
   await screen.locator('input[autocomplete="username"]').fill('browsermember');
   await screen.locator('input[autocomplete="current-password"]').fill('BrowserMemberPassword2026');
   await screen.locator('button[type="submit"]').click();
@@ -86,7 +87,7 @@ try {
   const store=page.getByTestId('store-view');
   await store.getByTestId('store-active-plan').waitFor({timeout:10000});
   if(await store.evaluate(el=>el.firstElementChild?.getAttribute('data-testid'))!=='store-active-plan')throw Error('Active plan must appear first');
-  await store.getByTestId('store-exit').waitFor({timeout:10000});
+  await store.getByTestId('store-plan-shield').waitFor({timeout:10000});
   const currentPlan=store.getByTestId('store-active-plan');
   if(await currentPlan.locator('svg.lucide-shield-check').count()!==1)
     throw Error('Current plan shield should remain beside the card title');
@@ -102,7 +103,7 @@ try {
   if(await store.getByText(/Ativação após conferência manual|Activation follows manual payment confirmation|La activación requiere la confirmación manual/).count())
     throw Error('Store activation explanatory text must not be shown');
   await page.getByTestId('member-bottom-nav').locator('button').first().click();
-  await page.getByTestId('home-exit').waitFor({timeout:10000});
+  await page.getByTestId('home-rewards-shortcut').waitFor({timeout:10000});
   const welcomeCard=page.getByTestId('home-welcome-card');
   await welcomeCard.waitFor({timeout:10000});
   if(await welcomeCard.getByText(/Plano atual:|Current plan:|Plan actual:|Plano Free/i).count())
@@ -111,12 +112,10 @@ try {
     throw Error('Redundant manual profile-refresh button remains in welcome card');
   if(await page.getByText(/Projeção interna entre atualizações|Internal projection between server updates|Proyección interna entre actualizaciones/i).count())
     throw Error('Removed internal projection note remains visible');
-  const bonus=page.getByTestId('daily-bonus-card');
-  await bonus.waitFor({timeout:10000});
-  if(await bonus.locator('button').count()!==1)throw Error('Daily bonus must have one redeem button');
-  if(await bonus.getByText('USD').count()!==1||await bonus.getByText('Satoshis').count()!==1)
-    throw Error('Daily bonus card must present both reward types');
-  await bonus.locator('button').click();
+  await page.getByTestId('home-rewards-shortcut').click();
+  await page.getByTestId('rewards-premium').waitFor({timeout:10000});
+  if(await page.getByTestId('reward-bonus-grid').locator(':scope > div').count()!==2)
+    throw Error('Rewards page must contain the two daily bonuses');
   const claimButton=page.getByTestId('claim-daily-rewards');
   await claimButton.waitFor({timeout:10000});
   if(await claimButton.isDisabled())throw Error('Initial daily bonus should be claimable');
@@ -296,6 +295,10 @@ try {
   if(await page.getByTestId('reward-bonus-grid').locator(':scope > div').count()!==2)
     throw Error('Compact reward grid must have two bonus tiles');
   await page.getByTestId('claim-daily-rewards').waitFor({timeout:10000});
+  const referralsToggle=page.getByTestId('referral-history-toggle');
+  if(await referralsToggle.getAttribute('aria-expanded')!=='false')
+    throw Error('Referral history should start collapsed');
+  await referralsToggle.click();
   await page.getByTestId('referrals-in-rewards').waitFor({timeout:10000});
   await page.getByTestId('referrals-in-rewards').getByRole('button',{name:'Copiar convite'}).waitFor({timeout:10000});
   if(await page.getByText('USD é crédito interno, não BTC.').count())
@@ -321,9 +324,9 @@ try {
     throw Error('Redundant settings button is visible');
   const goldButton=page.getByTestId('settings-top-miners');
   await goldButton.waitFor({timeout:10000});
-  const firstSettingsButton=await page.locator('[data-testid="settings-top-miners"]').evaluate(
-    node=>node.parentElement?.querySelectorAll('button')[0]===node);
-  if(!firstSettingsButton)throw Error('Top Miners must be first settings action');
+  const firstSettingsAction=await page.locator('[data-testid="settings-top-miners"]').evaluate(
+    node=>node.parentElement?.querySelectorAll('button')[1]===node);
+  if(!firstSettingsAction)throw Error('Top Miners must follow only the settings logout header');
   const gold=await goldButton.evaluate(node=>getComputedStyle(node).backgroundImage);
   if(!gold.includes('gradient'))throw Error('Top Miners gold styling missing');
   await goldButton.click();
@@ -623,7 +626,7 @@ try {
   await withdrawalPage.getByTestId('member-bottom-nav').locator('button').nth(3).click();
   await withdrawalPage.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
   await withdrawalPage.getByTestId('withdraw-request-amount').fill('1.00');
-  await withdrawalPage.getByRole('button',{name:/Registrar solicitação|Submit request|Register request|Registrar solicitud/}).click();
+  await withdrawalPage.getByRole('button',{name:/Enviar para minha carteira|Send to my wallet|Enviar a mi billetera|Submit request|Registrar solicitud/}).click();
   const modal=withdrawalPage.getByTestId('withdraw-awaiting-vip-modal');
   await modal.waitFor({timeout:12000});
   // The withdrawal modal is localized according to the member's selected language,
