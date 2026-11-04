@@ -114,7 +114,7 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd,quoteTime})=
         className="w-10 h-10 rounded-xl bg-[#1b2137] flex items-center justify-center"><ArrowLeft size={20}/></button>
       <h2 className="font-extrabold text-lg text-center">{language==='en'?'Top Miners':language==='es'?'Mejores mineros':'Top Mineradores'}</h2><span aria-hidden="true"/>
     </header>
-    <div data-testid="top-miners-scroll" className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y member-vertical-scroll p-4 space-y-3">
+    <div data-testid="top-miners-scroll" className="top-miners-vertical-scroll flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y member-vertical-scroll p-4 space-y-3">
       <p className="text-[11px] text-slate-400">{notice}</p>
       {btcUsd!==null&&btcUsd!==undefined&&btcUsd>0&&
         <p className="text-[10px] text-slate-500">
