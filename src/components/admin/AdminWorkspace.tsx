@@ -324,11 +324,11 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
           }}>Registrar verificação de identidade</button>
           {verificationId!==null && <div className="space-y-3 border-t border-[#2b3350] pt-3">
             <label className="text-xs block">Nova senha
-              <input type="password" minLength={10} maxLength={256}
+              <input type="password" minLength={12} maxLength={256}
                 autoComplete="new-password" value={newMemberPassword} onChange={e=>setNewMemberPassword(e.target.value)}
                 className="w-full bg-[#11182c] rounded-lg p-3 mt-1"/>
             </label>
-            <button disabled={busy || newMemberPassword.length<10} className={btn} onClick={()=>{
+            <button disabled={busy || newMemberPassword.length<12} className={btn} onClick={()=>{
               if(!editingMember)return;
               setBusy(true);setNotice('');
               void api('admin.password.reset',{userId:editingMember.id,verificationId,newPassword:newMemberPassword})
