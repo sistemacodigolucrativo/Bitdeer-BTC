@@ -262,7 +262,7 @@ export default function App() {
           {/* Step 6: Main App Workspace with Tabs (Home, Store, Reward, Wallet, Setting) */}
           {!checkingSession && activeScreen === 'workspace' && authUser && (
             authUser.role === 'admin'
-              ? <AdminWorkspace user={authUser} language={language} onLogout={() => {void backendLogout().finally(() => {setAuthUser(null);setActiveScreen('login');});}}/>
+              ? <AdminWorkspace user={authUser} language={language} onChangeLanguage={handleSelectLanguage} onLogout={() => {void backendLogout().finally(() => {setAuthUser(null);setActiveScreen('login');});}}/>
               : <MemberWorkspace user={authUser} language={language}
                 onChangeLanguage={handleSelectLanguage}
                 onLogout={() => {void backendLogout().finally(() => {setAuthUser(null);setActiveScreen('login');});}}/>
