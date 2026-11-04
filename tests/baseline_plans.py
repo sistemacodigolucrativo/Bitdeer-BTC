@@ -14,7 +14,7 @@ with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as db:
         "SELECT id,price_cents,daily_cents,bonus_usd_cents,bonus_satoshis,"
         "duration_days,session_seconds,restart_cooldown_seconds FROM plans")}
 assert actual==expected,(actual,expected)
-founder=db.execute("SELECT id,role,status,display_name FROM users WHERE login='marcelo'").fetchone()
+founder=db.execute("SELECT id,role,status,display_name FROM users WHERE login='user'").fetchone()
 assert founder and founder[1:] == ('member','active','Marcelo')
 assert db.execute("SELECT COUNT(*) FROM referral_codes WHERE user_id=?",(founder[0],)).fetchone()[0]==1
 assert db.execute("SELECT COUNT(*) FROM referral_events").fetchone()[0]==0

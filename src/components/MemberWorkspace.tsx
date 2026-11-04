@@ -9,7 +9,7 @@ import { ServerHomeView } from './ServerHomeView';
 import { ServerStoreView } from './ServerStoreView';
 import { ServerWalletView } from './ServerWalletView';
 import { MockPaymentFeed } from './MockPaymentFeed';
-import { formatBrazilianPhone, validBrazilianPhone } from '../utils/phone';
+import { formatInternationalPhone, normalizeInternationalPhone, validInternationalPhone } from '../utils/phone';
 import { projectInternalBalance } from '../utils/projectInternalBalance';
 import { ServerRewardView } from './ServerRewardView';
 import { RewardHistoryLog } from './RewardHistoryLog';
@@ -112,7 +112,7 @@ export const MemberWorkspace: React.FC<{
   async function reload() {
     try {
       const data = await api<MemberData>('profile');
-      acceptSnapshot(data); setProfile({...data.profile,phone:formatBrazilianPhone(data.profile.phone)});
+      acceptSnapshot(data); setProfile({...data.profile,phone:formatInternationalPhone(data.profile.phone)});
     } catch(e) { setNotice((e as Error).message); }
   }
   function refreshQuote() {
@@ -200,7 +200,7 @@ export const MemberWorkspace: React.FC<{
   async function act(action: string, body: Record<string, unknown> = {}) {
     setBusy(true); setNotice('');
     try {
-      if(action==='profile.update' && typeof body.phone==='string' && !validBrazilianPhone(body.phone)) {
+      if(action==='profile.update' && typeof body.phone==='string' && !validInternationalPhone(body.phone)) {
         throw new Error(tr.phone);
       }
       const result = await api<PurchaseOrder | {ok:boolean}>(action,body);
@@ -413,9 +413,10 @@ export const MemberWorkspace: React.FC<{
             {({displayName:words.name,email:words.optionalEmail,phone:words.phone,walletAddress:words.btcWallet} as const)[k]}
             <input type={k==='email'?'email':k==='phone'?'tel':'text'} autoComplete={k==='email'?'email':k==='phone'?'tel':'off'}
               value={profile[k]}
-              maxLength={k==='phone'?15:undefined} inputMode={k==='phone'?'tel':undefined}
-              placeholder={k==='phone'?'(31) 99999-9999':undefined}
-              onChange={e=>setProfile(p=>({...p,[k]:k==='phone'?formatBrazilianPhone(e.target.value):e.target.value}))}
+              maxLength={k==='phone'?24:undefined} inputMode={k==='phone'?'tel':undefined}
+              placeholder={k==='phone'?'+55 31 99999-9999':undefined}
+              onChange={e=>setProfile(p=>({...p,[k]:k==='phone'?formatInternationalPhone(e.target.value):e.target.value}))}
+              onBlur={e=>{if(k==='phone')setProfile(p=>({...p,phone:normalizeInternationalPhone(e.target.value)}));}}
               className="mt-1 w-full bg-[#1b2137] border border-[#2b3350] p-3 rounded-xl text-white"/>
           </label>)}
           <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3">{words.update}</button>

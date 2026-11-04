@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AuthUser, Plan, api } from '../../services/api';
 import { AdminMemberRecords } from './AdminMemberRecords';
+import { copyToClipboard } from '../../utils/clipboard';
 import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headphones, Menu, ChevronDown, ChevronUp } from 'lucide-react';
 
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
@@ -43,7 +44,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
   const [busy,setBusy]=useState(false);
   const [demoMarceloExists,setDemoMarceloExists]=useState(false);
   const [demoMarceloAccess,setDemoMarceloAccess]=useState<{login:string;password:string;referralCode:string}|null>(null);
-  const [randomUserAccess,setRandomUserAccess]=useState<{login:string;password:string;referralCode:string}|null>(null);
+  const [randomUserAccess,setRandomUserAccess]=useState<{login:string;password:string;referralCode:string;email:string;displayName:string}|null>(null);
   async function refresh() {
     try {
       const [m,p,o,s]=await Promise.all([
@@ -90,10 +91,10 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
     if(!window.confirm('Criar um Random User povoado com os mesmos dados padrão do Marcelo?'))return;
     setBusy(true);setNotice('');
     try{
-      const created=await api<{login:string;initialPassword:string;referralCode:string}>(
+      const created=await api<{login:string;initialPassword:string;referralCode:string;email:string;displayName:string}>(
         'admin.demo.random-member.seed',{confirmRandomUser:true});
       setRandomUserAccess({login:created.login,password:created.initialPassword,
-        referralCode:created.referralCode});
+        referralCode:created.referralCode,email:created.email,displayName:created.displayName});
       setNotice('Random User criado com sucesso. Guarde as credenciais exibidas apenas nesta sessão.');
       await refresh();
     }catch(e){setNotice((e as Error).message)}
@@ -203,15 +204,19 @@ export const AdminWorkspace: React.FC<{user:AuthUser;onLogout:()=>void}> = ({use
         </section>
         <section className="rounded-xl border border-cyan-400/25 bg-gradient-to-br from-[#17283a] to-[#1b2137] p-3 space-y-2" data-testid="admin-random-user">
           <p className="text-sm font-semibold">Random User</p>
-          <p className="text-xs text-slate-300">Cria uma conta povoada no padrão <code>bitdeer_###</code>, com o mesmo saldo e histórico do Marcelo.</p>
+          <p className="text-xs text-slate-300">Cria uma conta povoada com nome, login e e-mail fictícios coerentes, além do mesmo saldo e histórico do Marcelo.</p>
           <button type="button" data-testid="admin-seed-random-user" disabled={busy}
             className={btn+' disabled:opacity-50'} onClick={()=>void createRandomUser()}>
             Random User
           </button>
           {randomUserAccess&&<div role="status" className="rounded-lg border border-cyan-300/30 p-3 bg-[#11182c] text-xs space-y-1">
             <p className="text-cyan-200 font-semibold">Usuário criado. Credenciais exibidas somente nesta sessão.</p>
-            <p>Usuário: <code className="select-text">{randomUserAccess.login}</code></p>
-            <p>Senha: <code className="select-text break-all">{randomUserAccess.password}</code></p>
+            <p>Nome: <code className="select-text">{randomUserAccess.displayName}</code></p>
+            <div className="flex flex-wrap items-center gap-2"><span>Usuário: <code className="select-text">{randomUserAccess.login}</code></span>
+              <button type="button" className="rounded-md border border-cyan-300/35 px-2 py-1 text-[11px] text-cyan-100" onClick={()=>void copyToClipboard(randomUserAccess.login).then(ok=>setNotice(ok?'Usuário copiado.':'Não foi possível copiar o usuário.'))}>COPIAR USUÁRIO</button></div>
+            <div className="flex flex-wrap items-center gap-2"><span>Senha: <code className="select-text break-all">{randomUserAccess.password}</code></span>
+              <button type="button" className="rounded-md border border-cyan-300/35 px-2 py-1 text-[11px] text-cyan-100" onClick={()=>void copyToClipboard(randomUserAccess.password).then(ok=>setNotice(ok?'Senha copiada.':'Não foi possível copiar a senha.'))}>COPIAR SENHA</button></div>
+            <p>E-mail: <code className="select-text break-all">{randomUserAccess.email}</code></p>
             <p>Indicação: <code className="select-text">{randomUserAccess.referralCode}</code></p>
             <button type="button" className="text-indigo-300 underline" onClick={()=>setRandomUserAccess(null)}>Ocultar credenciais</button>
           </div>}

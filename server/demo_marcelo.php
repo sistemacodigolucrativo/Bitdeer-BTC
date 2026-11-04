@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/random_identity.php';
 
 /**
  * Fictional founding-member fixture. History rows are stored ONLY in the
@@ -10,25 +11,25 @@ declare(strict_types=1);
 function seed_marcelo_demo(PDO $db, int $adminId): array {
     if (query_one($db,'SELECT value FROM app_settings WHERE name="demo_marcelo_seed"'))
         throw new RuntimeException('A conta padrão Marcelo já foi criada; nenhum dado foi alterado.');
-    $login='marcelo';
+    $login='user';
     // Preserve the administrator's chosen login; never take over an existing member.
     $conflict=query_one($db,'SELECT id,role FROM users WHERE login=?',[$login]);
-    if($conflict && $conflict['role']==='admin')$login='marcelo-demo';
+    if($conflict && $conflict['role']==='admin')$login='user-member';
     if(query_one($db,'SELECT id FROM users WHERE login=?',[$login]))
-        throw new RuntimeException('Já existe a conta Marcelo; nenhum dado foi alterado.');
-    return seed_populated_member($db,$adminId,$login,'Marcelo','demo_marcelo_seed','demo.member.seed');
+        throw new RuntimeException('Já existe a conta padrão; nenhum dado foi alterado.');
+    return seed_populated_member($db,$adminId,$login,'Marcelo','','demo_marcelo_seed','demo.member.seed');
 }
 
 function seed_random_member_demo(PDO $db, int $adminId): array {
     for($attempt=0;$attempt<30;$attempt++) {
-        $login='bitdeer_'.random_int(100,999);
-        if(!query_one($db,'SELECT id FROM users WHERE login=?',[$login]))
-            return seed_populated_member($db,$adminId,$login,'Random User',null,'demo.member.random.seed');
+        $identity=random_member_identity();
+        if(!query_one($db,'SELECT id FROM users WHERE login=? OR email=?',[$identity['login'],$identity['email']]))
+            return seed_populated_member($db,$adminId,$identity['login'],$identity['displayName'],$identity['email'],null,'demo.member.random.seed');
     }
     throw new RuntimeException('Não foi possível gerar um usuário aleatório disponível.');
 }
 
-function seed_populated_member(PDO $db, int $adminId, string $login, string $displayName,
+function seed_populated_member(PDO $db, int $adminId, string $login, string $displayName, string $email,
     ?string $markerName, string $auditAction): array {
     // core.php uses BEGIN IMMEDIATE through SQL, so PDO::inTransaction() may remain false.
     $mode=query_one($db,'SELECT value FROM app_settings WHERE name="payment_mode"');
@@ -41,9 +42,9 @@ function seed_populated_member(PDO $db, int $adminId, string $login, string $dis
     $start=$now-165*86400; // 5.5 months of fictional historical activity
     $password='123456789123';
     $invite=strtoupper(bin2hex(random_bytes(5)));
-    execute_sql($db,'INSERT INTO users(login,password_hash,role,status,display_name,created_at,updated_at)
-      VALUES (?,?,"member","active",?,?,?)',
-      [$login,secure_password($password),$displayName,$start,$now]);
+    execute_sql($db,'INSERT INTO users(login,password_hash,role,status,display_name,email,created_at,updated_at)
+      VALUES (?,?,"member","active",?,?,?,?)',
+      [$login,secure_password($password),$displayName,$email,$start,$now]);
     $userId=(int)$db->lastInsertId();
     execute_sql($db,'INSERT INTO mining_state(user_id,updated_at) VALUES (?,?)',[$userId,$now]);
     execute_sql($db,'INSERT INTO referral_codes(user_id,code,created_at) VALUES (?,?,?)',
@@ -157,7 +158,7 @@ function seed_populated_member(PDO $db, int $adminId, string $login, string $dis
       cooldown_until=NULL,updated_at=? WHERE user_id=?',
       [$targetUnits,$bonusSatoshis,$start+164*86400+3600,$now,$userId]);
 
-    $metadata=['userId'=>$userId,'login'=>$login,'simulation'=>true,
+    $metadata=['userId'=>$userId,'login'=>$login,'displayName'=>$displayName,'email'=>$email,'simulation'=>true,
       'startAt'=>$start,'seededAt'=>$now,'openingUsdCents'=>$openingCents,
       'earnedUsdCents'=>intdiv($earnedUnits,8640000),
       'bonusUsdCents'=>intdiv($bonusUnits,8640000),
@@ -167,6 +168,6 @@ function seed_populated_member(PDO $db, int $adminId, string $login, string $dis
     if($markerName!==null) execute_sql($db,'INSERT INTO app_settings(name,value) VALUES (?,?)',
       [$markerName,json_encode($metadata,JSON_THROW_ON_ERROR)]);
     audit($db,$adminId,$auditAction,$userId,$metadata);
-    return ['userId'=>$userId,'login'=>$login,'displayName'=>$displayName,
+    return ['userId'=>$userId,'login'=>$login,'displayName'=>$displayName,'email'=>$email,
       'initialPassword'=>$password,'referralCode'=>$invite,'summary'=>$metadata];
 }

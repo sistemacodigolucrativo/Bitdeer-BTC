@@ -91,7 +91,7 @@ assert admin.call("admin.overview")["members"]==3
 # The founding demo profile is present on clean installs. Existing profiles
 # cannot be overwritten or credited twice by the admin seed endpoint.
 demo_status=admin.call("admin.demo.marcelo.status")
-assert demo_status["exists"] is True and demo_status["summary"]["balanceUsdCents"]==183742
+assert demo_status["exists"] is True and demo_status["summary"]["balanceUsdCents"]==183742 and demo_status["summary"]["login"]=="user"
 assert demo_status["summary"]["historyCounts"]["withdrawal"]==60
 assert Client().call("admin.demo.marcelo.status",expected=401)["error"]
 assert alice.call("admin.demo.marcelo.seed",{"confirmDemo":True},403)["error"]
@@ -99,8 +99,9 @@ assert admin.call("admin.demo.marcelo.seed",{"confirmDemo":False},422)["error"]
 assert admin.call("admin.demo.marcelo.seed",{"confirmDemo":True},409)["error"]
 assert admin.call("admin.demo.marcelo.status")["summary"]==demo_status["summary"]
 random_user=admin.call("admin.demo.random-member.seed",{"confirmRandomUser":True},201)
-assert __import__("re").match(r"^bitdeer_[0-9]{3}$",random_user["login"])
-assert random_user["displayName"]=="Random User" and random_user["initialPassword"]=="123456789123"
+assert __import__("re").match(r"^[a-z0-9]{5,40}$",random_user["login"])
+assert random_user["displayName"] and random_user["initialPassword"]=="123456789123"
+assert random_user["email"].endswith(("example.com","example.org","example.net","mail.test","demo.invalid"))
 assert random_user["summary"]["balanceUsdCents"]==183742
 assert admin.call("admin.members")["total"]==4
 # Only actual invited registrations count. The old hardcoded legacy list is not imported.

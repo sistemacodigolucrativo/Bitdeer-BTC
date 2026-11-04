@@ -57,7 +57,7 @@ with tempfile.TemporaryDirectory(prefix="bitdeer-ip-install-") as directory:
         with request(payload) as response:
             result=response.read().decode("utf8")
             assert "Instalação concluída" in result
-            assert "marcelo" in result
+            assert "user" in result
         with sqlite3.connect(db) as con:
             assert con.execute("SELECT value FROM app_settings WHERE name='site_url'").fetchone()[0]=="http://203.0.113.5"
             assert con.execute("SELECT value FROM app_settings WHERE name='environment_type'").fetchone()[0]=="vps"

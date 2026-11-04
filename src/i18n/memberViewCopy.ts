@@ -12,7 +12,7 @@ export const memberViewCopy = {
     awaiting:'Aguardando assinatura VIP', pending:'Aguardando análise administrativa',
     approved:'Solicitação aprovada (sem envio automático de BTC)', rejected:'Rejeitado', order:'Pedido',
     perBtc:'por BTC', qrAlt:'QR de endereço e valor BTC deste pedido',
-    satoshis:'satoshis internos', units:'unidades USD', phone:'Informe um telefone brasileiro válido com DDD (10 ou 11 dígitos).',
+    satoshis:'satoshis internos', units:'unidades USD', phone:'Informe um telefone internacional válido com DDI, por exemplo +55, +1, +44 ou +36.',
     orderPending:'Pendente', orderApproved:'Aprovado', orderRejected:'Rejeitado', orderExpired:'Expirado'
   },
   en: {
@@ -27,7 +27,7 @@ export const memberViewCopy = {
     awaiting:'Awaiting VIP subscription', pending:'Awaiting administrative review',
     approved:'Request approved (no automatic BTC transfer)', rejected:'Rejected', order:'Order',
     perBtc:'per BTC', qrAlt:'QR for the BTC address and amount of this order',
-    satoshis:'internal satoshis', units:'USD units', phone:'Enter a valid Brazilian phone number with area code (10 or 11 digits).',
+    satoshis:'internal satoshis', units:'USD units', phone:'Enter a valid international phone number with a country calling code, such as +55, +1, +44 or +36.',
     orderPending:'Pending', orderApproved:'Approved', orderRejected:'Rejected', orderExpired:'Expired'
   },
   es: {
@@ -42,7 +42,7 @@ export const memberViewCopy = {
     awaiting:'Esperando suscripción VIP', pending:'En revisión administrativa',
     approved:'Solicitud aprobada (sin envío automático de BTC)', rejected:'Rechazado', order:'Pedido',
     perBtc:'por BTC', qrAlt:'QR de dirección e importe BTC del pedido',
-    satoshis:'satoshis internos', units:'unidades USD', phone:'Introduzca un teléfono brasileño válido con código de área (10 u 11 dígitos).',
+    satoshis:'satoshis internos', units:'unidades USD', phone:'Introduzca un teléfono internacional válido con prefijo, por ejemplo +55, +1, +44 o +36.',
     orderPending:'Pendiente', orderApproved:'Aprobado', orderRejected:'Rechazado', orderExpired:'Vencido'
   }
 } as const;

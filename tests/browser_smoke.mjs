@@ -312,11 +312,13 @@ try {
   await page.locator('nav button').nth(4).click();
   await page.getByRole('button',{name:/Meu perfil|My profile|Mi perfil/}).click();
   const phone=page.locator('input[type="tel"]');
-  await phone.fill('31999999999');
-  if(await phone.inputValue()!=='(31) 99999-9999')throw Error('Mobile phone mask failed');
-  await phone.fill('3133333333');
-  if(await phone.inputValue()!=='(31) 3333-3333')throw Error('Landline mask failed');
-  if(await phone.getAttribute('maxlength')!=='15')throw Error('Phone maxlength is missing');
+  await phone.fill('+5531999999999');
+  if(await phone.inputValue()!=='+55 31 99999 9999')throw Error('Brazil international phone format failed');
+  await phone.fill('+12125551234');
+  if(await phone.inputValue()!=='+1 212 555 1234')throw Error('US international phone format failed');
+  await phone.fill('+442079460958');
+  if(await phone.inputValue()!=='+44 20 7946 0958')throw Error('UK international phone format failed');
+  if(await phone.getAttribute('maxlength')!=='24')throw Error('International phone maxlength is missing');
   await page.setViewportSize({width:1280,height:800});
   await page.locator('nav button').first().click();
   await page.waitForTimeout(250);

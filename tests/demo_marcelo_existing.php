@@ -7,7 +7,7 @@ putenv('BITDEER_DB_PATH='.$tmp);
 try {
     provision('legacyadmin','StrongLegacyAdminPass2026!','support@example.org');
     $db=database();
-    $fixture=query_one($db,'SELECT id FROM users WHERE login="marcelo"');
+    $fixture=query_one($db,'SELECT id FROM users WHERE login="user"');
     $founderId=(int)$fixture['id'];
     $admin=(int)query_one($db,'SELECT id FROM users WHERE login="legacyadmin"')['id'];
     // Model an existing installation which has never had a demo account.
@@ -27,15 +27,16 @@ try {
     });
     $preserved=query_one($db,'SELECT u.id,u.login,m.balance_units FROM users u JOIN mining_state m ON m.user_id=u.id WHERE u.login="network"');
     $seed=atomic($db,static fn():array=>seed_marcelo_demo($db,$admin));
-    assert($seed['login']==='marcelo' && $seed['displayName']==='Marcelo');
+    assert($seed['login']==='user' && $seed['displayName']==='Marcelo');
     $newUser=query_one($db,'SELECT * FROM users WHERE id=?',[$seed['userId']]);
     assert($seed['initialPassword']==='123456789123');
     assert(password_verify('123456789123',$newUser['password_hash']));
     assert(query_one($db,'SELECT COUNT(*) AS n FROM member_history_edits WHERE user_id=?',
         [$seed['userId']])['n']>300);
     $random=atomic($db,static fn():array=>seed_random_member_demo($db,$admin));
-    assert((bool)preg_match('/^bitdeer_[0-9]{3}$/',$random['login']));
-    assert($random['displayName']==='Random User' && $random['initialPassword']==='123456789123');
+    assert((bool)preg_match('/^[a-z0-9]{5,40}$/',$random['login']));
+    assert($random['displayName']!=='' && $random['initialPassword']==='123456789123');
+    assert((bool)preg_match('/^[a-z0-9]+@(example\\.(com|org|net)|mail\\.test|demo\\.invalid)$/',$random['email']));
     $randomUser=query_one($db,'SELECT * FROM users WHERE id=?',[$random['userId']]);
     assert(password_verify('123456789123',$randomUser['password_hash']));
     assert(query_one($db,'SELECT COUNT(*) AS n FROM member_history_edits WHERE user_id=?',

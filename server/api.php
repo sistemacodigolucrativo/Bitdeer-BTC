@@ -255,16 +255,24 @@ function vip_eligible_at(PDO $db,int $memberId,int $at): bool {
       ORDER BY id DESC LIMIT 1',[$memberId,$at,$at]);
     return $contract!==null;
 }
-function is_valid_member_phone(string $value): bool {
-    if ($value==='') return true;
-    if (!preg_match('/^\\+?[0-9 ()-]{10,25}$/D',$value)) return false;
+function normalize_member_phone(string $value): ?string {
+    $value=trim($value);
+    if($value==='') return '';
+    if(!preg_match('/^\\+?[0-9 ()-]{7,25}$/D',$value)) return null;
     $digits=preg_replace('/\\D/','',$value);
-    if (!is_string($digits)) return false;
-    if (str_starts_with($digits,'55') && in_array(strlen($digits),[12,13],true))
-        $digits=substr($digits,2);
-    return in_array(strlen($digits),[10,11],true) &&
-        preg_match('/^[1-9][0-9]/D',$digits)===1;
+    if(!is_string($digits)) return null;
+    if(!str_starts_with($value,'+') && !(str_starts_with($digits,'55') && in_array(strlen($digits),[12,13],true)))
+        $digits='55'.$digits;
+    $rules=['55'=>[10,11],'1'=>[10,10],'44'=>[9,10],'36'=>[8,9],'351'=>[9,9],
+      '34'=>[9,9],'33'=>[9,9],'49'=>[7,13],'39'=>[6,11],'61'=>[9,9],'81'=>[9,10],
+      '52'=>[10,10],'54'=>[10,10]];
+    foreach($rules as $ddi=>[$min,$max]) { $ddi=(string)$ddi; if(str_starts_with($digits,$ddi)) {
+        $national=substr($digits,strlen($ddi));
+        return strlen($national)>=$min && strlen($national)<=$max ? '+'.$digits : null;
+    }}
+    return strlen($digits)>=8 && strlen($digits)<=15 ? '+'.$digits : null;
 }
+function is_valid_member_phone(string $value): bool { return normalize_member_phone($value)!==null; }
 function api_dispatch(PDO $db, string $action, string $method): never {
     ensure_member_features($db);
     if ($action === 'health' && $method === 'GET') json_out(['ok'=>true,'version'=>'php-sqlite-1']);
@@ -499,8 +507,8 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
         $body=request_body();
         $name=string_field($body,'displayName',120);$email=string_field($body,'email',254);
-        $phone=string_field($body,'phone',30);$wallet=string_field($body,'walletAddress',150);
-        if ($name === '' || !is_email_or_empty($email) || !is_valid_member_phone($phone)) fail(422,'Nome, e-mail ou telefone inválido');
+        $phone=normalize_member_phone(string_field($body,'phone',30));$wallet=string_field($body,'walletAddress',150);
+        if ($name === '' || !is_email_or_empty($email) || $phone===null) fail(422,'Nome, e-mail ou telefone inválido');
         if ($wallet!=='' && !btc_receive_address_valid($wallet)) fail(422,'Carteira Bitcoin inválida');
         execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=?,wallet_address=?,updated_at=? WHERE id=?',
           [$name,$email,$phone,$wallet,now(),$actor['id']]);
@@ -1012,10 +1020,10 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $name=string_field($body,'displayName',120);
         $email=string_field($body,'email',254);
         $login=string_field($body,'login',40);
-        $phone=array_key_exists('phone',$body) ? string_field($body,'phone',30) : null;
+        $phone=array_key_exists('phone',$body) ? normalize_member_phone(string_field($body,'phone',30)) : null;
         $wallet=array_key_exists('walletAddress',$body) ? string_field($body,'walletAddress',150) : null;
         if ($name==='' || !validate_login($login) || !is_email_or_empty($email) ||
-            ($phone!==null && !is_valid_member_phone($phone)) ||
+            (array_key_exists('phone',$body) && $phone===null) ||
             ($wallet!==null && $wallet!=='' && !btc_receive_address_valid($wallet)))
             fail(422,'Nome de usuário, e-mail, telefone ou carteira inválidos');
         atomic($db, static function() use ($db,$actor,$id,$login,$name,$email,$phone,$wallet): void {

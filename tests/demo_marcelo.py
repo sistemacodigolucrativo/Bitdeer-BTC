@@ -10,7 +10,7 @@ EXPECTED_COUNTS = {"accrual": 84, "bonus": 165, "purchase": 4,
                    "subscription": 4, "withdrawal": 60}
 with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as db:
     db.row_factory = sqlite3.Row
-    user = db.execute("SELECT * FROM users WHERE login='marcelo'").fetchone()
+    user = db.execute("SELECT * FROM users WHERE login='user'").fetchone()
     assert user and user["role"] == "member" and user["display_name"] == "Marcelo"
     assert user["status"] == "active"
     assert 164 * 86400 < time.time() - user["created_at"] < 166 * 86400
