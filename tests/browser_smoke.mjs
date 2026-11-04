@@ -57,14 +57,14 @@ try {
   const page=await ctx.newPage();
   page.on('pageerror',e=>problems.push(e.message));
   await page.goto('/');
-  await page.getByTestId('welcome-current-plan').waitFor({timeout:15000});
+  await page.getByTestId('home-welcome-card').waitFor({timeout:15000});
   if(await page.locator('div.px-5.pb-3').count())throw Error('Legacy member top header should be removed');
   await page.getByTestId('member-bottom-nav').locator('button').first().waitFor({timeout:15000});
   if(await page.getByTestId('member-bottom-nav').locator('button').count()!==5)throw Error('Member navigation must have five tabs');
   const bottomMenu=page.getByTestId('member-bottom-nav');
   await bottomMenu.waitFor({timeout:10000});
   const menuPosition=await bottomMenu.boundingBox();
-  const welcomePosition=await page.getByTestId('welcome-current-plan').boundingBox();
+  const welcomePosition=await page.getByTestId('home-welcome-card').boundingBox();
   if(!menuPosition||!welcomePosition||menuPosition.y<=welcomePosition.y||
      menuPosition.y+menuPosition.height<page.viewportSize().height-24)
     throw Error('Member navigation must remain beneath content at viewport bottom');
@@ -103,7 +103,14 @@ try {
     throw Error('Store activation explanatory text must not be shown');
   await page.getByTestId('member-bottom-nav').locator('button').first().click();
   await page.getByTestId('home-exit').waitFor({timeout:10000});
-  await page.getByTestId('welcome-current-plan').waitFor({timeout:10000});
+  const welcomeCard=page.getByTestId('home-welcome-card');
+  await welcomeCard.waitFor({timeout:10000});
+  if(await welcomeCard.getByText(/Plano atual:|Current plan:|Plan actual:|Plano Free/i).count())
+    throw Error('Welcome card must not display the active plan');
+  if(await welcomeCard.getByRole('button',{name:/Atualizar|Refresh|Actualizar/i}).count())
+    throw Error('Redundant manual profile-refresh button remains in welcome card');
+  if(await page.getByText(/Projeção interna entre atualizações|Internal projection between server updates|Proyección interna entre actualizaciones/i).count())
+    throw Error('Removed internal projection note remains visible');
   const bonus=page.getByTestId('daily-bonus-card');
   await bonus.waitFor({timeout:10000});
   if(await bonus.locator('button').count()!==1)throw Error('Daily bonus must have one redeem button');
@@ -145,6 +152,39 @@ try {
     Math.abs(initialBtc-syncedUsd/quoteRate)>0.000000011)
     throw Error('Mining BTC/USD equivalents not synchronized at quoted rate: '+
       JSON.stringify({btc:initialBtc,usd:syncedUsd,expected:syncedUsd/quoteRate}));
+  // Missing BTC address blocks Wallet with a persistent dialog. It remains
+  // across reloads, validates input, and closes only after PHP saves the address.
+  const registeredWallet='bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z';
+  await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
+  const requiredWallet=page.getByTestId('wallet-required-modal');
+  await requiredWallet.waitFor({timeout:10000});
+  if(await requiredWallet.getByRole('button',{name:/Fechar|Close|Cerrar/}).count())
+    throw Error('Mandatory wallet dialog must not have a dismiss button');
+  await page.keyboard.press('Escape');
+  if(await requiredWallet.count()!==1)
+    throw Error('Wallet dialog was dismissed without registration');
+  await page.reload();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
+  await requiredWallet.waitFor({timeout:10000});
+  await requiredWallet.getByTestId('wallet-required-start').click();
+  const requiredAddress=requiredWallet.getByTestId('wallet-required-address');
+  await requiredAddress.fill('not-a-bitcoin-address');
+  await requiredWallet.getByTestId('wallet-required-save').click();
+  await requiredWallet.getByRole('alert').waitFor({timeout:10000});
+  if(await requiredWallet.count()!==1)
+    throw Error('Invalid BTC address incorrectly dismissed required dialog');
+  await requiredAddress.fill(registeredWallet);
+  await requiredWallet.getByTestId('wallet-required-save').click();
+  await requiredWallet.waitFor({state:'detached',timeout:15000});
+  const savedWalletResponse=await ctx.request.get('/api/index.php?action=profile');
+  if(!savedWalletResponse.ok()||(await savedWalletResponse.json()).profile.walletAddress!==registeredWallet)
+    throw Error('Required BTC address was not persisted in PHP/SQLite');
+  await page.reload();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
+  await page.getByTestId('wallet-live-usd').waitFor({timeout:10000});
+  if(await requiredWallet.count())
+    throw Error('Required wallet dialog appeared again after successful registration');
+  await page.getByTestId('member-bottom-nav').locator('button').first().click();
   const mockFeedResponse=page.waitForResponse(response=>
     response.url().includes('action=mock.payments.latest'),{timeout:15000});
   // Fake only the response for this browser to verify real UI pagination.
@@ -347,15 +387,10 @@ try {
   });
   if(cardPadding.top>15||cardPadding.bottom>15)
     throw Error('Withdrawal balance card has not been slimmed');
-  await page.getByText(/Cadastrar carteira Bitcoin|Register Bitcoin wallet|Registrar billetera Bitcoin/).waitFor({timeout:10000});
-  await page.screenshot({path:'release-build/member-mobile.png',fullPage:true});
-  await page.locator('input[placeholder="bc1..."]').fill('bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z');
-  await page.getByRole('button',{name:/Salvar carteira|Save wallet|Guardar billetera/}).click();
-  await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).waitFor({timeout:10000});
-  if(await page.getByRole('button',{name:/Editar carteira|Edit wallet|Editar billetera/}).count())
-    throw Error('Saved BTC wallet address card should be hidden');
-  await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
   await page.getByTestId('withdraw-form-heading').getByText('SOLICITAR SAQUE',{exact:true}).waitFor({timeout:10000});
+  if(await page.getByTestId('wallet-required-modal').count())
+    throw Error('Already registered wallet must not trigger mandatory modal on withdrawal');
+  await page.screenshot({path:'release-build/member-mobile.png',fullPage:true});
   const amountField=page.getByTestId('withdraw-request-amount');
   const totalUsd=(await page.getByTestId('withdraw-available-amount').innerText())
     .replace(/[^0-9,\.]/g,'').replace(',','.');
