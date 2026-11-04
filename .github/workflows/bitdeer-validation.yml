@@ -35,6 +35,10 @@ jobs:
         env:
           BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
         run: python3 tests/baseline_plans.py
+      - name: Verify Marcelo demonstration account chronology and balances
+        env:
+          BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
+        run: python3 tests/demo_marcelo.py
       - name: API integration regression
         env:
           BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
