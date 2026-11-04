@@ -12,12 +12,12 @@ export const SubscriptionHistoryView:React.FC<Props>=({language,onBack})=>{
   const loc=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const title=language==='en'?'Subscription history':language==='es'?'Historial de suscripciones':'Histórico de assinaturas';
   const tr=language==='en'
-    ? {back:'Back',refresh:'Refresh',notice:'Subscription contracts saved in SQLite. VIP activation requires administrative payment confirmation.',
+    ? {back:'Back',refresh:'Refresh',
        empty:'No subscriptions registered.',start:'Start',end:'Expires',active:'Active',expired:'Ended'}
     :language==='es'
-    ? {back:'Volver',refresh:'Actualizar',notice:'Contratos de suscripción guardados en SQLite. La activación VIP requiere confirmación administrativa del pago.',
+    ? {back:'Volver',refresh:'Actualizar',
        empty:'No hay suscripciones registradas.',start:'Inicio',end:'Vencimiento',active:'Vigente',expired:'Finalizado'}
-    : {back:'Voltar',refresh:'Atualizar',notice:'Histórico dos contratos registrados no SQLite. Ativação VIP ocorre somente após confirmação administrativa.',
+    : {back:'Voltar',refresh:'Atualizar',
        empty:'Nenhuma assinatura registrada.',start:'Início',end:'Vencimento',active:'Vigente',expired:'Encerrado'};
   const refresh=async()=>{
     setLoading(true);
@@ -33,7 +33,6 @@ export const SubscriptionHistoryView:React.FC<Props>=({language,onBack})=>{
       <button onClick={()=>void refresh()} aria-label={tr.refresh}><RefreshCw size={18}/></button>
     </header>
     <div className="flex-1 min-h-0 p-4 overflow-y-auto overscroll-y-contain touch-pan-y member-vertical-scroll space-y-3">
-      <p className="text-xs text-slate-400">{tr.notice}</p>
       {loading&&<p>...</p>}
       {error&&<p role="alert" className="text-xs text-amber-300">{error}</p>}
       {!loading&&!entries.length&&<p className="text-xs text-slate-400">{tr.empty}</p>}
