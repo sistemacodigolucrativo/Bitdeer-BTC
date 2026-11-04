@@ -6,7 +6,7 @@ import { translations } from '../i18n/translations';
 
 type Props = {
   account: MemberData | null; language: LanguageCode; busy: boolean;
-  liveBtc:string|null; quoteStatus:'loading'|'ready'|'unavailable'; onRetryQuote:()=>void; liveBalanceUsd:number;
+  liveBtc:string|null; liveBalanceUsd:number;
   onStart: () => void; onStop: () => void; onRefresh: () => void;
   onRewards: () => void; onHistory: () => void; onLogout: () => void;
 };
@@ -28,7 +28,7 @@ const details = {
     vip:'Plan VIP hasta', noHash:'Capacidad de minería'}
 };
 export const ServerHomeView: React.FC<Props> = ({
-  account,language,busy,liveBtc,quoteStatus,onRetryQuote,liveBalanceUsd,onStart,onStop,onRefresh,onRewards,onHistory,onLogout
+  account,language,busy,liveBtc,liveBalanceUsd,onStart,onStop,onRefresh,onRewards,onHistory,onLogout
 }) => {
   const t=translations[language]?.home ?? translations.pt.home;
   const d=details[language] ?? details.pt;
@@ -76,13 +76,7 @@ export const ServerHomeView: React.FC<Props> = ({
           {language==='en'?'Bitcoin counter - BTC':language==='es'?'Contador de Bitcoin - BTC':'Contador de Bitcoin - BTC'}
         </p>
         <strong data-testid="mining-live-btc" className="text-2xl font-bold font-mono text-amber-300">{liveBtc??'—'} BTC</strong>
-        {liveBtc===null&&<div className="text-[10px] text-slate-400 mt-1" role="status">
-          {quoteStatus==='loading'
-            ? language==='en'?'BTC quote being calculated':language==='es'?'Cotización BTC en cálculo':'Cotação BTC sendo calculada'
-            : language==='en'?'BTC quote unavailable':language==='es'?'Cotización BTC no disponible':'Cotação BTC indisponível'}
-          {quoteStatus==='unavailable'&&<button type="button" onClick={onRetryQuote}
-            className="underline ml-2 text-indigo-300">{language==='en'?'Retry':language==='es'?'Reintentar':'Tentar novamente'}</button>}
-        </div>}
+
         <p data-testid="mining-live-usd" className="text-xs text-slate-300 mt-1">
           USD:
           {' '}US$ {liveBalanceUsd.toFixed(8)}
