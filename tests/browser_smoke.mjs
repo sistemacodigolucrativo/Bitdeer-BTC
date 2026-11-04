@@ -28,7 +28,7 @@ try {
   restoredWithoutChoice.on('pageerror',e=>problems.push(e.message));
   await restoredWithoutChoice.goto('/');
   await restoredWithoutChoice.getByRole('button',{name:'Português'}).waitFor({timeout:15000});
-  if(await restoredWithoutChoice.getByTestId('member-top-nav').count())
+  if(await restoredWithoutChoice.getByTestId('member-bottom-nav').count())
     throw Error('Unchosen language silently bypassed during session restore');
   await restoredWithoutChoice.close();
   const device=await browser.newContext({viewport:{width:390,height:844},baseURL:base,locale:'pt-BR'});
@@ -43,7 +43,7 @@ try {
   const enter=screen.getByRole('button',{name:'ENTRAR NO PAINEL'});
   await enter.waitFor({timeout:15000});
   await enter.click({timeout:15000});
-  await screen.getByTestId('member-top-nav').waitFor({timeout:15000});
+  await screen.getByTestId('member-bottom-nav').waitFor({timeout:15000});
   await screen.getByRole('button',{name:'Sair'}).click();
   await screen.locator('input[autocomplete="username"]').fill('browsermember');
   await screen.locator('input[autocomplete="current-password"]').fill('BrowserMemberPassword2026');
@@ -52,20 +52,35 @@ try {
   if(await screen.getByRole('button',{name:'Português'}).count())
     throw Error('Language picker was repeated after previously saving the language');
   await enter.click({timeout:15000});
-  await screen.getByTestId('member-top-nav').waitFor({timeout:15000});
+  await screen.getByTestId('member-bottom-nav').waitFor({timeout:15000});
   await device.close();
   const page=await ctx.newPage();
   page.on('pageerror',e=>problems.push(e.message));
   await page.goto('/');
-  await page.getByText('Bitdeer BTC').first().waitFor({timeout:15000});
+  await page.getByTestId('welcome-current-plan').waitFor({timeout:15000});
+  if(await page.locator('div.px-5.pb-3').count())throw Error('Legacy member top header should be removed');
   await page.locator('nav button').first().waitFor({timeout:15000});
   if(await page.locator('nav button').count()!==5)throw Error('Member navigation must have five tabs');
-  const topMenu=page.getByTestId('member-top-nav');
-  await topMenu.waitFor({timeout:10000});
+  const bottomMenu=page.getByTestId('member-bottom-nav');
+  await bottomMenu.waitFor({timeout:10000});
+  const menuPosition=await bottomMenu.boundingBox();
+  const welcomePosition=await page.getByTestId('welcome-current-plan').boundingBox();
+  if(!menuPosition||!welcomePosition||menuPosition.y<=welcomePosition.y||
+     menuPosition.y+menuPosition.height<page.viewportSize().height-24)
+    throw Error('Member navigation must remain beneath content at viewport bottom');
+  const contentScroller=page.locator('.member-vertical-scroll').first();
+  await contentScroller.evaluate(el=>{el.scrollTop=300;});
+  const scrolledMenu=await bottomMenu.boundingBox();
+  if(!scrolledMenu||Math.abs(scrolledMenu.y-menuPosition.y)>2)
+    throw Error('Bottom navigation must not move with content scrolling');
   await page.locator('nav button').nth(1).click();
   const store=page.getByTestId('store-view');
   await store.getByTestId('store-active-plan').waitFor({timeout:10000});
   if(await store.evaluate(el=>el.firstElementChild?.getAttribute('data-testid'))!=='store-active-plan')throw Error('Active plan must appear first');
+  await store.getByTestId('store-exit').waitFor({timeout:10000});
+  const currentPlan=store.getByTestId('store-active-plan');
+  if(await currentPlan.locator('svg.lucide-shield-check').count()!==1)
+    throw Error('Current plan shield should remain beside the card title');
   const figure=store.getByTestId('store-plan-illustration');
   await figure.waitFor({timeout:10000});
   if(await figure.evaluate(el=>el.getBoundingClientRect().height)>112)
@@ -78,6 +93,8 @@ try {
   if(await store.getByText(/Ativação após conferência manual|Activation follows manual payment confirmation|La activación requiere la confirmación manual/).count())
     throw Error('Store activation explanatory text must not be shown');
   await page.locator('nav button').first().click();
+  await page.getByTestId('home-exit').waitFor({timeout:10000});
+  await page.getByTestId('welcome-current-plan').waitFor({timeout:10000});
   const bonus=page.getByTestId('daily-bonus-card');
   await bonus.waitFor({timeout:10000});
   if(await bonus.locator('button').count()!==1)throw Error('Daily bonus must have one redeem button');
@@ -454,7 +471,7 @@ try {
   const withdrawalPage=await withdrawal.newPage();
   withdrawalPage.on('pageerror',e=>problems.push(e.message));
   await withdrawalPage.goto('/');
-  await withdrawalPage.getByTestId('member-top-nav').waitFor({timeout:15000});
+  await withdrawalPage.getByTestId('member-bottom-nav').waitFor({timeout:15000});
   await withdrawalPage.locator('nav button').nth(3).click();
   await withdrawalPage.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
   await withdrawalPage.getByTestId('withdraw-request-amount').fill('1.00');
