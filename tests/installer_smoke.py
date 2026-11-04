@@ -38,10 +38,12 @@ with tempfile.TemporaryDirectory(prefix='bitdeer-install-') as folder:
             raise AssertionError('Installer PHP server did not start')
         token=re.search(r'name="csrf" value="([a-f0-9]{64})"',html)
         assert token, html[:150]
+        assert 'name="admin_login" value="admin"' in html
+        assert 'name="admin_password" value="123456789123"' in html
         def post(key):
             payload={
-                'csrf':token.group(1),'setup_key':key,'admin_login':'testadmin',
-                'admin_password':'IntegrationTestAdmin2026!', 'support_email':'support@example.org',
+                'csrf':token.group(1),'setup_key':key,'admin_login':'admin',
+                'admin_password':'123456789123', 'support_email':'support@example.org',
                 'confirmation':'yes', 'site_url':'http://127.0.0.1:8766',
                 'environment_type':'shared'
             }
