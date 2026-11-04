@@ -135,11 +135,15 @@ html, body { overflow: hidden; overscroll-behavior: none; }
   -webkit-overflow-scrolling: touch;
 }
 
-/* Independent content panes under the persistent bottom navigation. */
+/* Allow nested horizontal tables to scroll sideways without capturing vertical
+   swipes. Restrict the pure ranking list to vertical gestures separately. */
 .member-vertical-scroll {
   min-height: 0;
-  touch-action: pan-y;
+  touch-action: auto;
   -webkit-overflow-scrolling: touch;
+}
+.top-miners-vertical-scroll {
+  touch-action: pan-y;
 }
 
 /* Defer offscreen layout/paint of the 200 fictional ranking cards. */
