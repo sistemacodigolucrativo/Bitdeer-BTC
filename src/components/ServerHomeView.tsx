@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Gift, Clock, Zap } from 'lucide-react';
+import { Gift, Clock, Pause } from 'lucide-react';
 import { MemberData } from '../services/api';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
 
 type Props = {
   account: MemberData | null; language: LanguageCode; busy: boolean;
-  liveBtc:string|null; liveBalanceUsd:number;
+  liveBtc:string|null; liveBalanceUsd:number; serverNow:number;
   onStart: () => void; onStop: () => void;
   onRewards: () => void; onHistory: () => void; onAvatarClick:()=>void; avatarLocked:boolean;
 };
@@ -14,39 +14,35 @@ const details = {
   pt:{balance:'Saldo interno (USD)',mining:'Painel de mineração', active:'Mineração ativa',
     inactive:'Sessão inativa',check:'Atualizar',history:'Histórico',rewards:'Recompensas',
     daily:'Bônus diário',claim:'Resgatar bônus',notice:'Registros internos de recompensas. Não comprovam Bitcoin efetivamente minerado.',
-    faq:'Perguntas frequentes',session:'Fim da sessão',
+    faq:'Perguntas frequentes',session:'Esta sessão de mineração encerra em',
     vip:'Plano VIP válido até', noHash:'Capacidade de mineração'},
   en:{balance:'Internal USD balance',mining:'Mining panel', active:'Mining running',
     inactive:'Mining stopped',check:'Refresh',history:'History',rewards:'Rewards',
     daily:'Daily bonus',claim:'Claim bonus',notice:'Internal rewards only. This does not prove actual Bitcoin mining.',
-    faq:'Frequently asked questions',session:'Session ends',
+    faq:'Frequently asked questions',session:'This mining session ends in',
     vip:'VIP plan expires', noHash:'Mining capacity'},
   es:{balance:'Saldo interno USD',mining:'Panel de minería', active:'Minería activa',
     inactive:'Minería detenida',check:'Actualizar',history:'Historial',rewards:'Recompensas',
     daily:'Bono diario',claim:'Reclamar bono',notice:'Recompensas internas, no prueba de minería real de Bitcoin.',
-    faq:'Preguntas frecuentes',session:'Fin de sesión',
+    faq:'Preguntas frecuentes',session:'Esta sesión de minería termina en',
     vip:'Plan VIP hasta', noHash:'Capacidad de minería'}
 };
 export const ServerHomeView: React.FC<Props> = ({
-  account,language,busy,liveBtc,liveBalanceUsd,onStart,onStop,onRewards,onHistory,onAvatarClick,avatarLocked
+  account,language,busy,liveBtc,liveBalanceUsd,serverNow,onStart,onStop,onRewards,onHistory,onAvatarClick,avatarLocked
 }) => {
   const t=translations[language]?.home ?? translations.pt.home;
   const d=details[language] ?? details.pt;
-  const [clock,setClock]=useState(Date.now());
   const [avatarFailed,setAvatarFailed]=useState(false);
   const avatarUrl=account?.profile.avatarUrl ?? '';
   useEffect(()=>setAvatarFailed(false),[avatarUrl]);
-  useEffect(()=>{
-    const timer=setInterval(()=>setClock(Date.now()),1000);
-    return ()=>clearInterval(timer);
-  },[]);
   const status=!!account?.mining.running &&
-    (account.mining.sessionEndsAt===null || account.mining.sessionEndsAt>clock/1000) &&
-    (account.plan.expiresAt===null || account.plan.expiresAt>clock/1000);
+    (account.mining.sessionEndsAt===null || account.mining.sessionEndsAt>serverNow) &&
+    (account.plan.expiresAt===null || account.plan.expiresAt>serverNow);
   const ends=account?.mining.sessionEndsAt;
-  const seconds=ends ? Math.max(0,ends-Math.floor(clock/1000)):0;
-  const remaining=Math.floor(seconds/60).toString().padStart(2,'0')+':'+
-    (seconds%60).toString().padStart(2,'0');
+  const seconds=ends ? Math.max(0,ends-serverNow):0;
+  const remaining=[Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60]
+    .map(value=>String(value).padStart(2,'0')).join(':');
+  const pauseLabel=language==='en'?'Pause mining':language==='es'?'Pausar minería':'Pausar mineração';
   const isVip=account?.plan.id!=='FREE' && account?.plan.id!==undefined;
   const stamp=(v:number)=>new Date(v*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR');
   return <div className="space-y-4 select-none pb-4">
@@ -57,7 +53,9 @@ export const ServerHomeView: React.FC<Props> = ({
         {avatarUrl&&!avatarFailed?<img src={avatarUrl} alt="" onError={()=>setAvatarFailed(true)} className="h-full w-full object-cover"/>:(account?.profile.displayName || account?.user.login || 'M').charAt(0).toUpperCase()}
       </button>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] text-slate-400 truncate">{language==='en'?'Welcome back':language==='es'?'Bienvenido de nuevo':'Boas-vindas'}</p>
+        {account && <span data-testid="home-plan-badge" className="inline-block max-w-full text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-lg">
+          {account.plan.id} · US$ {account.plan.dailyUsd}/{language==='en'?'day':language==='es'?'día':'dia'}
+        </span>}
         <p className="text-sm font-extrabold text-white truncate">{account?.profile.displayName || account?.user.login || (language==='en'?'Member':language==='es'?'Miembro':'Membro')}</p>
       </div>
       <div className="flex shrink-0 items-center">
@@ -69,9 +67,7 @@ export const ServerHomeView: React.FC<Props> = ({
     <section className="bg-[#191e32] border border-[#262e49] rounded-3xl p-5 overflow-hidden shadow-md">
       <div className="flex justify-between items-center gap-2 mb-4">
         <h3 className="text-xs font-black tracking-wider text-slate-300 uppercase">{d.mining}</h3>
-        <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-lg">
-          {account?.plan.id ?? 'FREE'} · US$ {account?.plan.dailyUsd ?? '0.00'}/{language==='en'?'day':language==='es'?'día':'dia'}
-        </span>
+
       </div>
       <div className="bg-[#11182b] border border-[#303b59] rounded-2xl px-4 py-3 mb-4">
         <p className="text-[11px] text-slate-400">
@@ -104,13 +100,13 @@ export const ServerHomeView: React.FC<Props> = ({
           <circle cx="95" cy="52" r="7" fill="#f59e0b"/><text x="95" y="55" textAnchor="middle" fill="white" fontSize="8">₿</text>
         </svg>
       </div>
-      <button onClick={status?onStop:onStart}
+      <button aria-label={status?pauseLabel:undefined} title={status?pauseLabel:undefined} onClick={status?onStop:onStart}
         disabled={busy}
         className={'w-full py-4 px-4 rounded-2xl font-bold text-sm flex justify-center items-center gap-2 disabled:opacity-40 '+
           (status?'bg-emerald-600 hover:bg-emerald-500':'bg-[#f43f5e] hover:bg-[#e11d48]')}>
-        {status?<><Zap size={18}/>{t.stopMining}{ends?' • '+remaining:''}</>:t.startMining}
+        {status?<Pause size={20} aria-hidden="true"/>:t.startMining}
       </button>
-      {status && ends!==null && ends!==undefined && <p className="mt-3 flex items-center gap-2 text-xs text-slate-400"><Clock size={14}/>{d.session}: {stamp(ends)}</p>}
+      {status && ends!==null && ends!==undefined && <p className="mt-3 flex items-center gap-2 text-xs text-slate-400"><Clock size={14} className="shrink-0"/><span>{d.session}: <strong className="font-mono tabular-nums">{remaining}</strong></span></p>}
       {isVip && account?.plan.expiresAt && <p className="mt-2 text-xs text-slate-400">{d.vip}: {stamp(account.plan.expiresAt)}</p>}
     </section>
   </div>;

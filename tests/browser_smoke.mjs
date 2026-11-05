@@ -106,8 +106,8 @@ try {
   await page.getByTestId('home-rewards-shortcut').waitFor({timeout:10000});
   const welcomeCard=page.getByTestId('home-welcome-card');
   await welcomeCard.waitFor({timeout:10000});
-  if(await welcomeCard.getByText(/Plano atual:|Current plan:|Plan actual:|Plano Free/i).count())
-    throw Error('Welcome card must not display the active plan');
+  await welcomeCard.getByTestId('home-plan-badge').waitFor();
+  if(await page.getByTestId('home-plan-badge').count()!==1)throw Error('Duplicate active plan badge');
   if(await welcomeCard.getByRole('button',{name:/Atualizar|Refresh|Actualizar/i}).count())
     throw Error('Redundant manual profile-refresh button remains in welcome card');
   if(await page.getByText(/Projeção interna entre atualizações|Internal projection between server updates|Proyección interna entre actualizaciones/i).count())
@@ -130,7 +130,7 @@ try {
   const homeValue=page.getByTestId('mining-live-usd');
   await homeValue.waitFor({timeout:10000});
   await page.getByRole('button',{name:/Iniciar Mineração|Start Mining|Iniciar Minería/}).click();
-  await page.getByRole('button',{name:/Mineração Ativa|Mining Active|Minería Activa/}).waitFor({timeout:10000});
+  await page.getByRole('button',{name:/Pausar mineração|Pause mining|Pausar minería/}).waitFor({timeout:10000});
   const firstUsd=await homeValue.innerText();
   await page.waitForTimeout(2500);
   const secondUsd=await homeValue.innerText();
@@ -163,7 +163,6 @@ try {
   if(await requiredWallet.count()!==1)
     throw Error('Wallet dialog was dismissed without registration');
   await page.reload();
-  await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
   await requiredWallet.waitFor({timeout:10000});
   await requiredWallet.getByTestId('wallet-required-start').click();
   const requiredAddress=requiredWallet.getByTestId('wallet-required-address');
@@ -181,7 +180,6 @@ try {
   if(!savedWalletResponse.ok()||(await savedWalletResponse.json()).profile.walletAddress!==registeredWallet)
     throw Error('Required BTC address was not persisted in PHP/SQLite');
   await page.reload();
-  await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
   await page.getByTestId('wallet-live-usd').waitFor({timeout:10000});
   if(await requiredWallet.count())
     throw Error('Required wallet dialog appeared again after successful registration');
@@ -279,14 +277,14 @@ try {
   await page.screenshot({path:'release-build/wallet-feed-mobile.png',fullPage:true});
   if(await page.getByText(/Próxima sessão|Next session|Próxima sesión/).count())
     throw Error('Legacy cooldown warning is still shown');
-  await page.getByRole('button',{name:/Mineração Ativa|Mining Active|Minería Activa/}).click();
+  await page.getByRole('button',{name:/Pausar mineração|Pause mining|Pausar minería/}).click();
   await page.getByRole('button',{name:/Iniciar Mineração|Start Mining|Iniciar Minería/}).waitFor({timeout:10000});
-  if(await page.getByText(/Fim da sessão|Session ends|Fin de sesión/).count())
+  if(await page.getByText(/Esta sessão de mineração encerra em|This mining session ends in|Esta sesión de minería termina en/).count())
     throw Error('Old session end timestamp should not remain visible after stopping');
   const restart=page.getByRole('button',{name:/Iniciar Mineração|Start Mining|Iniciar Minería/});
   if(await restart.isDisabled())throw Error('FREE session restart must be available immediately');
   await restart.click();
-  await page.getByRole('button',{name:/Mineração Ativa|Mining Active|Minería Activa/}).waitFor({timeout:10000});
+  await page.getByRole('button',{name:/Pausar mineração|Pause mining|Pausar minería/}).waitFor({timeout:10000});
   for(let i=0;i<5;i++){
     await page.getByTestId('member-bottom-nav').locator('button').nth(i).click();
     await page.waitForTimeout(200);
@@ -369,7 +367,11 @@ try {
   if(await minerScroller.evaluate(el=>el.scrollTop)<150)
     throw Error('Top Miners list did not scroll independently');
   await page.screenshot({path:'release-build/top-miners-mobile.png',fullPage:true});
-  await page.getByText(/Ranking demonstrativo|Demonstration ranking|Ranking demostrativo/i).waitFor({timeout:10000});
+  await page.reload();
+  await page.getByTestId('top-miners-scroll').waitFor({timeout:10000});
+  await page.getByText(/USD utiliza a última cotação|USD uses the last available|USD utiliza la última cotización/i).waitFor();
+  if(await page.getByText(/Ranking demonstrativo com|Demonstration ranking with|Ranking demostrativo con/i).count())
+    throw Error('Removed ranking notice is visible');
   const navBox=await bottomMenu.boundingBox();
   await minerCards.last().scrollIntoViewIfNeeded();
   const scrolledBox=await bottomMenu.boundingBox();

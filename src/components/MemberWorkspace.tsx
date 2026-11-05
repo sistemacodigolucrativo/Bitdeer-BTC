@@ -21,7 +21,8 @@ import { memberViewCopy } from '../i18n/memberViewCopy';
 import { NewInvestorToast } from './NewInvestorToast';
 import { readLastKnownQuote, saveLastKnownQuote } from '../utils/lastKnownQuote';
 
-type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'withdraw';
+const memberPages = ['home', 'store', 'reward', 'wallet', 'settings', 'profile', 'support', 'history', 'topMiners', 'subscriptions', 'withdraw'] as const;
+type Page = typeof memberPages[number];
 type PurchaseOrder = {
   orderId: number; status: string; priceUsd: string; quoteRateUsd: string;
   quoteSource: string; btcAddress: string; btcSatoshis: number;
@@ -31,7 +32,20 @@ export const MemberWorkspace: React.FC<{
   user: AuthUser; language: LanguageCode; onLogout: () => void;
   onChangeLanguage: (lang:LanguageCode)=>void;
 }> = ({user, language, onLogout, onChangeLanguage}) => {
-  const [page, setPage] = useState<Page>('home');
+  const pageKey='bitdeer.memberPage.'+user.id;
+  const [page, setPage] = useState<Page>(() => {
+    try {
+      const saved=sessionStorage.getItem(pageKey);
+      return memberPages.find(item=>item===saved) ?? 'home';
+    } catch { return 'home'; }
+  });
+  useEffect(()=>{
+    try { sessionStorage.setItem(pageKey,page); } catch { /* Storage can be disabled. */ }
+  },[pageKey,page]);
+  function signOut(){
+    try { sessionStorage.removeItem(pageKey); } catch { /* Logout still proceeds. */ }
+    onLogout();
+  }
   const tabNames = translations[language].tabs;
   const words = memberTexts[language] || memberTexts.pt;
   const tr = memberViewCopy[language];
@@ -84,6 +98,7 @@ export const MemberWorkspace: React.FC<{
   // requested; fractional accruals are not counted as withdrawable cents.
   // The BTC figure is a quote-based equivalent of that very same USD balance,
   // not a separately held on-chain Bitcoin balance.
+  const serverNow = (account?.asOf??0)+Math.max(0,Math.floor((balanceTick-lastSnapshotReceivedAt)/1000));
   const liveBalanceUsd = projectInternalBalance(account,lastSnapshotReceivedAt,balanceTick);
   const freshBtcUsd=btcQuote && balanceTick/1000-btcQuote.quotedAt>=0 &&
     balanceTick/1000-btcQuote.quotedAt<60 && btcUsd!==null && btcUsd>0 ? btcUsd : null;
@@ -192,6 +207,12 @@ export const MemberWorkspace: React.FC<{
     if(page==='store')void api<{orders:typeof purchaseHistory}>('orders.mine')
       .then(x=>setPurchaseHistory(x.orders)).catch(()=>{});
   },[page]);
+  useEffect(()=>{
+    if(page==='withdraw' && account && walletStep==='none'){
+      setWalletDraft(account.profile.walletAddress??'');
+      setWalletStep(account.profile.walletAddress?'amount':'register');
+    }
+  },[page,account,walletStep]);
   async function registerRequiredWallet(walletAddress:string):Promise<void>{
     if(!account)throw new Error('Member profile unavailable');
     // Reuse the existing PHP validation and SQLite persistence.
@@ -403,7 +424,7 @@ export const MemberWorkspace: React.FC<{
       page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y member-vertical-scroll p-4 sm:p-5 space-y-4">
         {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
-        {page==='home' && <><ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language} busy={busy}
+        {page==='home' && <><ServerHomeView serverNow={serverNow} account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language} busy={busy}
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
           onRewards={()=>setPage('reward')}
           onHistory={()=>setPage('history')} avatarLocked={profile.avatarLocked} onAvatarClick={()=>{setAvatarDraft(profile.avatarUrl);setAvatarModal(true);}}/><MockPaymentFeed language={language}/></>}
@@ -463,7 +484,7 @@ export const MemberWorkspace: React.FC<{
         </>}
         {page==='settings' && <section className="space-y-3">
           <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">{words.settings}</h2>
-            <button type="button" data-testid="settings-exit" onClick={onLogout}
+            <button type="button" data-testid="settings-exit" onClick={signOut}
               aria-label={language==='en'?'Exit':language==='es'?'Salir':'Sair'} title={language==='en'?'Exit':language==='es'?'Salir':'Sair'}
               className="rounded-xl border border-[#303b59] bg-[#11182c] p-2 text-rose-300"><LogOut size={24}/></button>
           </div>
@@ -490,7 +511,7 @@ export const MemberWorkspace: React.FC<{
             </select>
           </label>
           <button className="w-full flex gap-3 items-center rounded-xl bg-[#1b2137] border border-[#2b3350] p-4 text-sm"
-            onClick={onLogout}><LogOut size={18}/> {words.signOut}</button>
+            onClick={signOut}><LogOut size={18}/> {words.signOut}</button>
         </section>}
         {page==='store' && <>
           <ServerStoreView plans={plans} activePlanId={account?.plan.id ?? 'FREE'}
