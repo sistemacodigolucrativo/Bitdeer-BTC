@@ -284,6 +284,31 @@ function normalize_member_phone(string $value): ?string {
 function is_valid_member_phone(string $value): bool { return normalize_member_phone($value)!==null; }
 function api_dispatch(PDO $db, string $action, string $method): never {
     ensure_member_features($db);
+    // Member-only fictional announcement setting, disabled unless explicitly enabled by an admin.
+    if ($action === 'demo.new-investors.settings' && $method === 'GET') {
+        $actor=auth_user($db);
+        if ($actor['role'] !== 'member') fail(403,'Apenas membros');
+        $row=query_one($db,'SELECT value FROM app_settings WHERE name=?',['demo_new_investors_enabled']);
+        json_out(['enabled'=>($row['value']??'0')==='1','simulation'=>true]);
+    }
+    if ($action === 'admin.demo.new-investors.settings' && $method === 'GET') {
+        auth_user($db,true);
+        $row=query_one($db,'SELECT value FROM app_settings WHERE name=?',['demo_new_investors_enabled']);
+        json_out(['enabled'=>($row['value']??'0')==='1','simulation'=>true]);
+    }
+    if ($action === 'admin.demo.new-investors.settings' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);
+        $enabled=request_body()['enabled']??null;
+        if (!is_bool($enabled)) fail(422,'Estado inválido');
+        atomic($db,static function()use($db,$actor,$enabled):void {
+            execute_sql($db,'INSERT INTO app_settings(name,value) VALUES (?,?)
+                ON CONFLICT(name) DO UPDATE SET value=excluded.value',
+                ['demo_new_investors_enabled',$enabled?'1':'0']);
+            audit($db,(int)$actor['id'],'settings.demo_new_investors',null,
+                ['enabled'=>$enabled,'simulation'=>true]);
+        });
+        json_out(['ok'=>true,'enabled'=>$enabled,'simulation'=>true]);
+    }
     if ($action === 'health' && $method === 'GET') json_out(['ok'=>true,'version'=>'php-sqlite-1']);
     if ($action === 'support' && $method === 'GET') {
         $setting = query_one($db,'SELECT value FROM app_settings WHERE name="support_email"');

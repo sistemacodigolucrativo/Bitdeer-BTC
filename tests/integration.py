@@ -89,6 +89,22 @@ assert alice.call("profile")["plan"]["id"]=="FREE"
 
 admin=Client()
 assert admin.call("login",{"login":"adminci","password":"StrongCIpassword123!"})["user"]["role"]=="admin"
+# The fictional toast starts disabled; only admins may change its SQLite setting.
+assert guest.call("demo.new-investors.settings",expected=401)["error"]
+assert guest.call("admin.demo.new-investors.settings",expected=401)["error"]
+assert alice.call("admin.demo.new-investors.settings",expected=403)["error"]
+assert alice.call("admin.demo.new-investors.settings",{"enabled":True},403)["error"]
+assert admin.call("admin.demo.new-investors.settings")=={"enabled":False,"simulation":True}
+assert alice.call("demo.new-investors.settings")=={"enabled":False,"simulation":True}
+assert admin.call("admin.demo.new-investors.settings",{"enabled":"yes"},422)["error"]
+assert admin.call("admin.demo.new-investors.settings",{},422)["error"]
+assert admin.call("admin.demo.new-investors.settings",{"enabled":True})["enabled"] is True
+assert alice.call("demo.new-investors.settings")=={"enabled":True,"simulation":True}
+assert admin.call("admin.demo.new-investors.settings")["enabled"] is True
+assert admin.call("admin.demo.new-investors.settings",{"enabled":False})["enabled"] is False
+assert alice.call("demo.new-investors.settings")["enabled"] is False
+assert "settings.demo_new_investors" in [entry["action"] for entry in admin.call("admin.audit")["actions"]]
+
 # The seeded founding member accepts the documented demonstration credentials.
 founder=Client()
 assert founder.call("login",{"login":"user","password":"123456789123"})["user"]["role"]=="member"

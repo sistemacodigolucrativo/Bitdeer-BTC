@@ -151,3 +151,18 @@ html, body { overflow: hidden; overscroll-behavior: none; }
   content-visibility: auto;
   contain-intrinsic-size: auto 90px;
 }
+
+/* Nonblocking transitions for simulated member-only notifications. */
+@keyframes demo-investor-toast-appear {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes demo-investor-toast-disappear {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(8px); }
+}
+.demo-investor-toast-enter { animation: demo-investor-toast-appear 320ms ease-out both; }
+.demo-investor-toast-leave { animation: demo-investor-toast-disappear 600ms ease-in both; }
+@media (prefers-reduced-motion: reduce) {
+  .demo-investor-toast-enter, .demo-investor-toast-leave { animation: none; }
+}

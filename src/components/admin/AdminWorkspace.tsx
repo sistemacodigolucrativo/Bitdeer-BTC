@@ -33,6 +33,8 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
   const [total,setTotal]=useState(0);
   const [details,setDetails]=useState<MemberDetails|null>(null);
   const [email,setEmail]=useState('');
+  const [demoInvestorToastsEnabled,setDemoInvestorToastsEnabled]=useState(false);
+  const [demoInvestorToastsReady,setDemoInvestorToastsReady]=useState(false);
   const [btcAddress,setBtcAddress]=useState('');
   const [btcConfirmed,setBtcConfirmed]=useState(false);
   const [paymentPassword,setPaymentPassword]=useState('');
@@ -58,6 +60,9 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
         api<{email:string}>('support'),
       ]);
       setMembers(m.members);setTotal(m.total);setPlans(p.plans);setOrders(o.orders);setEmail(s.email);
+      void api<{enabled:boolean}>('admin.demo.new-investors.settings')
+        .then(x=>{setDemoInvestorToastsEnabled(x.enabled);setDemoInvestorToastsReady(true);})
+        .catch(()=>setDemoInvestorToastsReady(false));
       void api<{exists:boolean}>('admin.demo.marcelo.status')
         .then(x=>setDemoMarceloExists(x.exists)).catch(()=>{});
       api<{actions:typeof audit}>('admin.audit').then(x=>setAudit(x.actions)).catch(()=>{});
@@ -460,6 +465,27 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
         {!audit.length && <p className="text-sm text-slate-400">{tx("Nenhuma ação registrada.")}</p>}
       </div>}
       {section==='settings' && <section className="space-y-6">
+        <section data-testid="admin-demo-investors-settings"
+          className="rounded-xl border border-[#374461] bg-[#1b2137] p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <h2 className="font-semibold">{language==='en'?'New investors · demo toast':language==='es'?'Nuevos inversores · aviso de demostración':'Novos investidores · toast demonstrativo'}</h2>
+              <p className="text-xs text-slate-300">{language==='en'?'Fictional registrations only. No real member data or registration events are displayed.':language==='es'?'Solo registros ficticios. No muestra datos ni altas reales.':'Cadastros fictícios, sem utilizar dados de membros ou inscrições reais.'}</p>
+            </div>
+            <button type="button" role="switch" data-testid="admin-demo-investors-toggle"
+              aria-checked={demoInvestorToastsEnabled} disabled={busy||!demoInvestorToastsReady}
+              onClick={()=>void change('admin.demo.new-investors.settings',{enabled:!demoInvestorToastsEnabled})}
+              aria-label={language==='en'?'Enable demonstration investor notifications':language==='es'?'Activar avisos demostrativos de inversores':'Ativar notificações demonstrativas de investidores'}
+              className={'relative h-8 w-14 shrink-0 rounded-full border transition-colors disabled:opacity-50 '+(demoInvestorToastsEnabled?'border-emerald-400 bg-emerald-500':'border-slate-500 bg-slate-600')}>
+              <span className={'absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform '+(demoInvestorToastsEnabled?'translate-x-6':'translate-x-0')}/>
+            </button>
+          </div>
+          <p data-testid="admin-demo-investors-status" className="text-xs text-slate-300">
+            {language==='en'?(demoInvestorToastsEnabled?'Enabled':'Disabled'):language==='es'?(demoInvestorToastsEnabled?'Activado':'Desactivado'):(demoInvestorToastsEnabled?'Ativado':'Desativado')}
+            {' · '}
+            {language==='en'?'Shown only in member workspace':language==='es'?'Solo en el panel de miembros':'Somente no painel de membros'}
+          </p>
+        </section>
         <form onSubmit={e=>{e.preventDefault();void change('admin.settings',{supportEmail:email})}} className="space-y-3">
           <label className="block text-sm">{tx("E-mail de suporte")}
             <input type="email" required value={email} onChange={e=>setEmail(e.target.value)}

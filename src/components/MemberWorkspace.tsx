@@ -18,6 +18,7 @@ import { TopMinersView } from './workspace/TopMinersView';
 import { SubscriptionHistoryView } from './workspace/SubscriptionHistoryView';
 import { memberTexts } from '../i18n/memberTexts';
 import { memberViewCopy } from '../i18n/memberViewCopy';
+import { NewInvestorToast } from './NewInvestorToast';
 import { readLastKnownQuote, saveLastKnownQuote } from '../utils/lastKnownQuote';
 
 type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'withdraw';
@@ -298,7 +299,7 @@ export const MemberWorkspace: React.FC<{
       aria-current={page===p?'page':undefined}
       className={'flex flex-1 min-w-0 flex-col items-center justify-center text-[10px] sm:text-[11px] gap-1 rounded-xl py-1.5 transition-colors '+(page===p?'text-white bg-indigo-500/15':'text-slate-400 hover:text-white')}>
       <Icon size={20} className="shrink-0"/><span className="w-full truncate text-center">{label}</span></button>;
-  return <div className="w-full h-full flex flex-col bg-[#121526] text-white">
+  return <div className="relative w-full h-full flex flex-col bg-[#121526] text-white">
     {page==='wallet' && account!==null && !account.profile.walletAddress &&
       <WalletRequiredModal language={language} onRegister={registerRequiredWallet}/>}
     {withdrawPopup && <div role="dialog" aria-modal="true" aria-label={language==='en'?'Active VIP plan required':language==='es'?'Se requiere un plan VIP activo':'Plano VIP ativo necessário'}
@@ -536,6 +537,7 @@ export const MemberWorkspace: React.FC<{
         </form>}
       </div>}
 
+    <NewInvestorToast language={language}/>
     <nav data-testid="member-bottom-nav"
       className="w-full min-h-16 shrink-0 bg-[#101322] border-t border-[#1f253d] flex items-stretch justify-around gap-0.5 px-2 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] z-30 select-none"
       aria-label={language==='en'?'Primary navigation':language==='es'?'Navegación principal':'Navegação principal'}>
