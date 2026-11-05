@@ -102,6 +102,28 @@ function atomic(PDO $db, callable $work): mixed {
 
 function now(): int { return time(); }
 
+function request_origin_host_matches(
+    string $origin,
+    string $requestHost,
+    string $remoteAddress = '',
+    string $forwardedHost = '',
+    bool $trustLocalProxy = false
+): bool {
+    if ($origin === '') return true;
+
+    $originHost = parse_url($origin, PHP_URL_HOST);
+    if (!is_string($originHost) || $originHost === '') return false;
+
+    if ($trustLocalProxy && in_array($remoteAddress, ['127.0.0.1', '::1'], true) &&
+        $forwardedHost !== '') {
+        $requestHost = $forwardedHost;
+    }
+
+    $requestHostName = parse_url('http://' . $requestHost, PHP_URL_HOST);
+    return is_string($requestHostName) && $requestHostName !== '' &&
+        hash_equals(strtolower($requestHostName), strtolower($originHost));
+}
+
 function fail(int $code, string $message): never {
     http_response_code($code);
     header('Content-Type: application/json; charset=utf-8');

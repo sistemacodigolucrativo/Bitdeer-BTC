@@ -17,8 +17,24 @@ export default defineConfig(() => {
       strictPort: true,
       allowedHosts: true as const,
       proxy: {
-        '/api': 'http://127.0.0.1:8000',
-        '/install': 'http://127.0.0.1:8000',
+        '/api': {
+          target: 'http://127.0.0.1:8000',
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq, req) => {
+              const host = req.headers.host;
+              if (host) proxyReq.setHeader('X-Forwarded-Host', host);
+            });
+          },
+        },
+        '/install': {
+          target: 'http://127.0.0.1:8000',
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq, req) => {
+              const host = req.headers.host;
+              if (host) proxyReq.setHeader('X-Forwarded-Host', host);
+            });
+          },
+        },
       },
       fs: {
         deny: [

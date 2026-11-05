@@ -1380,7 +1380,14 @@ try {
     if ($method === 'POST') {
         $origin=$_SERVER['HTTP_ORIGIN'] ?? '';
         $host=$_SERVER['HTTP_HOST'] ?? '';
-        if ($origin !== '' && strtolower((string)parse_url($origin,PHP_URL_HOST)) !== strtolower(explode(':',$host)[0])) {
+        $sameOrigin = request_origin_host_matches(
+            (string)$origin,
+            (string)$host,
+            (string)($_SERVER['REMOTE_ADDR'] ?? ''),
+            (string)($_SERVER['HTTP_X_FORWARDED_HOST'] ?? ''),
+            getenv('BITDEER_TRUST_LOCAL_PROXY') === '1'
+        );
+        if (!$sameOrigin) {
             fail(403,'Origem cruzada não permitida');
         }
     }

@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # Keep PHP source and private data out of the public document root.
-php -S 127.0.0.1:8000 -t public scripts/php-router.php &
+BITDEER_TRUST_LOCAL_PROXY=1 php -S 127.0.0.1:8000 -t public scripts/php-router.php &
 backend=$!
 bun run --bun vite --host 0.0.0.0 --port 5000 &
 frontend=$!
