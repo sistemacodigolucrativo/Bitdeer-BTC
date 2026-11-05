@@ -2,6 +2,13 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Remixes keep Secrets but do not include the private SQLite database.
+# Provision it once for local development; the provisioning script refuses to
+# overwrite an existing database and never logs credentials.
+if ! php -r 'require "server/core.php"; exit(is_file(data_file()) ? 0 : 1);'; then
+  BITDEER_ALLOW_CLI_PROVISION=1 php bin/provision-replit.php
+fi
+
 # Keep PHP source and private data out of the public document root.
 BITDEER_TRUST_LOCAL_PROXY=1 php -S 127.0.0.1:8000 -t public scripts/php-router.php &
 backend=$!
