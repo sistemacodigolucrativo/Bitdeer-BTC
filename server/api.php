@@ -6,6 +6,7 @@ require_once __DIR__ . '/quote.php';
 require_once __DIR__ . '/bitcoin.php';
 require_once __DIR__ . '/member_history.php';
 require_once __DIR__ . '/demo_marcelo.php';
+require_once __DIR__ . '/demo_withdrawal_timeline.php';
 
 /* The reward unit exactly matches dailyRewards.ts:
  * one USD = 864,000,000 units; USD/day (in cents) yields cents * 100 units/s.
@@ -739,27 +740,20 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $requests=history_rows($db,(int)$actor['id'],'withdrawal');
         // Test-only display records: no database write and no balance impact.
         if((string)$actor['login']==='user') {
-            $base=now();
+            $fixture=query_one($db,'SELECT value FROM app_settings WHERE name="demo_marcelo_seed"');
+            $metadata=json_decode($fixture['value']??'{}',true);
+            $member=query_one($db,'SELECT created_at FROM users WHERE id=?',[(int)$actor['id']]);
+            $base=(int)(($metadata['userId']??null)===(int)$actor['id']
+                ? ($metadata['seededAt']??$member['created_at']) : $member['created_at']);
             $requests=array_merge($requests,[
-              ['id'=>'D-104','plan_id'=>'VIP_01','status'=>'failed','reason'=>'Endereço de recebimento inválido.','created_at'=>$base-86400*118,'usd_cents'=>7425,'btc_satoshis'=>112300],
-              ['id'=>'D-105','plan_id'=>'VIP_01','status'=>'approved','created_at'=>$base-86400*116,'usd_cents'=>7425,'btc_satoshis'=>112300],
-              ['id'=>'D-106','plan_id'=>'VIP_02','status'=>'failed','reason'=>'Dados de solicitação inconsistentes.','created_at'=>$base-86400*80,'usd_cents'=>11840,'btc_satoshis'=>179500],
-              ['id'=>'D-107','plan_id'=>'VIP_02','status'=>'approved','created_at'=>$base-86400*78,'usd_cents'=>11840,'btc_satoshis'=>179500],
-              ['id'=>'D-108','plan_id'=>'VIP_03','status'=>'failed','reason'=>'Falha temporária no processamento.','created_at'=>$base-86400*42,'usd_cents'=>15320,'btc_satoshis'=>232400],
-              ['id'=>'D-109','plan_id'=>'VIP_03','status'=>'approved','created_at'=>$base-86400*40,'usd_cents'=>15320,'btc_satoshis'=>232400],
+              ['id'=>'D-104','simulation'=>true,'plan_id'=>'VIP_01','status'=>'failed','reason'=>'Endereço de recebimento inválido.','created_at'=>$base-86400*118,'usd_cents'=>7425,'btc_satoshis'=>112300],
+              ['id'=>'D-105','simulation'=>true,'plan_id'=>'VIP_01','status'=>'approved','created_at'=>$base-86400*116,'usd_cents'=>7425,'btc_satoshis'=>112300],
+              ['id'=>'D-106','simulation'=>true,'plan_id'=>'VIP_02','status'=>'failed','reason'=>'Dados de solicitação inconsistentes.','created_at'=>$base-86400*80,'usd_cents'=>11840,'btc_satoshis'=>179500],
+              ['id'=>'D-107','simulation'=>true,'plan_id'=>'VIP_02','status'=>'approved','created_at'=>$base-86400*78,'usd_cents'=>11840,'btc_satoshis'=>179500],
+              ['id'=>'D-108','simulation'=>true,'plan_id'=>'VIP_03','status'=>'failed','reason'=>'Falha temporária no processamento.','created_at'=>$base-86400*42,'usd_cents'=>15320,'btc_satoshis'=>232400],
+              ['id'=>'D-109','simulation'=>true,'plan_id'=>'VIP_03','status'=>'approved','created_at'=>$base-86400*40,'usd_cents'=>15320,'btc_satoshis'=>232400],
             ]);
-            // Only presentation fixtures for the standard test member: spread
-            // their displayed timestamps over roughly six months with varied
-            // intervals. SQLite rows, balances and real withdrawal requests
-            // are never changed here.
-            usort($requests,static fn($a,$b)=>(int)$a['created_at']<=>(int)$b['created_at']);
-            $at=$base-169*86400;
-            $gaps=[2,3,2,3,3,2,4,2,3,2,4,3];
-            foreach($requests as $index=>&$request) {
-                if($index>0)$at+=$gaps[($index-1)%count($gaps)]*86400+((($index*37)%9)-4)*3600;
-                $request['created_at']=$at;
-            }
-            unset($request);
+            $requests=demo_withdrawal_timeline($requests,$base);
         }
         json_out(['requests'=>$requests,
                   'simulation'=>true]);
