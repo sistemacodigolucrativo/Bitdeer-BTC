@@ -1,4 +1,5 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+@source "./";
 
 /* Make the first paint match the member UI, not the dark page gutter. */
 html, body, #root { width: 100%; height: 100%; margin: 0; background: #121526; }
