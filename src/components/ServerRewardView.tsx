@@ -10,7 +10,6 @@ type Props={account:MemberData|null;language:LanguageCode;busy:boolean;
 export const ServerRewardView:React.FC<Props>=({account,language,busy,ledger,onClaim,onRefreshHistory})=>{
   const [now,setNow]=useState(Date.now());
   const [historyOpen,setHistoryOpen]=useState(false);
-  const [referralsOpen,setReferralsOpen]=useState(false);
   useEffect(()=>{
     const timer=window.setInterval(()=>setNow(Date.now()),1000);
     return ()=>window.clearInterval(timer);
@@ -38,7 +37,7 @@ export const ServerRewardView:React.FC<Props>=({account,language,busy,ledger,onC
     <header className="flex items-center justify-between gap-3">
       <div><h2 className="text-lg font-extrabold">{t.title}</h2>
         <p className="text-[11px] text-slate-400">{t.frequency}</p></div>
-      <Gift size={24} className="text-indigo-400"/>
+      <span className="flex shrink-0 items-center justify-center rounded-lg border border-[#4f46e5]/60 bg-indigo-500/15 p-2 text-indigo-400"><Gift size={24}/></span>
     </header>
     <div className="space-y-2" data-testid="rewards-compact-claim">
       <div data-testid="reward-bonus-grid" className="grid grid-cols-2 gap-2">
@@ -60,13 +59,7 @@ export const ServerRewardView:React.FC<Props>=({account,language,busy,ledger,onC
         <ShieldCheck size={13} className="shrink-0"/>{t.notice}
       </p>
     </div>
-    <button type="button" data-testid="referral-history-toggle" aria-expanded={referralsOpen} onClick={()=>setReferralsOpen(open=>!open)}
-      className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-[#2c3551] bg-[#1b2137] font-semibold text-xs">
-      {language==='en'?'Referral history':language==='es'?'Historial de referidos':'Histórico de Indicações'}<ChevronRight size={16} className={referralsOpen?'rotate-90 transition-transform':'transition-transform'}/>
-    </button>
-    {referralsOpen&&<div role="region" aria-label={language==='en'?'Referral history':language==='es'?'Historial de referidos':'Histórico de Indicações'} className="rounded-xl border border-[#2c3551] bg-[#171b2d] p-3">
-      <ReferralHistoryView language={language} embedded/>
-    </div>}
+    <ReferralHistoryView language={language} embedded/>
     <button type="button" data-testid="reward-history-toggle" aria-controls="rewards-history-panel"
       aria-expanded={historyOpen} onClick={()=>{
         setHistoryOpen(open=>!open);
