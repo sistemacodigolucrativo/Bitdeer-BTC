@@ -1,0 +1,8 @@
+{
+  "name": "Remix BitCloud Mockup",
+  "description": "A persistent Bitcoin cloud mining simulation app featuring multi-language selection and a scalable architecture for future backend integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
