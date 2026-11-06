@@ -2,12 +2,14 @@ import React,{useEffect,useState} from 'react';
 import {Gift,Coins,ShieldCheck,ChevronRight} from 'lucide-react';
 import {MemberData} from '../services/api';
 import {LanguageCode} from '../types';
+import { useProjectCopy } from '../i18n/copyMode';
 import {ReferralHistoryView} from './workspace/ReferralHistoryView';
 import {RewardHistoryLog,RewardHistoryData} from './RewardHistoryLog';
 
 type Props={account:MemberData|null;language:LanguageCode;busy:boolean;
   ledger:RewardHistoryData;onClaim:()=>void;onRefreshHistory:()=>void};
 export const ServerRewardView:React.FC<Props>=({account,language,busy,ledger,onClaim,onRefreshHistory})=>{
+  const { copy } = useProjectCopy(language);
   const [now,setNow]=useState(Date.now());
   const [historyOpen,setHistoryOpen]=useState(false);
   useEffect(()=>{
@@ -23,15 +25,15 @@ export const ServerRewardView:React.FC<Props>=({account,language,busy,ledger,onC
   const t=language==='en'?{
     title:'Rewards',usd:'USD bonus',sats:'Satoshi bonus',claim:'Claim both daily bonuses',
     waiting:'Next claim in',frequency:'Once every 24 hours',ledger:'Reward history',
-    notice:'One claim grants both bonuses as internal credits.'
+    notice:copy('rewardNotice')
   }:language==='es'?{
     title:'Recompensas',usd:'Bono USD',sats:'Bono en satoshis',claim:'Reclamar ambos bonos diarios',
     waiting:'Próximo reclamo en',frequency:'Cada 24 horas',ledger:'Historial de recompensas',
-    notice:'Un solo reclamo acredita ambos bonos como créditos internos.'
+    notice:copy('rewardNotice')
   }:{
     title:'Recompensas',usd:'Bônus em USD',sats:'Bônus em satoshis',claim:'Resgatar ambos os bônus diários',
     waiting:'Próximo resgate em',frequency:'A cada 24 horas',ledger:'Histórico de recompensas',
-    notice:'Um único resgate credita ambos os bônus como créditos internos.'
+    notice:copy('rewardNotice')
   };
   return <section data-testid="rewards-premium" className="space-y-3 pb-4">
     <header className="flex items-center justify-between gap-3">

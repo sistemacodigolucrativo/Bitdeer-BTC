@@ -9,18 +9,14 @@ export interface Translations {
     pt: { name: string; nativeName: string; region: string };
   };
   onboardingPreview: {
-    stepTitle: string;
-    stepSubtitle: string;
     mineNowBtn: string;
   };
   terminal: {
     systemReady: string;
     enterWorkspace: string;
-    notice: string;
   };
   login: {
     title: string;
-    subtitle: string;
     loginLabel: string;
     loginPlaceholder: string;
     passwordLabel: string;
@@ -29,7 +25,6 @@ export interface Translations {
     validationError: string;
     terms: string;
     privacy: string;
-    disclaimer: string;
   };
   congratulations: {
     title: string;
@@ -120,18 +115,14 @@ export const translations: Record<LanguageCode, Translations> = {
       pt: { name: 'Português', nativeName: 'Portuguese', region: 'Global' }
     },
     onboardingPreview: {
-      stepTitle: 'Explore the Bitcoin reward simulator',
-      stepSubtitle: 'Track internal credits, plan sessions and history from your phone.',
       mineNowBtn: 'Mine Now'
     },
     terminal: {
       systemReady: 'SYSTEM READY FOR OPERATION',
       enterWorkspace: 'ENTER WORKSPACE',
-      notice: 'Demo animation: these steps do not verify a node connection or actual mining.'
     },
     login: {
       title: 'BTC Cloud Mining',
-      subtitle: 'Access your account to view internal reward records.',
       loginLabel: 'Username',
       loginPlaceholder: 'Enter your username',
       passwordLabel: 'Password',
@@ -140,7 +131,6 @@ export const translations: Record<LanguageCode, Translations> = {
       validationError: 'Please enter a valid username and password (minimum 10 characters).',
       terms: 'Terms of Use',
       privacy: 'Privacy Policy',
-      disclaimer: 'Reward balances are internal ledger entries, not evidence of actual Bitcoin mining or blockchain deposits.'
     },
     congratulations: {
       title: 'Congratulations',
@@ -229,18 +219,14 @@ export const translations: Record<LanguageCode, Translations> = {
       pt: { name: 'Português', nativeName: 'Português', region: 'Global' }
     },
     onboardingPreview: {
-      stepTitle: 'Explore a simulação de recompensas em Bitcoin',
-      stepSubtitle: 'Acompanhe créditos internos, sessões e históricos de planos pelo celular.',
       mineNowBtn: 'Minerar Agora'
     },
     terminal: {
       systemReady: 'SISTEMA PRONTO PARA OPERAÇÃO',
       enterWorkspace: 'ENTRAR NO PAINEL',
-      notice: 'Animação demonstrativa: estas etapas não verificam conexão com um nó nem mineração real.'
     },
     login: {
       title: 'BTC Cloud Mining',
-      subtitle: 'Acesse sua conta e consulte os registros internos de recompensas.',
       loginLabel: 'Nome de usuário',
       loginPlaceholder: 'Digite seu nome de usuário',
       passwordLabel: 'Senha',
@@ -249,7 +235,6 @@ export const translations: Record<LanguageCode, Translations> = {
       validationError: 'Informe nome de usuário e senha válidos (mínimo 10 caracteres).',
       terms: 'Termos de Uso',
       privacy: 'Política de Privacidade',
-      disclaimer: 'Os créditos exibidos são registros internos, não comprovam mineração real nem depósitos em blockchain.'
     },
     congratulations: {
       title: 'Parabéns!',
@@ -338,18 +323,14 @@ export const translations: Record<LanguageCode, Translations> = {
       pt: { name: 'Português', nativeName: 'Português', region: 'Global' }
     },
     onboardingPreview: {
-      stepTitle: 'Explora la simulación de recompensas Bitcoin',
-      stepSubtitle: 'Consulta créditos internos, sesiones y el historial de planes desde tu teléfono.',
       mineNowBtn: 'Minar Ahora'
     },
     terminal: {
       systemReady: 'SISTEMA LISTO PARA OPERACIÓN',
       enterWorkspace: 'ENTRAR AL PANEL',
-      notice: 'Animación demostrativa: estos pasos no verifican una conexión con un nodo ni minería real.'
     },
     login: {
       title: 'BTC Cloud Mining',
-      subtitle: 'Accede a tu cuenta y consulta los registros de recompensas internas.',
       loginLabel: 'Nombre de usuario',
       loginPlaceholder: 'Ingresa tu nombre de usuario',
       passwordLabel: 'Contraseña',
@@ -358,7 +339,6 @@ export const translations: Record<LanguageCode, Translations> = {
       validationError: 'Ingresa un usuario y una contraseña válidos (mínimo 10 caracteres).',
       terms: 'Términos de Uso',
       privacy: 'Política de Privacidade',
-      disclaimer: 'Los créditos son registros internos, no demuestran minería real ni depósitos en la blockchain.'
     },
     congratulations: {
       title: '¡Felicitaciones!',

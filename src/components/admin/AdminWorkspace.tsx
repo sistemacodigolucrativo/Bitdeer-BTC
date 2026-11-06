@@ -4,6 +4,7 @@ import { AdminMemberRecords } from './AdminMemberRecords';
 import { copyToClipboard } from '../../utils/clipboard';
 import { LanguageCode } from '../../types';
 import { adminText, adminDateLocale, adminStatus } from '../../i18n/adminTexts';
+import { MOCKUP_LOCK, useProjectCopy } from '../../i18n/copyMode';
 import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headphones, Menu, ChevronDown, ChevronUp } from 'lucide-react';
 
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
@@ -15,6 +16,7 @@ type Ticket = {id:number;user_id:number;login:string;subject:string;message:stri
   notification_status:'pending'|'accepted'|'failed';created_at:number};
 export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onChangeLanguage:(language:LanguageCode)=>void;onLogout:()=>void}> = ({user,language,onChangeLanguage,onLogout}) => {
   const tx=(portuguese:string)=>adminText(language,portuguese);
+  const {copy,mockupMode,setMockupMode}=useProjectCopy(language);
   const dateLocale=adminDateLocale(language);
   const [section,setSection]=useState<'overview'|'members'|'plans'|'orders'|'settings'|'audit'|'tickets'|'withdrawals'>('overview');
   const [menuOpen,setMenuOpen]=useState(false);
@@ -83,7 +85,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
     finally{setBusy(false);}
   }
   async function createMarceloDemo(){
-    if(!window.confirm(tx("Criar a conta padrão Marcelo? Uma conta existente não será modificada.")))return;
+    if(!window.confirm(copy('adminMarceloPrompt')))return;
     setBusy(true);setNotice('');
     try{
       const created=await api<{login:string;initialPassword:string;referralCode:string}>(
@@ -91,20 +93,20 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
       setDemoMarceloAccess({login:created.login,password:created.initialPassword,
         referralCode:created.referralCode});
       setDemoMarceloExists(true);
-      setNotice(tx("Conta padrão Marcelo criada. Guarde as credenciais exibidas apenas nesta sessão."));
+      setNotice(copy('adminMarceloCreated'));
       await refresh();
     }catch(e){setNotice((e as Error).message)}
     finally{setBusy(false)}
   }
   async function createRandomUser(){
-    if(!window.confirm(tx("Criar um Random User povoado com os mesmos dados padrão do Marcelo?")))return;
+    if(!window.confirm(copy('adminRandomPrompt')))return;
     setBusy(true);setNotice('');
     try{
       const created=await api<{login:string;initialPassword:string;referralCode:string;email:string;displayName:string}>(
         'admin.demo.random-member.seed',{confirmRandomUser:true});
       setRandomUserAccess({login:created.login,password:created.initialPassword,
         referralCode:created.referralCode,email:created.email,displayName:created.displayName});
-      setNotice(tx("Random User criado com sucesso. Guarde as credenciais exibidas apenas nesta sessão."));
+      setNotice(copy('adminRandomCreated'));
       await refresh();
     }catch(e){setNotice((e as Error).message)}
     finally{setBusy(false)}
@@ -132,12 +134,12 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
     </label>}
     {([
       ['name','Nome do plano'],['priceUsd','Preço (USD)'],
-      ['dailyUsd','Recompensa diária interna (USD)'],['bonusUsd','Bônus diário (USD)'],
-      ['bonusSatoshis','Bônus diário (satoshis internos)'],
+    ['dailyUsd',copy('adminDailyUsdLabel')],['bonusUsd','Bônus diário (USD)'],
+    ['bonusSatoshis',copy('adminDailySatoshisLabel')],
       ['durationDays','Duração do plano (dias)'],
       ['sessionSeconds','Duração da sessão (segundos)'],
       ['withdrawMinUsd','Valor mínimo de saque (USD)'],
-      ['hashrate','Capacidade ilustrativa'],['serverModel','Equipamento ilustrativo']
+      ['hashrate',copy('adminIllustrativeCapacityLabel')],['serverModel',copy('adminIllustrativeEquipmentLabel')]
     ] as const).map(([key,label])=><label key={key} className="block text-sm">
       {tx(label)}<input required value={selected[key]} type={
         ['bonusSatoshis','durationDays','sessionSeconds','restartCooldownSeconds','withdrawAfterDays'].includes(key)?'number':
@@ -160,6 +162,23 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
     <header className="relative px-4 py-3 bg-[#171b2d] border-b border-[#2b3350] flex justify-between items-center z-40">
       <strong>Bitdeer BTC <span className="text-xs text-slate-400">· {tx('Administração')}</span></strong>
       <div className="flex items-center gap-2">
+        <div className="hidden sm:block text-right">
+          <label className="flex items-center justify-end gap-2 text-xs font-semibold">
+            <span>{copy('adminModeLabel')}</span>
+            <input type="checkbox" role="switch" aria-checked={mockupMode} checked={mockupMode}
+              disabled={MOCKUP_LOCK} onChange={e=>setMockupMode(e.target.checked)}
+              data-testid="admin-mockup-mode-toggle" className="h-4 w-4 accent-amber-400"/>
+          </label>
+          <p className="text-[10px] text-slate-400">{copy('adminModeLockedNote')}</p>
+        </div>
+        <div className="sm:hidden">
+          <label className="flex items-center gap-1.5 text-[10px] font-semibold">
+            <span>{copy('adminModeLabel')}</span>
+            <input type="checkbox" role="switch" aria-checked={mockupMode} checked={mockupMode}
+              disabled={MOCKUP_LOCK} onChange={e=>setMockupMode(e.target.checked)}
+              data-testid="admin-mockup-mode-toggle-mobile" className="h-4 w-4 accent-amber-400"/>
+          </label>
+        </div>
         <label className="sr-only" htmlFor="admin-language">{language==='en'?'Language':language==='es'?'Idioma':'Idioma'}</label>
         <select id="admin-language" data-testid="admin-language-selector" aria-label={language==='en'?'Language':language==='es'?'Idioma':'Idioma'}
           value={language} onChange={e=>onChangeLanguage(e.target.value as LanguageCode)}
@@ -200,15 +219,15 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
             <p className="text-xs text-slate-400">{tx(label)}</p>
             <strong className="text-2xl">{value}</strong>
           </div>)}
-        <p className="col-span-full text-xs text-slate-400">{tx("Contagens obtidas do banco SQLite; não representam faturamento ou BTC confirmado na blockchain.")}</p>
+        <p className="col-span-full text-xs text-slate-400">{copy('adminOverviewNotice')}</p>
       </div>}
       {section==='members' && <>
         <section className="rounded-xl border border-[#303a56] bg-[#1b2137] p-3 space-y-2" data-testid="admin-marcelo-demo">
-          <p className="text-sm font-semibold">{tx("Conta demonstrativa · Marcelo")}</p>
-          <p className="text-xs text-slate-400">{tx("Histórico de aproximadamente cinco meses: recompensas, bônus, VIP 01–03 e saques. Plano atual FREE; saldo interno US$ 1.837,42.")}</p>
+          <p className="text-sm font-semibold">{copy('adminMarceloTitle')}</p>
+          <p className="text-xs text-slate-400">{copy('adminMarceloDescription')}</p>
           <button type="button" data-testid="admin-seed-marcelo" disabled={busy||demoMarceloExists}
             className={btn+' disabled:opacity-50'} onClick={()=>void createMarceloDemo()}>
-            {tx(demoMarceloExists?'Conta de demonstração já criada':'Criar conta demonstrativa')}
+            {demoMarceloExists?copy('adminMarceloAlreadyCreated'):copy('adminMarceloCreate')}
           </button>
           {demoMarceloAccess&&<div role="status" className="rounded-lg border border-amber-400/40 p-3 bg-[#11182c] text-xs space-y-1">
             <p className="text-amber-300 font-semibold">{tx("Credenciais exibidas uma única vez. Guarde-as em local seguro.")}</p>
@@ -219,11 +238,11 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
           </div>}
         </section>
         <section className="rounded-xl border border-cyan-400/25 bg-gradient-to-br from-[#17283a] to-[#1b2137] p-3 space-y-2" data-testid="admin-random-user">
-          <p className="text-sm font-semibold">{tx("Membro fictício de demonstração")}</p>
-          <p className="text-xs text-slate-300">{tx("Cria uma conta povoada com nome, login e e-mail fictícios coerentes, além do mesmo saldo e histórico do Marcelo.")}</p>
+          <p className="text-sm font-semibold">{copy('adminRandomTitle')}</p>
+          <p className="text-xs text-slate-300">{copy('adminRandomDescription')}</p>
           <button type="button" data-testid="admin-seed-random-user" disabled={busy}
             className={btn+' disabled:opacity-50'} onClick={()=>void createRandomUser()}>
-            {tx("Criar membro de demonstração")}
+            {copy('adminRandomCreate')}
           </button>
           {randomUserAccess&&<div role="status" className="rounded-lg border border-cyan-300/30 p-3 bg-[#11182c] text-xs space-y-1">
             <p className="text-cyan-200 font-semibold">{tx("Usuário criado. Credenciais exibidas somente nesta sessão.")}</p>
@@ -273,7 +292,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
         {details && <div className="bg-[#1b2137] rounded-xl p-4 space-y-2 text-sm">
           <h3 className="font-semibold">{tx("Detalhes de")} #{details.member.id} — {details.member.login}</h3>
           <p>{tx("Plano(s) contratados:")} {details.contracts.length}</p>
-          <p>{tx("Saldo interno:")} US$ {details.balanceUsd} · {tx("satoshis internos:")} {details.bonusSatoshis}</p>
+          <p>{copy('adminInternalBalanceLabel')} US$ {details.balanceUsd} · {copy('adminInternalSatoshisLabel')} {details.bonusSatoshis}</p>
           <p>{tx("Últimos pedidos:")} {details.orders.length}</p>
           {details.contracts.length>0 && <section className="mt-4 space-y-2">
             <h4 className="font-bold text-xs">{tx("Histórico de contratos VIP")}</h4>
@@ -287,7 +306,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
             <h4 className="font-bold text-xs">{tx("Últimos pedidos")}</h4>
             {details.orders.map(o=><div key={o.id} className="text-xs p-2 border-b border-[#2b3350]">
               {tx("Pedido")} #{o.id} · {o.plan_id} · {adminStatus(language,o.status)}
-              <p className="font-mono text-slate-400 break-all mt-1">TXID: {o.payment_ref || tx(o.status==='approved'?'Não existe — aprovação simulada':'Não informado')}</p>
+              <p className="font-mono text-slate-400 break-all mt-1">TXID: {o.payment_ref || (o.status==='approved'?copy('adminMissingPaymentRef'):tx('Não informado'))}</p>
             </div>)}
           </section>}
           <button className="text-indigo-300 underline" onClick={()=>setDetails(null)}>{tx("Fechar detalhes")}</button>
@@ -383,16 +402,16 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
         {withdrawals.length===0&&<p className="text-xs text-slate-400">{tx("Nenhum saque registrado.")}</p>}
         {withdrawals.map(w=><article key={w.id} className="bg-[#1b2137] rounded-xl border border-[#2b3350] p-4 space-y-2">
           <strong>{tx("Solicitação")} #{w.id} · {w.login}</strong>
-          <p className="text-xs text-slate-300">{tx("Plano:")} {w.plan_id} · {tx('Estado:')} {tx(w.status==='awaiting_vip'?'Aguardando assinatura VIP':w.status==='pending'?'Pendente de conferência':w.status==='approved'?'Aprovada (simulação interna; sem envio de BTC)':'Rejeitada')}</p>
-          <p className="text-sm">US$ {(w.usd_cents/100).toFixed(2)} · {(w.btc_satoshis/1e8).toFixed(8)} BTC ({tx("equivalência interna")})</p>
+          <p className="text-xs text-slate-300">{tx("Plano:")} {w.plan_id} · {tx('Estado:')} {tx(w.status==='awaiting_vip'?'Aguardando assinatura VIP':w.status==='pending'?'Pendente de conferência':w.status==='approved'?copy('adminApprovedWithdrawal'):'Rejeitada')}</p>
+          <p className="text-sm">US$ {(w.usd_cents/100).toFixed(2)} · {(w.btc_satoshis/1e8).toFixed(8)} BTC ({copy('adminWithdrawalEquivalent')})</p>
           <p className="text-xs text-slate-400 break-all">{w.btc_address}</p>
           {(w.status==='pending'||w.status==='awaiting_vip')&&<div className="flex flex-wrap gap-2">
             {w.status==='pending'&&<button disabled={busy} className={btn} onClick={()=>{
               const reference=window.prompt(tx("Referência da conferência externa (mínimo 6 caracteres):"));
               if(!reference||reference.trim().length<6)return;
-              if(window.confirm(tx("Registrar conferência? Esta ação NÃO transmite BTC.")))
+              if(window.confirm(copy('adminReviewPrompt')))
                 void change('admin.withdraw.process',{requestId:w.id,status:'approved',reference:reference.trim(),manualReviewConfirmed:true});
-            }}>{tx("Aceitar solicitação (conferência interna)")}</button>}
+            }}>{copy('adminAcceptWithdrawal')}</button>}
             <button disabled={busy} className={btn} onClick={()=>{
               const reference=window.prompt(tx("Motivo da rejeição (mínimo 6 caracteres):"));
               if(reference&&reference.trim().length>=6)
@@ -417,10 +436,10 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
           }}>{tx("Rejeitar pedido")}</button>}
           {o.status==='pending' && <button data-testid="admin-approve-simulation"
             disabled={busy} className={btn} onClick={()=>{
-            if(window.confirm(tx("Aprovar somente como simulação interna? Nenhum pagamento BTC real foi confirmado."))) {
+            if(window.confirm(copy('adminApprovePrompt'))) {
               void change('admin.order.approve',{orderId:o.id,paymentConfirmed:true,simulationConfirmed:true});
             }
-          }}>{tx("Aprovar simulação e ativar VIP")}</button>}
+          }}>{copy('adminApproveButton')}</button>}
         </article>)}
       </div>}
       {section==='tickets' && <div className="space-y-3">
@@ -469,21 +488,21 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
           className="rounded-xl border border-[#374461] bg-[#1b2137] p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0 space-y-1">
-              <h2 className="font-semibold">{language==='en'?'New investors · demo toast':language==='es'?'Nuevos inversores · aviso de demostración':'Novos investidores · toast demonstrativo'}</h2>
-              <p className="text-xs text-slate-300">{language==='en'?'Fictional registrations only. No real member data or registration events are displayed.':language==='es'?'Solo registros ficticios. No muestra datos ni altas reales.':'Cadastros fictícios, sem utilizar dados de membros ou inscrições reais.'}</p>
+              <h2 className="font-semibold">{copy('adminInvestorTitle')}</h2>
+              <p className="text-xs text-slate-300">{copy('adminInvestorDescription')}</p>
             </div>
             <button type="button" role="switch" data-testid="admin-demo-investors-toggle"
               aria-checked={demoInvestorToastsEnabled} disabled={busy||!demoInvestorToastsReady}
               onClick={()=>void change('admin.demo.new-investors.settings',{enabled:!demoInvestorToastsEnabled})}
-              aria-label={language==='en'?'Enable demonstration investor notifications':language==='es'?'Activar avisos demostrativos de inversores':'Ativar notificações demonstrativas de investidores'}
+              aria-label={copy('adminInvestorAria')}
               className={'relative h-8 w-14 shrink-0 rounded-full border transition-colors disabled:opacity-50 '+(demoInvestorToastsEnabled?'border-emerald-400 bg-emerald-500':'border-slate-500 bg-slate-600')}>
               <span className={'absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform '+(demoInvestorToastsEnabled?'translate-x-6':'translate-x-0')}/>
             </button>
           </div>
           <p data-testid="admin-demo-investors-status" className="text-xs text-slate-300">
-            {language==='en'?(demoInvestorToastsEnabled?'Enabled':'Disabled'):language==='es'?(demoInvestorToastsEnabled?'Activado':'Desactivado'):(demoInvestorToastsEnabled?'Ativado':'Desativado')}
+            {demoInvestorToastsEnabled?copy('adminInvestorEnabled'):copy('adminInvestorDisabled')}
             {' · '}
-            {language==='en'?'Shown only in member workspace':language==='es'?'Solo en el panel de miembros':'Somente no painel de membros'}
+            {copy('adminInvestorPlacement')}
           </p>
         </section>
         <form onSubmit={e=>{e.preventDefault();void change('admin.settings',{supportEmail:email})}} className="space-y-3">
@@ -535,7 +554,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
             className="flex gap-3 justify-between text-xs border-b border-[#2b3350] pb-2">
             <span className="text-slate-400">{tx(label)}</span><strong>{tx(value)}</strong>
           </div>):<p className="text-xs text-slate-400">{tx("Diagnóstico indisponível.")}</p>}
-          <p className="text-xs text-slate-400">{tx("Cotações: Coinbase e CoinGecko; a disponibilidade de rede deve ser verificada no domínio real. O sistema não confirma blockchain nem entrega de e-mail automaticamente.")}</p>
+          <p className="text-xs text-slate-400">{copy('adminPaymentNotice')}</p>
         </section>
         <p className="text-xs text-slate-400">{tx("O instalador de primeira execução está disponível sem chave somente por acesso local ao servidor. Não é liberado para criação administrativa pública.")}</p>
       </section>}

@@ -2,6 +2,7 @@ import React, {useMemo} from 'react';
 import {ArrowLeft} from 'lucide-react';
 import {LanguageCode} from '../../types';
 import {readLastKnownQuote} from '../../utils/lastKnownQuote';
+import {useProjectCopy} from '../../i18n/copyMode';
 
 type Miner = {name:string;country:string;flag:string;location:string;message:string;btcSats:number};
 /** Fictional profile showcase, not member data, not a blockchain transaction list. */
@@ -103,6 +104,7 @@ const descriptions = {
 } as const;
 type Props={language:LanguageCode;onBack:()=>void;btcUsd?:number|null;quoteTime?:number|null};
 export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd,quoteTime})=>{
+  const {copy}=useProjectCopy(language);
   // The ranking is informational. A previously verified public quote is safe
   // for DISPLAY, even while the background refresh endpoint is unavailable.
   // Never use this fallback to authorize or calculate a withdrawal request.
@@ -110,11 +112,6 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd,quoteTime})=
   const displayRate=typeof btcUsd==='number'&&Number.isFinite(btcUsd)&&btcUsd>0
     ?btcUsd:cachedQuote?.rate??null;
   const displayQuotedAt=quoteTime??cachedQuote?.quotedAt??null;
-  const notice=language==='en'
-    ? 'Demonstration ranking with 200 fictional profiles and illustrative BTC values; these are not actual mining results.'
-    : language==='es'
-    ? 'Ranking demostrativo con 200 perfiles y cantidades ficticias, sin minería real.'
-    : 'Ranking demonstrativo com 200 perfis fictícios. Os valores não são BTC minerados nem saldos de membros.';
   const dollar=useMemo(()=>displayRate!==null?new Intl.NumberFormat(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4}):null,[displayRate,language]);
   return <section className="flex-1 min-h-0 w-full flex flex-col bg-[#121626] text-white overflow-hidden">
     <header className="grid grid-cols-[44px_1fr_44px] items-center gap-2 px-4 py-4 border-b border-[#232943] bg-[#141829]">
@@ -123,14 +120,12 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd,quoteTime})=
       <h2 className="font-extrabold text-lg text-center">{language==='en'?'Top Miners':language==='es'?'Mejores mineros':'Top Mineradores'}</h2><span aria-hidden="true"/>
     </header>
     <div data-testid="top-miners-scroll" className="top-miners-vertical-scroll flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y member-vertical-scroll p-4 space-y-3">
-      <p className="text-[11px] text-slate-400">{notice}</p>
+      <p className="text-[11px] text-slate-400">{copy('topMinersNotice')}</p>
       {displayRate!==null&&
         <p className="text-[10px] text-slate-500">
-          {language==='en'?'USD uses the last available BTC/USD quote. BTC profiles are fictional.':
-            language==='es'?'USD utiliza la última cotización BTC/USD disponible. Los perfiles BTC son ficticios.':
-            'USD utiliza a última cotação BTC/USD disponível. Os perfis BTC são fictícios.'}
+          {copy('topMinersQuoteNotice')}
         </p>}
-      <div className="space-y-3" aria-label={language==='en'?'Demonstration miner ranking':language==='es'?'Clasificación demostrativa de mineros':'Ranking demonstrativo de mineradores'}>
+      <div className="space-y-3" aria-label={copy('topMinersListLabel')}>
         {showcase.map((miner,index)=><article key={miner.name} data-testid="miner-card"
           className="miner-card bg-[#1c2238] border border-[#2a314d] rounded-2xl px-3.5 py-4 shadow-sm flex gap-2.5 items-center">
           <div className="min-w-0 flex-1">

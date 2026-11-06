@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowLeft, Zap } from 'lucide-react';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
+import { useProjectCopy } from '../i18n/copyMode';
 
 interface OnboardingPreviewScreenProps {
   language: LanguageCode;
@@ -15,6 +16,7 @@ export const OnboardingPreviewScreen: React.FC<OnboardingPreviewScreenProps> = (
   onSlideToStart
 }) => {
   const t = translations[language].onboardingPreview;
+  const { copy } = useProjectCopy(language);
 
   return (
     <div className="w-full h-full flex flex-col justify-between items-center bg-[#121626] text-white select-none p-5 sm:p-6 overflow-y-auto">
@@ -72,12 +74,12 @@ export const OnboardingPreviewScreen: React.FC<OnboardingPreviewScreenProps> = (
 
         {/* Main Title */}
         <h1 className="text-2xl sm:text-[27px] font-black tracking-tight text-white leading-tight">
-          {t.stepTitle}
+          {copy('onboardingTitle')}
         </h1>
 
         {/* Subtitle */}
         <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xs px-2">
-          {t.stepSubtitle}
+          {copy('onboardingSubtitle')}
         </p>
 
         {/* Button "Minerar Agora" */}

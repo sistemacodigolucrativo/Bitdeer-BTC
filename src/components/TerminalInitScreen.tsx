@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
+import { useProjectCopy } from '../i18n/copyMode';
 
 interface TerminalInitScreenProps {
   language: LanguageCode;
@@ -31,6 +32,7 @@ export const TerminalInitScreen: React.FC<TerminalInitScreenProps> = ({
   onEnterWorkspace
 }) => {
   const t = translations[language].terminal;
+  const { copy } = useProjectCopy(language);
   const [currentStep, setCurrentStep] = useState(0);
   const logsContainerRef = useRef<HTMLDivElement>(null);
 
@@ -92,7 +94,7 @@ export const TerminalInitScreen: React.FC<TerminalInitScreenProps> = ({
             <span className={`w-2.5 h-2.5 rounded-full ${isComplete ? 'bg-[#10b981]' : 'bg-[#10b981] animate-ping'}`} />
           </div>
         </div>
-        <p role="note" className="mt-3 text-[11px] leading-relaxed text-amber-200/90">{t.notice}</p>
+        <p role="note" className="mt-3 text-[11px] leading-relaxed text-amber-200/90">{copy('terminalNotice')}</p>
 
         {/* Scrollable Progressive Log Window (Technical info strictly in English) */}
         <div
