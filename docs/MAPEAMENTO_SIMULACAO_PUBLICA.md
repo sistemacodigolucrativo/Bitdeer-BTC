@@ -1,4 +1,4 @@
-# Mapeamento de referências a simulação, demonstração e dados fictícios
+û# Mapeamento de referências a simulação, demonstração e dados fictícios
 
 **Escopo:** interface do projeto na raiz, clone `ProjetoGIT` e respostas relevantes da API.  
 **Data do levantamento:** 6 de novembro de 2026.  
