@@ -1,12 +1,14 @@
 # Checklist de textos: antes e depois
 
-**Objetivo:** revisar as indicações de simulação, demonstração, dados fictícios e valores ilustrativos encontradas na interface.  
+**Objetivo:** preparar a copy final de produção para uma interface povoada com dados reais, substituindo rótulos temporários de simulação quando as fontes reais estiverem integradas.  
 **Escopo deste arquivo:** propostas de texto; nenhuma tela, regra, API ou dado foi alterado.  
 **Cópias cobertas:** projeto da raiz (preview) e clone `ProjetoGIT`.
 
-## Critério para as propostas
+## Premissa para aplicar os textos “DEPOIS”
 
-O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma transação, saque, saldo ou mineração fictícia ocorreu de verdade. Nos pontos em que a interface exibe dados gerados como demonstração, a proposta mantém essa informação visível.
+O objetivo visual informado é mostrar como a plataforma ficará quando estiver povoada e conectada ao backend real. Os textos “DEPOIS” abaixo são propostas para essa versão de produção: podem substituir avisos de demonstração quando os dados, eventos e estados exibidos vierem de fontes reais e forem confirmados pelo backend.
+
+Enquanto houver dados fictícios, a visualização preenchida deve permanecer isolada em um ambiente de preview/teste sem acesso público como se fosse produção. A copy de produção não deve ser usada para afirmar pagamentos, saques, cadastros ou mineração que ainda não ocorreram.
 
 ## Checklist
 
@@ -20,9 +22,9 @@ O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma t
 
 - [ ] **DEPOIS**
 
-  “Pagamentos BTC de demonstração”
+  “Pagamentos recentes em BTC”
 
-  “Registros fictícios. Nenhuma transferência real foi realizada.”
+  Usar com registros reais de pagamentos, incluindo seus identificadores e estados confirmados.
 
 - **Localização:** `src/components/MockPaymentFeed.tsx`; também em `ProjetoGIT/src/components/MockPaymentFeed.tsx`. Dados em `server/api.php:714–750`.
 
@@ -34,13 +36,13 @@ O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma t
 
 - [ ] **DEPOIS**
 
-  “Histórico de demonstração”
+  “Estes são seus saques em BTC.”
 
-  Para cada registro simulado: “Registro fictício — nenhum BTC foi enviado.”
+  Usar essa frase somente para saques efetivamente enviados e confirmados. Para itens ainda não enviados, usar “Solicitações de saque” e o status real do pedido.
 
 - **Localização:** `src/components/MemberWorkspace.tsx:424–435`; também em `ProjetoGIT/src/components/MemberWorkspace.tsx`. Registros marcados em `server/api.php:766–784`.
 
-> **Observação sobre o exemplo do pedido:** a frase “Esta é uma simulação dos seus saques BTC” não foi localizada literalmente no código. A alternativa “Estes são seus saques em BTC” não é recomendada para esses registros, pois poderia afirmar que houve saques reais.
+> **Observação:** as frases do exemplo do pedido não foram localizadas literalmente no código. “Estes são seus saques em BTC” é apropriada somente para transferências reais concluídas; solicitações pendentes devem continuar identificadas como solicitações.
 
 ### 3. Top Mineradores
 
@@ -50,7 +52,9 @@ O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma t
 
 - [ ] **DEPOIS**
 
-  “Ranking de demonstração: 200 perfis e valores ilustrativos. Não representa mineradores reais, BTC minerado ou saldos de membros.”
+  “Top Mineradores”
+
+  Exibir o ranking, os perfis e os valores provenientes de atividade real e verificável.
 
 - **Localização:** `src/components/workspace/TopMinersView.tsx:114–133`; também em `ProjetoGIT/src/components/workspace/TopMinersView.tsx`.
 
@@ -62,7 +66,9 @@ O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma t
 
 - [ ] **DEPOIS**
 
-  “Notificação de demonstração” / “Perfil fictício” / “Não representa um cadastro real.”
+  “Novos investidores” / “Acabou de se cadastrar”
+
+  Exibir somente eventos reais de cadastro, respeitando as regras de privacidade e consentimento aplicáveis.
 
 - **Localização:** `src/components/NewInvestorToast.tsx:5–34, 103–115`; também em `ProjetoGIT/src/components/NewInvestorToast.tsx`. O aviso só é exibido quando ativado pelo administrador.
 
@@ -74,7 +80,9 @@ O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma t
 
 - [ ] **DEPOIS**
 
-  “Ambiente de demonstração — saldos e atividades exibidos podem ser ilustrativos.”
+  “Bitcoin Cloud Mining”
+
+  Remover a qualificação de projeto demonstrativo na versão de produção povoada com dados reais.
 
 - **Localização:** `src/components/workspace/SettingTab.tsx:352–355`; também em `ProjetoGIT/src/components/workspace/SettingTab.tsx`.
 
@@ -86,7 +94,7 @@ O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma t
 
 - [ ] **DEPOIS**
 
-  Acrescentar aviso visível: “Animação demonstrativa. Estas etapas não confirmam conexão com um nó nem mineração ativa.”
+  Manter mensagens como “Conectando ao nó” e “Mineração ativa” somente se cada estado refletir verificações reais do backend. Substituir a sequência roteirizada por estados operacionais reais.
 
 - **Localização:** `src/components/TerminalInitScreen.tsx:10–25`; também em `ProjetoGIT/src/components/TerminalInitScreen.tsx`.
 
@@ -98,7 +106,7 @@ O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma t
 
 - [ ] **DEPOIS**
 
-  Exibir junto aos saldos: “Créditos e saldos internos. Não comprovam BTC efetivamente minerado nem pagamento em blockchain.”
+  Apresentar o saldo e os resultados vindos do backend real. Usar “BTC minerado” somente para valores cuja origem de mineração seja confirmada; identificar separadamente saldos internos, se houver.
 
 - **Localização:** texto definido em `src/components/ServerHomeView.tsx:14–26`; também em `ProjetoGIT/src/components/ServerHomeView.tsx`.
 
@@ -112,9 +120,9 @@ O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma t
 
 - [ ] **DEPOIS**
 
-  “Conta de demonstração: Marcelo”
+  “Membros”
 
-  “Histórico fictício para testes. Recompensas, saques e saldo não representam mineração ou pagamentos reais.”
+  Na versão de produção, mostrar os membros e históricos reais. Manter a conta padrão de demonstração fora das telas públicas e dos dados de produção.
 
 - **Localização:** `src/components/admin/AdminWorkspace.tsx:206–219`; também em `ProjetoGIT/src/components/admin/AdminWorkspace.tsx`. Traduções em `src/i18n/adminTexts.ts:114–152`.
 
@@ -126,7 +134,9 @@ O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma t
 
 - [ ] **DEPOIS**
 
-  “Criar conta fictícia para testes, com saldo e histórico demonstrativos. Esses dados não representam uma conta ou atividade financeira real.”
+  “Criar membro”
+
+  Na versão de produção, o cadastro deve criar um membro real com os dados enviados pelo fluxo administrativo; não povoar o ambiente de produção com a conta fictícia de teste.
 
 - **Localização:** `src/components/admin/AdminWorkspace.tsx:221–226`; também em `ProjetoGIT/src/components/admin/AdminWorkspace.tsx`. Traduções em `src/i18n/adminTexts.ts:150–152`.
 
@@ -138,9 +148,11 @@ O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma t
 
 - [ ] **DEPOIS**
 
-  “Capacidade informativa — não verificada em equipamento real”
+  “Capacidade de mineração”
 
-  “Equipamento de referência — não indica equipamento conectado”
+  “Equipamento”
+
+  Usar capacidades e equipamentos reais; se forem estimativas, identificá-los como estimados.
 
 - **Localização:** `src/components/admin/AdminWorkspace.tsx:137–143`; também em `ProjetoGIT/src/components/admin/AdminWorkspace.tsx`. Traduções em `src/i18n/adminTexts.ts:422–428`.
 
@@ -154,9 +166,9 @@ O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma t
 
 - [ ] **DEPOIS**
 
-  Botão: “Ativar VIP em modo de demonstração”
+  Botão: “Confirmar pagamento e ativar VIP”
 
-  Confirmação: “Esta ação é apenas interna. Não confirma pagamento nem envia BTC.”
+  Usar somente quando o backend verificar o pagamento real. A confirmação da interface deve descrever o estado realmente executado.
 
 - **Localização:** `src/components/admin/AdminWorkspace.tsx:418–423`; também em `ProjetoGIT/src/components/admin/AdminWorkspace.tsx`. Traduções em `src/i18n/adminTexts.ts:522–524, 754–756`.
 
@@ -168,7 +180,7 @@ O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma t
 
 - [ ] **DEPOIS**
 
-  “Sem TXID — aprovação interna, sem transferência BTC.”
+  Exibir o TXID real quando a transação tiver sido confirmada. Enquanto não houver TXID, mostrar o estado factual, como “Aguardando confirmação do pagamento”.
 
 - **Localização:** `src/components/admin/AdminWorkspace.tsx:287–290`; também em `ProjetoGIT/src/components/admin/AdminWorkspace.tsx`. Traduções em `src/i18n/adminTexts.ts:274–276`.
 
@@ -180,7 +192,7 @@ O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma t
 
 - [ ] **DEPOIS**
 
-  “Aprovada internamente — não houve envio de BTC.”
+  “Concluído” com o TXID real, somente depois do envio e da confirmação da transação. Se o saque estiver apenas aprovado, mostrar “Aprovado — aguardando envio”.
 
 - **Localização:** `src/components/admin/AdminWorkspace.tsx:383–388`; também em `ProjetoGIT/src/components/admin/AdminWorkspace.tsx`. Traduções em `src/i18n/adminTexts.ts:474–476`.
 
@@ -192,7 +204,9 @@ O texto sugerido deve ser direto e claro, mas não pode dar a entender que uma t
 
 - [ ] **DEPOIS**
 
-  “A alteração do plano é administrativa. Não registra nem confirma pagamento BTC.”
+  “Atribuir plano manualmente”
+
+  Manter a distinção administrativa: essa ação, por si só, não deve ser apresentada como confirmação de pagamento BTC.
 
 - **Localização:** `src/components/admin/AdminMemberRecords.tsx:117–120`; também em `ProjetoGIT/src/components/admin/AdminMemberRecords.tsx`. Traduções em `src/i18n/adminTexts.ts:786–788`.
 
