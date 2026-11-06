@@ -7,6 +7,8 @@ import { adminText, adminDateLocale, adminStatus } from '../../i18n/adminTexts';
 import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headphones, Menu, ChevronDown, ChevronUp } from 'lucide-react';
 import { AdminNotificationsBell } from './AdminNotificationsBell';
 import type { AdminOrderNotification } from './AdminNotificationsBell';
+import { SlimToast } from '../SlimToast';
+import { useSlimToast } from '../../hooks/useSlimToast';
 
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
 type MemberDetails = {member: Member & {phone: string;wallet_address:string}; contracts:Array<{id:number;plan_id:string;started_at:number;expires_at:number}>;orders:Array<{id:number;plan_id:string;status:string;payment_ref:string|null}>;balanceUsd:string;bonusSatoshis:number};
@@ -29,6 +31,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
   const [orders,setOrders]=useState<Order[]>([]);
   const [notifications,setNotifications]=useState<AdminOrderNotification[]>([]);
   const [unreadNotifications,setUnreadNotifications]=useState(0);
+  const [focusedOrderId,setFocusedOrderId]=useState<number|null>(null);
   const [tickets,setTickets]=useState<Ticket[]>([]);
   const [replyTicket,setReplyTicket]=useState<number|null>(null);
   const [replyMessage,setReplyMessage]=useState('');
@@ -48,6 +51,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
   const [diagnostics,setDiagnostics]=useState<{phpVersion:string;pdoSqlite:boolean;dbWritable:boolean;https:boolean;mailConfigured:boolean;btcAddressConfirmed:boolean;quoteProviders:string}|null>(null);
   const [selected,setSelected]=useState<Plan|null>(null);
   const [notice,setNotice]=useState('');
+  const toast=useSlimToast();
   const [editingMember,setEditingMember]=useState<Member|null>(null);
   const [verificationMethod,setVerificationMethod]=useState('approved');
   const [verificationReference,setVerificationReference]=useState('');
@@ -96,9 +100,30 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
     document.addEventListener('visibilitychange',refreshVisible);
     return ()=>{window.clearInterval(timer);document.removeEventListener('visibilitychange',refreshVisible);};
   },[]);
+  useEffect(()=>{
+    if(section!=='orders'||focusedOrderId===null)return;
+    const card=document.getElementById(`admin-order-${focusedOrderId}`);
+    if(!card)return;
+    card.scrollIntoView({behavior:'smooth',block:'center'});
+    card.focus({preventScroll:true});
+    const timer=window.setTimeout(()=>setFocusedOrderId(null),4000);
+    return ()=>window.clearTimeout(timer);
+  },[section,focusedOrderId,orders]);
+  async function openOrderFromNotification(orderId:number) {
+    setSection('orders');
+    setMenuOpen(false);
+    setNotice('');
+    setFocusedOrderId(orderId);
+    try {
+      const result=await api<{orders:Order[]}>('admin.orders');
+      setOrders(result.orders);
+    } catch(e) {
+      setNotice((e as Error).message);
+    }
+  }
   async function change(action:string, body:Record<string,unknown>) {
     setBusy(true);setNotice('');
-    try {await api(action,body);setNotice(tx("Alteração registrada."));await refresh();}
+    try {await api(action,body);toast.show(tx("Alteração registrada."));await refresh();}
     catch(e){setNotice((e as Error).message);}
     finally{setBusy(false);}
   }
@@ -177,12 +202,14 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
   </form>;
   const btn='rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 px-3 py-2 text-xs font-bold';
   return <div className="h-full w-full bg-[#121526] text-white flex flex-col overflow-hidden">
+     {toast.message&&<SlimToast message={toast.message} language={language} onDismiss={toast.dismiss}/>}
     <header className="relative px-3 sm:px-4 py-3 bg-[#171b2d] border-b border-[#2b3350] flex justify-between items-center gap-2 z-40">
       <strong className="min-w-0 flex-1 truncate">Bitdeer BTC <span className="hidden sm:inline text-xs text-slate-400">· {tx('Administração')}</span></strong>
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         <AdminNotificationsBell language={language} unreadCount={unreadNotifications}
           notifications={notifications}
           onOpenOrders={()=>{setSection('orders');setMenuOpen(false);}}
+          onOpenOrder={orderId=>void openOrderFromNotification(orderId)}
           onMarkRead={id=>{void api('admin.notifications.read',{notificationId:id})
             .then(refreshNotifications).catch(e=>setNotice((e as Error).message));}}
           onMarkAllRead={()=>{void api('admin.notifications.read-all',{})
@@ -429,7 +456,10 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
         </article>)}
       </section>}
       {section==='orders' && <div className="space-y-3">
-        {orders.map(o=><article key={o.id} className="p-4 rounded-xl bg-[#1b2137] border border-[#2b3350] flex gap-4 flex-wrap justify-between">
+        {orders.map(o=><article key={o.id} id={`admin-order-${o.id}`} data-order-id={o.id} tabIndex={-1}
+          aria-label={`${tx('Pedido')} #${o.id} · ${o.plan_id}`}
+          className={'scroll-mt-4 p-4 rounded-xl bg-[#1b2137] border flex gap-4 flex-wrap justify-between outline-none transition-colors '+
+            (focusedOrderId===o.id?'border-indigo-300 ring-2 ring-indigo-300/70':'border-[#2b3350]')}>
           <div><strong>{tx('Pedido')} #{o.id} · {o.plan_id}</strong>
             <p className="text-xs text-slate-400">{o.login} · {adminStatus(language,o.status)} · {(o.btc_sats/100000000).toFixed(8)} BTC</p>
             <p className="text-xs text-slate-400">{tx("Cotação:")} {o.quote_source || tx('indisponível')}</p>
@@ -533,7 +563,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
           void api('admin.payment.settings',{
             btcAddress,adminPassword:paymentPassword,confirmedOwner:ownerConfirmation
           }).then(()=>{setPaymentPassword('');setOwnerConfirmation(false);
-            setNotice(tx("Configuração de recebimento atualizada."));void refresh();})
+            toast.show(tx("Configuração de recebimento atualizada."));void refresh();})
             .catch(error=>setNotice((error as Error).message)).finally(()=>setBusy(false));
         }} className="space-y-3 rounded-xl bg-[#1b2137] p-4">
           <h2 className="font-bold">{tx("Recebimento Bitcoin")}</h2>

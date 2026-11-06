@@ -4,6 +4,16 @@ import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
 import { AuthUser, login as backendLogin, register as backendRegister } from '../services/api';
 
+const SAVED_USERNAME_KEY = 'bitdeer:saved-username';
+
+function getSavedUsername() {
+  try {
+    return window.localStorage.getItem(SAVED_USERNAME_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
 interface LoginScreenProps {
   language: LanguageCode;
   onLoginSuccess: (user: AuthUser) => void;
@@ -14,7 +24,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLoginSuccess
 }) => {
   const t = translations[language].login;
-  const [loginInput, setLoginInput] = useState('');
+  const [loginInput, setLoginInput] = useState(getSavedUsername);
+  const [rememberUsername, setRememberUsername] = useState(() => Boolean(getSavedUsername()));
   const [passwordInput, setPasswordInput] = useState('');
   const [registerMode, setRegisterMode] = useState(false);
   const [fullNameInput, setFullNameInput] = useState('');
@@ -33,6 +44,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         await backendRegister(userLogin, passwordInput, fullNameInput.trim(),inviteCode.trim());
       }
       const user = await backendLogin(userLogin, passwordInput);
+      try {
+        if (rememberUsername) window.localStorage.setItem(SAVED_USERNAME_KEY, userLogin);
+        else window.localStorage.removeItem(SAVED_USERNAME_KEY);
+      } catch {
+        // Local storage may be unavailable; authentication must still work.
+      }
       onLoginSuccess(user);
     } catch (e) {
       setErrorMessage((e as Error).message);
@@ -130,6 +147,26 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               />
             </div>
           </div>
+          <label htmlFor="remember-username" className="flex min-h-8 cursor-pointer items-center gap-2 text-xs text-slate-300">
+            <input
+              id="remember-username"
+              type="checkbox"
+              checked={rememberUsername}
+              onChange={(event) => {
+                const checked = event.target.checked;
+                setRememberUsername(checked);
+                if (!checked) {
+                  try {
+                    window.localStorage.removeItem(SAVED_USERNAME_KEY);
+                  } catch {
+                    // Ignore unavailable local storage; no password is persisted.
+                  }
+                }
+              }}
+              className="h-4 w-4 accent-indigo-400"
+            />
+            <span>{language === 'en' ? 'Save username' : language === 'es' ? 'Guardar usuario' : 'Salvar usuário'}</span>
+          </label>
 
           {/* Campo Senha com Visualização de Senha (ícone de olho) */}
           <div className="space-y-1.5 text-left">

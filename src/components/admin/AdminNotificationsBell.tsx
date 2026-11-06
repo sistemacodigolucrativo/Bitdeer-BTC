@@ -20,6 +20,7 @@ type Props = {
   unreadCount: number;
   notifications: AdminOrderNotification[];
   onOpenOrders: () => void;
+  onOpenOrder: (orderId: number) => void;
   onMarkRead: (id: number) => void;
   onMarkAllRead: () => void;
 };
@@ -32,6 +33,7 @@ const copy = {
     markAll: 'Marcar todas como lidas',
     markRead: 'Marcar como lida',
     openOrders: 'Abrir pedidos',
+    openOrder: 'Abrir pedido',
     empty: 'Tudo em dia',
     emptyHint: 'Novas solicitações e comprovantes aparecerão aqui.',
     order: 'Pedido',
@@ -55,6 +57,7 @@ const copy = {
     markAll: 'Mark all as read',
     markRead: 'Mark as read',
     openOrders: 'Open orders',
+    openOrder: 'Open order',
     empty: 'You are up to date',
     emptyHint: 'New requests and proof links will appear here.',
     order: 'Order',
@@ -78,6 +81,7 @@ const copy = {
     markAll: 'Marcar todas como leídas',
     markRead: 'Marcar como leída',
     openOrders: 'Abrir pedidos',
+    openOrder: 'Abrir pedido',
     empty: 'Todo al día',
     emptyHint: 'Las nuevas solicitudes y comprobantes aparecerán aquí.',
     order: 'Pedido',
@@ -101,6 +105,7 @@ export const AdminNotificationsBell: React.FC<Props> = ({
   unreadCount,
   notifications,
   onOpenOrders,
+  onOpenOrder,
   onMarkRead,
   onMarkAllRead,
 }) => {
@@ -151,7 +156,7 @@ export const AdminNotificationsBell: React.FC<Props> = ({
           <section
             role="dialog"
             aria-label={t.label}
-            className="absolute right-0 top-[calc(100%+0.65rem)] z-50 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-[#343b59] bg-[#171b2d] text-white shadow-2xl shadow-slate-950/45"
+            className="fixed left-1/2 top-[4.25rem] z-50 w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] -translate-x-1/2 overflow-hidden rounded-2xl border border-[#343b59] bg-[#171b2d] text-white shadow-2xl shadow-slate-950/45 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+0.65rem)] sm:translate-x-0"
           >
             <header className="flex items-center justify-between gap-3 border-b border-white/[0.08] bg-[#1b2034] px-4 py-3.5">
               <div className="flex min-w-0 items-center gap-2.5">
@@ -209,7 +214,7 @@ export const AdminNotificationsBell: React.FC<Props> = ({
                         ? t.actualConfirmation
                         : t.events[notification.eventType];
                     return (
-                      <li
+                        <li
                         key={notification.id}
                         className={`min-w-0 rounded-xl border p-3 transition ${
                           isUnread
@@ -228,17 +233,25 @@ export const AdminNotificationsBell: React.FC<Props> = ({
                             {isSimulatedApproval ? <ShieldCheck size={14} aria-hidden="true" /> : <Bell size={14} aria-hidden="true" />}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <div className="flex min-w-0 items-start justify-between gap-2">
-                              <p className="min-w-0 text-xs font-semibold leading-5 text-slate-100">{eventLabel}</p>
-                              {isUnread && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" aria-label={t.unread} />}
-                            </div>
-                            <div className="mt-1 flex min-w-0 flex-wrap gap-x-2 gap-y-1 text-[10px] text-slate-400">
-                              <span>{t.order} <strong className="font-mono font-semibold text-slate-200">#{notification.orderId}</strong></span>
-                              <span className="truncate">{notification.planId}</span>
-                            </div>
-                            <p className="mt-1 truncate text-[11px] text-slate-300" title={`${notification.login} · ${t.member} #${notification.userId}`}>
-                              {notification.login} <span className="text-slate-600">·</span> {t.member} #{notification.userId}
-                            </p>
+                            <button
+                              type="button"
+                              data-testid="admin-notification-open-order"
+                              aria-label={`${t.openOrder} ${t.order} #${notification.orderId}: ${eventLabel}`}
+                              onClick={() => onOpenOrder(notification.orderId)}
+                              className="group block w-full min-w-0 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+                            >
+                              <div className="flex min-w-0 items-start justify-between gap-2">
+                                <p className="min-w-0 break-words text-xs font-semibold leading-5 text-slate-100 group-hover:text-indigo-100">{eventLabel}</p>
+                                {isUnread && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" aria-label={t.unread} />}
+                              </div>
+                              <div className="mt-1 flex min-w-0 flex-wrap gap-x-2 gap-y-1 text-[10px] text-slate-400">
+                                <span>{t.order} <strong className="break-all font-mono font-semibold text-slate-200">#{notification.orderId}</strong></span>
+                                <span className="break-all">{notification.planId}</span>
+                              </div>
+                              <p className="mt-1 break-words text-[11px] text-slate-300" title={`${notification.login} · ${t.member} #${notification.userId}`}>
+                                {notification.login} <span className="text-slate-600">·</span> {t.member} #{notification.userId}
+                              </p>
+                            </button>
                             {isSimulatedApproval && (
                               <p className="mt-2 rounded-lg border border-amber-300/15 bg-amber-300/[0.05] px-2.5 py-2 text-[10px] leading-relaxed text-amber-100/85">
                                 {t.simulatedNotice}
@@ -247,7 +260,7 @@ export const AdminNotificationsBell: React.FC<Props> = ({
                             <div className="mt-2.5 flex min-w-0 items-center justify-between gap-2">
                               <span className="inline-flex min-w-0 items-center gap-1 text-[10px] text-slate-500">
                                 <Clock3 size={11} aria-hidden="true" />
-                                <time className="truncate" dateTime={new Date(notification.createdAt * 1000).toISOString()}>
+                                  <time className="min-w-0 whitespace-normal break-words" dateTime={new Date(notification.createdAt * 1000).toISOString()}>
                                   {new Date(notification.createdAt * 1000).toLocaleString(locale)}
                                 </time>
                               </span>
