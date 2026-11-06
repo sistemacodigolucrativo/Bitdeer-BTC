@@ -85,10 +85,47 @@ order=alice.call("orders.create",{"planId":"VIP_01"},201)
 assert order["btcAmount"]=="0.00025000"
 assert order["quoteSource"]=="CI fixture"
 assert order["btcAddress"].startswith("bc1")
+assert order["expiresAt"]-order["createdAt"]==1800
+assert order["proofUrl"] is None and order["proofSubmittedAt"] is None
+resumed=alice.call("orders.resume",{"orderId":order["orderId"]})
+assert resumed["orderId"]==order["orderId"] and resumed["btcAmount"]==order["btcAmount"]
+assert resumed["expiresAt"]==order["expiresAt"]
+other_member=Client()
+other_member.call("login",{"login":"bob","password":"anotherpassword123"})
+other_member.call("orders.resume",{"orderId":order["orderId"]},404)
+other_member.call("orders.proof.submit",{"orderId":order["orderId"],
+  "proofUrl":"https://receipts.example/proofs/forbidden"},404)
 assert alice.call("profile")["plan"]["id"]=="FREE"
 
 admin=Client()
 assert admin.call("login",{"login":"adminci","password":"StrongCIpassword123!"})["user"]["role"]=="admin"
+assert guest.call("admin.notifications",expected=401)["error"]
+assert alice.call("admin.notifications",expected=403)["error"]
+alice.call("admin.notifications.read",{"notificationId":1},403)
+initial_notifications=admin.call("admin.notifications")
+request_event=next(n for n in initial_notifications["notifications"]
+  if n["eventType"]=="activation_requested" and n["orderId"]==order["orderId"])
+assert request_event["userId"]==alice_user["id"] and not request_event["simulation"]
+assert initial_notifications["unreadCount"]>=1
+alice.call("orders.proof.submit",{"orderId":order["orderId"],
+  "proofUrl":"javascript:alert(1)"},422)
+alice.call("orders.proof.submit",{"orderId":order["orderId"],
+  "proofUrl":"https://receipts.example/proofs/alice-order"},200)
+assert alice.call("profile")["plan"]["id"]=="FREE", "proof submission must not confirm payment"
+assert next(o for o in admin.call("admin.orders")["orders"]
+  if o["id"]==order["orderId"])["proof_url"]=="https://receipts.example/proofs/alice-order"
+proof_event=next(n for n in admin.call("admin.notifications")["notifications"]
+  if n["eventType"]=="proof_submitted" and n["orderId"]==order["orderId"])
+admin.call("admin.notifications.read",{"notificationId":request_event["id"]})
+assert next(n for n in admin.call("admin.notifications")["notifications"]
+  if n["id"]==request_event["id"])["readAt"] is not None
+admin.call("admin.notifications.read-all",{})
+assert admin.call("admin.notifications")["unreadCount"]==0
+proof_update=alice.call("orders.proof.submit",{"orderId":order["orderId"],
+  "proofUrl":"https://receipts.example/proofs/alice-order-v2"})
+assert proof_update["proofSubmittedAt"]>0
+assert any(n["eventType"]=="proof_updated" and n["orderId"]==order["orderId"]
+  for n in admin.call("admin.notifications")["notifications"])
 # The fictional toast starts disabled; only admins may change its SQLite setting.
 assert guest.call("demo.new-investors.settings",expected=401)["error"]
 assert guest.call("admin.demo.new-investors.settings",expected=401)["error"]
@@ -176,6 +213,9 @@ assert abs(float(charlie.call("profile")["mining"]["balanceUsd"])-10.0)<1e-6
 vip_checkout=charlie.call("orders.create",{"planId":"VIP_01"},201)
 admin.call("admin.order.approve",{"orderId":vip_checkout["orderId"],
   "paymentConfirmed":True,"paymentReference":"b"*64})
+simulation_event=next(n for n in admin.call("admin.notifications")["notifications"]
+  if n["eventType"]=="payment_confirmed" and n["orderId"]==vip_checkout["orderId"])
+assert not simulation_event["simulation"], "real confirmations must be marked as real payments"
 # Regression: an older saved VIP contract may still specify a 365-day
 # withdrawal waiting period. The rule must not block new requests or approval.
 with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as db:
@@ -214,6 +254,15 @@ assert admin.call("admin.member.details",expected=422)["error"]
 assert admin.call("admin.member.details&id="+str(alice_user["id"]))["member"]["login"]=="alice"
 admin.call("admin.order.approve",{"orderId":order["orderId"],"paymentConfirmed":False,"paymentReference":"a"*64},422)
 admin.call("admin.order.approve",{"orderId":order["orderId"],"paymentConfirmed":True,"paymentReference":"a"*64})
+confirmed_event=next(n for n in admin.call("admin.notifications")["notifications"]
+  if n["eventType"]=="payment_confirmed" and n["orderId"]==order["orderId"])
+assert not confirmed_event["simulation"], "real confirmation events must remain distinct from requests"
+with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as db:
+    # Approved orders do not become expired or disappear because their payment window has passed.
+    db.execute("UPDATE orders SET expires_at=? WHERE id=?",(int(time.time())-86401,order["orderId"]))
+    db.commit()
+assert any(o["id"]==order["orderId"] and o["status"]=="approved"
+  for o in alice.call("orders.mine")["orders"])
 mycontracts=alice.call("contracts.mine")["contracts"]
 assert len(mycontracts)==1
 assert mycontracts[0]["plan_id"]=="VIP_01"
@@ -285,6 +334,28 @@ alice.call("withdraw.request",{"mode":"USD","amount":"999.00"},409)
 # Reusing a TXID with different letter case must not activate a second VIP.
 bob_order_client=Client()
 bob_order_client.call("login",{"login":"bob","password":"anotherpassword123"})
+expiring_order=bob_order_client.call("orders.create",{"planId":"VIP_01"},201)
+past_expiry=int(time.time())-5
+with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as db:
+    db.execute("UPDATE orders SET expires_at=? WHERE id=?",
+      (past_expiry,expiring_order["orderId"]))
+    db.commit()
+expired_rows=bob_order_client.call("orders.mine")["orders"]
+expired_order=next(o for o in expired_rows if o["id"]==expiring_order["orderId"])
+assert expired_order["status"]=="expired" and not expired_order["can_pay"]
+bob_order_client.call("orders.resume",{"orderId":expiring_order["orderId"]},409)
+bob_order_client.call("orders.proof.submit",{"orderId":expiring_order["orderId"],
+  "proofUrl":"https://receipts.example/proofs/expired-order"},409)
+assert any(o["id"]==expiring_order["orderId"] and o["status"]=="expired"
+  for o in admin.call("admin.orders")["orders"])
+with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as db:
+    db.execute("UPDATE orders SET expired_at=? WHERE id=?",
+      (int(time.time())-86401,expiring_order["orderId"]))
+    db.commit()
+assert all(o["id"]!=expiring_order["orderId"] for o in bob_order_client.call("orders.mine")["orders"])
+with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as db:
+    assert db.execute("SELECT status FROM orders WHERE id=?",
+      (expiring_order["orderId"],)).fetchone()[0]=="expired"
 second_order=bob_order_client.call("orders.create",{"planId":"VIP_01"},201)
 admin.call("admin.order.approve",{"orderId":second_order["orderId"],
   "paymentConfirmed":True,"paymentReference":"A"*64},409)
@@ -491,6 +562,9 @@ admin.call("admin.order.approve",{"orderId":mockOrder["orderId"],
   "paymentConfirmed":False,"simulationConfirmed":True},422)
 admin.call("admin.order.approve",{"orderId":mockOrder["orderId"],
   "paymentConfirmed":True,"simulationConfirmed":True})
+mock_simulation_event=next(n for n in admin.call("admin.notifications")["notifications"]
+  if n["eventType"]=="payment_confirmed" and n["orderId"]==mockOrder["orderId"])
+assert mock_simulation_event["simulation"], "simulation approvals must remain explicitly marked"
 assert mockvip.call("profile")["plan"]["id"]=="VIP_01"
 details=admin.call("admin.member.details&id="+str(mockvip_user["id"]))
 assert details["orders"][0]["payment_ref"] is None

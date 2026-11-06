@@ -511,6 +511,18 @@ const dictionary: Record<string,{en:string;es:string}> = {
     "en": "Quote:",
     "es": "Cotización:"
   },
+  "Cotação válida até:": {
+    "en": "Rate valid until:",
+    "es": "Cotización válida hasta:"
+  },
+  "Abrir comprovante enviado": {
+    "en": "Open submitted proof",
+    "es": "Abrir comprobante enviado"
+  },
+  "Comprovante enviado em:": {
+    "en": "Proof submitted:",
+    "es": "Comprobante enviado:"
+  },
   "indisponível": {
     "en": "unavailable",
     "es": "no disponible"

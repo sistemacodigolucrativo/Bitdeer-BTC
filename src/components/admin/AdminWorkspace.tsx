@@ -5,10 +5,14 @@ import { copyToClipboard } from '../../utils/clipboard';
 import { LanguageCode } from '../../types';
 import { adminText, adminDateLocale, adminStatus } from '../../i18n/adminTexts';
 import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headphones, Menu, ChevronDown, ChevronUp } from 'lucide-react';
+import { AdminNotificationsBell } from './AdminNotificationsBell';
+import type { AdminOrderNotification } from './AdminNotificationsBell';
 
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
 type MemberDetails = {member: Member & {phone: string;wallet_address:string}; contracts:Array<{id:number;plan_id:string;started_at:number;expires_at:number}>;orders:Array<{id:number;plan_id:string;status:string;payment_ref:string|null}>;balanceUsd:string;bonusSatoshis:number};
-type Order = {id:number; user_id:number; login:string; plan_id:string; status:string; created_at:number;btc_sats:number;quote_source:string;payment_ref?:string|null};
+type Order = {id:number; user_id:number; login:string; plan_id:string; status:string; created_at:number;
+  expires_at:number;expired_at:number|null;btc_sats:number;quote_usd_cents:number;quote_source:string;
+  payment_ref?:string|null;proof_url:string|null;proof_submitted_at:number|null};
 type Withdraw = {id:number;user_id:number;login:string;plan_id:string;btc_address:string;usd_cents:number;btc_satoshis:number;status:'pending'|'awaiting_vip'|'approved'|'rejected';created_at:number;reference:string};
 type Ticket = {id:number;user_id:number;login:string;subject:string;message:string;
   status:'open'|'resolved';ticket_state:'open'|'replied'|'closed';admin_reply:string|null;
@@ -23,6 +27,8 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
   const [members,setMembers]=useState<Member[]>([]);
   const [plans,setPlans]=useState<Plan[]>([]);
   const [orders,setOrders]=useState<Order[]>([]);
+  const [notifications,setNotifications]=useState<AdminOrderNotification[]>([]);
+  const [unreadNotifications,setUnreadNotifications]=useState(0);
   const [tickets,setTickets]=useState<Ticket[]>([]);
   const [replyTicket,setReplyTicket]=useState<number|null>(null);
   const [replyMessage,setReplyMessage]=useState('');
@@ -51,6 +57,13 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
   const [demoMarceloExists,setDemoMarceloExists]=useState(false);
   const [demoMarceloAccess,setDemoMarceloAccess]=useState<{login:string;password:string;referralCode:string}|null>(null);
   const [randomUserAccess,setRandomUserAccess]=useState<{login:string;password:string;referralCode:string;email:string;displayName:string}|null>(null);
+  async function refreshNotifications() {
+    try {
+      const result=await api<{notifications:AdminOrderNotification[];unreadCount:number}>('admin.notifications');
+      setNotifications(result.notifications);
+      setUnreadNotifications(result.unreadCount);
+    } catch {}
+  }
   async function refresh() {
     try {
       const [m,p,o,s]=await Promise.all([
@@ -60,6 +73,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
         api<{email:string}>('support'),
       ]);
       setMembers(m.members);setTotal(m.total);setPlans(p.plans);setOrders(o.orders);setEmail(s.email);
+      void refreshNotifications();
       void api<{enabled:boolean}>('admin.demo.new-investors.settings')
         .then(x=>{setDemoInvestorToastsEnabled(x.enabled);setDemoInvestorToastsReady(true);})
         .catch(()=>setDemoInvestorToastsReady(false));
@@ -76,6 +90,12 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
     } catch(e) {setNotice((e as Error).message);}
   }
   useEffect(()=>{void refresh()},[offset]);
+  useEffect(()=>{
+    const refreshVisible=()=>{if(document.visibilityState==='visible')void refreshNotifications();};
+    const timer=window.setInterval(refreshVisible,15000);
+    document.addEventListener('visibilitychange',refreshVisible);
+    return ()=>{window.clearInterval(timer);document.removeEventListener('visibilitychange',refreshVisible);};
+  },[]);
   async function change(action:string, body:Record<string,unknown>) {
     setBusy(true);setNotice('');
     try {await api(action,body);setNotice(tx("Alteração registrada."));await refresh();}
@@ -157,9 +177,16 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
   </form>;
   const btn='rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 px-3 py-2 text-xs font-bold';
   return <div className="h-full w-full bg-[#121526] text-white flex flex-col overflow-hidden">
-    <header className="relative px-4 py-3 bg-[#171b2d] border-b border-[#2b3350] flex justify-between items-center z-40">
-      <strong>Bitdeer BTC <span className="text-xs text-slate-400">· {tx('Administração')}</span></strong>
-      <div className="flex items-center gap-2">
+    <header className="relative px-3 sm:px-4 py-3 bg-[#171b2d] border-b border-[#2b3350] flex justify-between items-center gap-2 z-40">
+      <strong className="min-w-0 flex-1 truncate">Bitdeer BTC <span className="hidden sm:inline text-xs text-slate-400">· {tx('Administração')}</span></strong>
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <AdminNotificationsBell language={language} unreadCount={unreadNotifications}
+          notifications={notifications}
+          onOpenOrders={()=>{setSection('orders');setMenuOpen(false);}}
+          onMarkRead={id=>{void api('admin.notifications.read',{notificationId:id})
+            .then(refreshNotifications).catch(e=>setNotice((e as Error).message));}}
+          onMarkAllRead={()=>{void api('admin.notifications.read-all',{})
+            .then(refreshNotifications).catch(e=>setNotice((e as Error).message));}}/>
         <label className="sr-only" htmlFor="admin-language">{language==='en'?'Language':language==='es'?'Idioma':'Idioma'}</label>
         <select id="admin-language" data-testid="admin-language-selector" aria-label={language==='en'?'Language':language==='es'?'Idioma':'Idioma'}
           value={language} onChange={e=>onChangeLanguage(e.target.value as LanguageCode)}
@@ -406,6 +433,14 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
           <div><strong>{tx('Pedido')} #{o.id} · {o.plan_id}</strong>
             <p className="text-xs text-slate-400">{o.login} · {adminStatus(language,o.status)} · {(o.btc_sats/100000000).toFixed(8)} BTC</p>
             <p className="text-xs text-slate-400">{tx("Cotação:")} {o.quote_source || tx('indisponível')}</p>
+            <p className="text-xs text-slate-500">{tx("Cotação válida até:")} {new Date(o.expires_at*1000).toLocaleString(dateLocale)}</p>
+            {o.proof_url && <a href={o.proof_url} target="_blank" rel="noreferrer"
+              className="mt-2 inline-flex max-w-full items-center gap-1 text-xs text-indigo-200 underline">
+              <span>{tx("Abrir comprovante enviado")}</span>
+            </a>}
+            {o.proof_submitted_at!==null && <p className="text-[10px] text-slate-500">
+              {tx("Comprovante enviado em:")} {new Date(o.proof_submitted_at*1000).toLocaleString(dateLocale)}
+            </p>}
             {o.payment_ref && <p className="text-xs break-all">TXID: {o.payment_ref}</p>}
           </div>
           {o.status==='pending' && <button disabled={busy} className={btn} onClick={()=>{

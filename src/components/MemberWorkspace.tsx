@@ -20,12 +20,15 @@ import { memberTexts } from '../i18n/memberTexts';
 import { memberViewCopy } from '../i18n/memberViewCopy';
 import { NewInvestorToast } from './NewInvestorToast';
 import { readLastKnownQuote, saveLastKnownQuote } from '../utils/lastKnownQuote';
+import { PaymentInstructionsCard } from './PaymentInstructionsCard';
+import type { PaymentInstructionsOrder } from './PaymentInstructionsCard';
 
 type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'withdraw';
-type PurchaseOrder = {
-  orderId: number; status: string; priceUsd: string; quoteRateUsd: string;
-  quoteSource: string; btcAddress: string; btcSatoshis: number;
-  btcAmount: string; expiresAt: number;
+type PurchaseOrder = PaymentInstructionsOrder & {status:string;createdAt:number};
+type PurchaseHistoryOrder = {
+  id:number|string;plan_id:string;status:string;created_at:number;btc_sats:number;
+  expires_at?:number;can_pay?:boolean;native_order?:boolean;
+  proof_url?:string|null;proof_submitted_at?:number|null;
 };
 export const MemberWorkspace: React.FC<{
   user: AuthUser; language: LanguageCode; onLogout: () => void;
@@ -47,6 +50,8 @@ export const MemberWorkspace: React.FC<{
   const [checkout, setCheckout] = useState<PurchaseOrder|null>(null);
   const [checkoutQr, setCheckoutQr] = useState('');
   const [checkoutCopied,setCheckoutCopied]=useState<'address'|'btc'|null>(null);
+  const [proofLink,setProofLink]=useState('');
+  const [proofSaving,setProofSaving]=useState(false);
   const [ledger, setLedger] = useState<{
     accruals: Array<{plan_id:string;start_ts:number;end_ts:number;earned_units:number}>;
     bonuses: Array<{plan_id:string;claimed_at:number;bonus_usd_units:number;bonus_satoshis:number}>;
@@ -70,12 +75,15 @@ export const MemberWorkspace: React.FC<{
   const [withdrawEdited,setWithdrawEdited]=useState(false);
   const [withdrawPopup,setWithdrawPopup]=useState<{recommended:string}|null>(null);
   const [storeRecommended,setStoreRecommended]=useState<string|null>(null);
-  const [purchaseHistory,setPurchaseHistory]=useState<Array<{id:number|string;plan_id:string;status:string;created_at:number;btc_sats:number;adminEdited?:boolean;simulation?:boolean}>>([]);
+  const [purchaseHistory,setPurchaseHistory]=useState<PurchaseHistoryOrder[]>([]);
   type WithdrawRequest={id:number|string;usd_cents:number;btc_satoshis:number;status:'pending'|'awaiting_vip'|'approved'|'rejected'|'failed';created_at:number;reason?:string;adminEdited?:boolean;simulation?:boolean};
   const [withdrawHistory,setWithdrawHistory]=useState<WithdrawRequest[]>([]);
   const [withdrawPage,setWithdrawPage]=useState(1);
   const withdrawPages=Math.max(1,Math.ceil(withdrawHistory.length/10));
   const currentWithdrawPage=Math.min(withdrawPage,withdrawPages);
+  const checkoutSecondsRemaining=checkout
+    ? Math.max(0,checkout.expiresAt-Math.floor(balanceTick/1000))
+    : 0;
   const visibleWithdrawHistory=useMemo(()=>[...withdrawHistory]
     .sort((a,b)=>Number(b.created_at)-Number(a.created_at)||Number(b.id)-Number(a.id))
     .slice((currentWithdrawPage-1)*10,currentWithdrawPage*10),
@@ -123,9 +131,19 @@ export const MemberWorkspace: React.FC<{
       .catch(()=>{if(active)setCheckoutQr('')});
     return ()=>{active=false};
   },[checkout]);
-  async function copy(value:string) {
-    try {await navigator.clipboard.writeText(value);setNotice(words.copied);}
+  async function copy(value:string,field?:'address'|'btc') {
+    try {
+      await navigator.clipboard.writeText(value);
+      if(field){
+        setCheckoutCopied(field);
+        window.setTimeout(()=>setCheckoutCopied(null),1600);
+      } else setNotice(words.copied);
+    }
     catch {setNotice(words.copyFailed);}
+  }
+  async function refreshPurchaseHistory() {
+    const result=await api<{orders:PurchaseHistoryOrder[]}>('orders.mine');
+    setPurchaseHistory(result.orders);
   }
   async function reload() {
     try {
@@ -189,8 +207,27 @@ export const MemberWorkspace: React.FC<{
   useEffect(()=>{
     if(page==='wallet')void api<{requests:WithdrawRequest[]}>('withdraw.mine')
       .then(x=>setWithdrawHistory(x.requests)).catch(()=>{});
-    if(page==='store')void api<{orders:typeof purchaseHistory}>('orders.mine')
-      .then(x=>setPurchaseHistory(x.orders)).catch(()=>{});
+    if(page!=='store')return;
+    let stopped=false;
+    let pending=false;
+    const load=async()=>{
+      if(stopped||pending||document.visibilityState==='hidden')return;
+      pending=true;
+      try{
+        const result=await api<{orders:PurchaseHistoryOrder[]}>('orders.mine');
+        if(!stopped)setPurchaseHistory(result.orders);
+      }catch{}
+      finally{pending=false;}
+    };
+    const onVisibility=()=>{if(document.visibilityState==='visible')void load();};
+    void load();
+    const timer=window.setInterval(()=>void load(),15000);
+    document.addEventListener('visibilitychange',onVisibility);
+    return ()=>{
+      stopped=true;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange',onVisibility);
+    };
   },[page]);
   async function registerRequiredWallet(walletAddress:string):Promise<void>{
     if(!account)throw new Error('Member profile unavailable');
@@ -276,13 +313,43 @@ export const MemberWorkspace: React.FC<{
         throw new Error(tr.phone);
       }
       const result = await api<PurchaseOrder | {ok:boolean}>(action,body);
-      if (action==='orders.create') setCheckout(result as PurchaseOrder);
-      setNotice(action==='orders.create'
-        ? words.orderCreated : words.saved);
+      if (action==='orders.create') {
+        const order=result as PurchaseOrder;
+        setCheckout(order);
+        setProofLink(order.proofUrl??'');
+        setNotice('');
+      } else setNotice(words.saved);
       await reload();
+      if(action==='orders.create')void refreshPurchaseHistory().catch(()=>{});
       if (action==='rewards.claim' || action==='mining.stop') {api<typeof ledger>('ledger').then(setLedger).catch(()=>{});}
     } catch(e) { setNotice((e as Error).message); }
     finally {setBusy(false);}
+  }
+  async function resumeOrderPayment(orderId:number|string) {
+    setBusy(true);setNotice('');
+    try {
+      const order=await api<PurchaseOrder>('orders.resume',{orderId:Number(orderId)});
+      setCheckout(order);
+      setProofLink(order.proofUrl??'');
+      setCheckoutCopied(null);
+    } catch(e) {
+      setNotice((e as Error).message);
+      void refreshPurchaseHistory().catch(()=>{});
+    } finally {setBusy(false);}
+  }
+  async function submitOrderProof() {
+    if(!checkout)return;
+    setProofSaving(true);setNotice('');
+    try {
+      const url=proofLink.trim();
+      const result=await api<{ok:boolean;proofSubmittedAt:number}>(
+        'orders.proof.submit',{orderId:checkout.orderId,proofUrl:url});
+      setCheckout(current=>current?{
+        ...current,proofUrl:url,proofSubmittedAt:result.proofSubmittedAt
+      }:current);
+      void refreshPurchaseHistory().catch(()=>{});
+    } catch(e) {setNotice((e as Error).message);}
+    finally {setProofSaving(false);}
   }
   async function saveAvatar(){
     setBusy(true);setNotice('');
@@ -496,27 +563,49 @@ export const MemberWorkspace: React.FC<{
           <ServerStoreView plans={plans} activePlanId={account?.plan.id ?? 'FREE'}
             suggestedPlanId={storeRecommended}
             language={language} busy={busy} onPurchase={planId=>void act('orders.create',{planId})}/>
-          {checkout && <div role="dialog" aria-modal="true" className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm"><section className="w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto bg-[#1b2137] border border-indigo-600/50 rounded-2xl p-4 space-y-3 shadow-2xl">
-            <h3 className="font-bold">{tr.order} #{checkout.orderId} — {words.pendingPayment}</h3>
-            <p className="text-sm" >{words.price}: US$ {checkout.priceUsd}</p>
-            <p className="text-sm" >{words.exactAmount}: <strong>{checkout.btcAmount} BTC</strong> ({checkout.btcSatoshis} satoshis)</p>
-            <p className="text-xs text-slate-400" >{words.quotation}: US$ {checkout.quoteRateUsd} {tr.perBtc} · {checkout.quoteSource}</p>
-            <p className="text-xs text-amber-300" >{words.quoteExpiry} {new Date(checkout.expiresAt*1000).toLocaleString(dateLocale)}. {words.expiredWarning}</p>
-            {checkoutQr && <img src={checkoutQr} alt={tr.qrAlt} className="mx-auto rounded-lg w-40 h-40"/>}
-            <p className="w-full break-all rounded-lg bg-[#11182c] p-3 text-center font-mono text-[11px] leading-relaxed text-slate-100">{checkout.btcAddress}</p>
-            <div className="flex gap-2">
-              <button className={'flex-1 rounded-xl p-2 text-xs transition-colors '+(checkoutCopied==='address'?'bg-emerald-600':'bg-indigo-600')}
-                onClick={()=>{void copy(checkout.btcAddress);setCheckoutCopied('address');window.setTimeout(()=>setCheckoutCopied(null),1600);}}>{checkoutCopied==='address'?'✓ '+(language==='en'?'Copied':language==='es'?'Copiado':'Copiado'):words.copyAddress}</button>
-              <button className={'flex-1 rounded-xl p-2 text-xs transition-colors '+(checkoutCopied==='btc'?'bg-emerald-600':'bg-indigo-600')}
-                onClick={()=>{void copy(checkout.btcAmount);setCheckoutCopied('btc');window.setTimeout(()=>setCheckoutCopied(null),1600);}}>{checkoutCopied==='btc'?'✓ '+(language==='en'?'Copied':language==='es'?'Copiado':'Copiado'):words.copyBtc}</button>
+          {checkout && <div role="dialog" aria-modal="true" aria-labelledby="payment-instructions-title"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm">
+            <div className="max-h-[calc(100dvh-2rem)] w-full max-w-3xl overflow-y-auto rounded-2xl shadow-2xl">
+              <PaymentInstructionsCard language={language} order={checkout} qrDataUrl={checkoutQr}
+                remainingSeconds={checkoutSecondsRemaining} proofLink={proofLink} proofSaving={proofSaving}
+                copied={checkoutCopied} onProofLinkChange={setProofLink}
+                onSubmitProof={()=>void submitOrderProof()}
+                onCopyAddress={()=>void copy(checkout.btcAddress,'address')}
+                onCopyAmount={()=>void copy(checkout.btcAmount,'btc')}
+                onClose={()=>{setCheckout(null);setNotice('');}}/>
             </div>
-            <button className="text-indigo-300 text-xs underline" onClick={()=>setCheckout(null)}>{words.close}</button>
-          </section></div>}
+          </div>}
           {purchaseHistory.length>0&&<section data-testid="member-purchase-history" className="bg-[#171b2d] rounded-2xl p-3 space-y-2">
             <h3 className="font-bold text-sm">{language==='en'?'Purchase history':language==='es'?'Historial de compras':'Histórico de compras'}</h3>
-            {purchaseHistory.map(x=><p key={x.id} className="border-b border-[#2b3350] pb-2 text-xs">
-              #{x.id} · {x.plan_id} · {x.status==='pending'?tr.orderPending:x.status==='approved'?tr.orderApproved:x.status==='rejected'?tr.orderRejected:x.status==='expired'?tr.orderExpired:x.status} · {(x.btc_sats/1e8).toFixed(8)} BTC
-            </p>)}
+            {purchaseHistory.map(x=><article key={x.id} data-testid="purchase-history-order"
+              className="min-w-0 border-b border-[#2b3350] pb-3 text-xs last:border-b-0">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
+                <span className="font-semibold">#{x.id} · {x.plan_id}</span>
+                <span className={x.status==='approved'?'text-emerald-300':x.status==='expired'||x.status==='rejected'?'text-rose-300':'text-slate-300'}>
+                  {x.status==='pending'?tr.orderPending:x.status==='approved'?tr.orderApproved:
+                    x.status==='rejected'?tr.orderRejected:x.status==='expired'?tr.orderExpired:x.status}
+                </span>
+                <span className="font-mono tabular-nums">{(x.btc_sats/1e8).toFixed(8)} BTC</span>
+                {x.can_pay&&x.status==='pending'&&Number(x.expires_at)>Math.floor(balanceTick/1000)&&
+                  <button type="button" data-testid="purchase-order-pay"
+                  disabled={busy} onClick={()=>void resumeOrderPayment(x.id)}
+                  className="rounded-lg border border-amber-300/25 bg-amber-300/10 px-3 py-1.5 font-bold text-amber-100 hover:bg-amber-300/15 disabled:opacity-50">
+                  {tr.pay}
+                </button>}
+              </div>
+              {x.native_order&&x.status==='pending'&&x.expires_at&&<p className="mt-2 text-[10px] text-slate-400">
+                {tr.quoteValidUntil}: {new Date(x.expires_at*1000).toLocaleString(dateLocale)}
+                {' · '}{checkoutSecondsRemaining>0&&checkout?.orderId===Number(x.id)
+                  ? `${Math.floor(checkoutSecondsRemaining/60)}:${String(checkoutSecondsRemaining%60).padStart(2,'0')}`
+                  : Math.max(0,x.expires_at-Math.floor(balanceTick/1000))>0
+                    ? `${Math.floor((x.expires_at-Math.floor(balanceTick/1000))/60)}:${String((x.expires_at-Math.floor(balanceTick/1000))%60).padStart(2,'0')}`
+                    : tr.orderExpired}
+              </p>}
+              {x.proof_url&&<a href={x.proof_url} target="_blank" rel="noreferrer"
+                className="mt-2 inline-block max-w-full truncate text-[10px] text-indigo-200 underline">
+                {tr.proofSubmitted}
+              </a>}
+            </article>)}
           </section>}
         </>}
         {page==='history' && <RewardHistoryLog language={language} ledger={ledger}

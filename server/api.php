@@ -5,6 +5,7 @@ require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/quote.php';
 require_once __DIR__ . '/bitcoin.php';
 require_once __DIR__ . '/member_history.php';
+require_once __DIR__ . '/order_features.php';
 require_once __DIR__ . '/demo_marcelo.php';
 require_once __DIR__ . '/demo_withdrawal_timeline.php';
 
@@ -195,6 +196,7 @@ function own_referral_code(PDO $db, int $owner): string {
 /** Add fields to preexisting SQLite databases without erasing members or balances. */
 function ensure_member_features(PDO $db): void {
     ensure_member_history_tables($db);
+    ensure_order_features($db);
     $userCols=array_column(query_all($db,'PRAGMA table_info(users)'),'name');
     if(!in_array('avatar_url',$userCols,true))
         $db->exec("ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''");
@@ -284,6 +286,7 @@ function normalize_member_phone(string $value): ?string {
 function is_valid_member_phone(string $value): bool { return normalize_member_phone($value)!==null; }
 function api_dispatch(PDO $db, string $action, string $method): never {
     ensure_member_features($db);
+    expire_pending_orders($db);
     // Member-only fictional announcement setting, disabled unless explicitly enabled by an admin.
     if ($action === 'demo.new-investors.settings' && $method === 'GET') {
         $actor=auth_user($db);
@@ -682,8 +685,9 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         if (!btc_receive_address_valid($address)) {
             fail(503,'Endereço de recebimento BTC não configurado');
         }
-        $order=atomic($db, static function () use ($db,$actor,$plan,$quote,$sats,$address): int {
+        $order=atomic($db, static function () use ($db,$actor,$plan,$quote,$sats,$address): array {
             $time=now();
+            $expiresAt=$time+1800;
             // Recheck active plan and pricing inside the write transaction.
             // Re-check wallet confirmation inside the payment write transaction.
             $flag=query_one($db,'SELECT value FROM app_settings WHERE name="btc_address_confirmed"');
@@ -699,17 +703,76 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             execute_sql($db,'INSERT INTO orders(user_id,plan_id,snapshot_json,status,created_at,expires_at,
                  btc_address,btc_sats,quote_usd_cents,quote_source)
                  VALUES (?,?,?,"pending",?,?,?,?,?,?)',
-                [$actor['id'],$plan['id'],json_encode($plan,JSON_THROW_ON_ERROR),$time,$time+900,
+                [$actor['id'],$plan['id'],json_encode($plan,JSON_THROW_ON_ERROR),$time,$expiresAt,
                     $address,$sats,(int)round($quote['usd']*100),$quote['source']]);
-            return (int)$db->lastInsertId();
+            $orderId=(int)$db->lastInsertId();
+            add_admin_order_notification($db,$orderId,(int)$actor['id'],'activation_requested',false,$time);
+            return ['id'=>$orderId,'createdAt'=>$time,'expiresAt'=>$expiresAt];
         });
-        json_out(['orderId'=>$order,'status'=>'pending','activation'=>'manual',
+        json_out(['orderId'=>$order['id'],'status'=>'pending','activation'=>'manual',
+          'createdAt'=>$order['createdAt'],'expiresAt'=>$order['expiresAt'],
           'priceUsd'=>number_format($plan['price_cents']/100,2,'.',''),
           'quoteRateUsd'=>number_format($quote['usd'],2,'.',''),
           'quoteSource'=>$quote['source'],
           'btcAddress'=>$address,'btcSatoshis'=>$sats,
           'btcAmount'=>number_format($sats/100000000,8,'.',''),
-          'expiresAt'=>$quote['quoted_at']+900],201);
+          'proofUrl'=>null,'proofSubmittedAt'=>null],201);
+    }
+    if ($action === 'orders.resume' && $method === 'POST') {
+        $actor=require_post_csrf($db);
+        if($actor['role']!=='member')fail(403,'Conta de membro necessária');
+        $id=param_id(request_body(),'orderId');
+        $order=query_one($db,'SELECT * FROM orders WHERE id=? AND user_id=?',[$id,$actor['id']]);
+        if(!$order)fail(404,'Pedido não encontrado');
+        if($order['status']!=='pending')fail(409,'Este pedido não pode mais ser pago. Solicite uma nova ativação VIP.');
+        if((int)$order['expires_at']<=now()) {
+            expire_pending_orders($db);
+            fail(409,'Pedido expirado. Solicite uma nova ativação VIP.');
+        }
+        $snapshot=json_decode($order['snapshot_json'],true,512,JSON_THROW_ON_ERROR);
+        json_out(['orderId'=>(int)$order['id'],'status'=>'pending',
+          'createdAt'=>(int)$order['created_at'],'expiresAt'=>(int)$order['expires_at'],
+          'priceUsd'=>number_format(((int)($snapshot['price_cents']??0))/100,2,'.',''),
+          'quoteRateUsd'=>number_format(((int)$order['quote_usd_cents'])/100,2,'.',''),
+          'quoteSource'=>(string)$order['quote_source'],
+          'btcAddress'=>(string)$order['btc_address'],
+          'btcSatoshis'=>(int)$order['btc_sats'],
+          'btcAmount'=>number_format(((int)$order['btc_sats'])/100000000,8,'.',''),
+          'proofUrl'=>$order['proof_url'],
+          'proofSubmittedAt'=>$order['proof_submitted_at']===null?null:(int)$order['proof_submitted_at']]);
+    }
+    if ($action === 'orders.proof.submit' && $method === 'POST') {
+        $actor=require_post_csrf($db);
+        if($actor['role']!=='member')fail(403,'Conta de membro necessária');
+        $body=request_body();
+        $id=param_id($body,'orderId');
+        $url=string_field($body,'proofUrl',2048);
+        $scheme=strtolower((string)parse_url($url,PHP_URL_SCHEME));
+        if(!filter_var($url,FILTER_VALIDATE_URL) || !in_array($scheme,['http','https'],true) ||
+            parse_url($url,PHP_URL_HOST)===null || parse_url($url,PHP_URL_USER)!==null ||
+            parse_url($url,PHP_URL_PASS)!==null)
+            fail(422,'Informe um link válido com endereço HTTP ou HTTPS.');
+        $result=atomic($db,static function() use($db,$actor,$id,$url): array {
+            $order=query_one($db,'SELECT id,user_id,status,expires_at,proof_url,proof_submitted_at
+              FROM orders WHERE id=? AND user_id=?',[$id,$actor['id']]);
+            if(!$order)fail(404,'Pedido não encontrado');
+            if($order['status']!=='pending')fail(409,'Somente pedidos pendentes e válidos podem receber comprovantes.');
+            $time=now();
+            if((int)$order['expires_at']<=$time) {
+                execute_sql($db,'UPDATE orders SET status="expired",expired_at=expires_at
+                  WHERE id=? AND status="pending"',[$id]);
+                return ['expired'=>true];
+            }
+            if((string)($order['proof_url']??'')===$url && $order['proof_submitted_at']!==null)
+                return ['expired'=>false,'proofSubmittedAt'=>(int)$order['proof_submitted_at']];
+            $event=empty($order['proof_url'])?'proof_submitted':'proof_updated';
+            execute_sql($db,'UPDATE orders SET proof_url=?,proof_submitted_at=? WHERE id=?',
+              [$url,$time,$id]);
+            add_admin_order_notification($db,$id,(int)$actor['id'],$event,false,$time);
+            return ['expired'=>false,'proofSubmittedAt'=>$time];
+        });
+        if($result['expired'])fail(409,'Pedido expirado. Solicite uma nova ativação VIP.');
+        json_out(['ok'=>true,'proofSubmittedAt'=>$result['proofSubmittedAt']]);
     }
     if ($action === 'mock.payments.latest' && $method === 'POST') {
         $actor=require_post_csrf($db);
@@ -848,13 +911,38 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $actor=auth_user($db);
         if($actor['role']!=='member')fail(403,'Conta de membro necessária');
         $rows=history_rows($db,(int)$actor['id'],'purchase');
-        foreach($rows as &$entry) {
-            if($entry['status']==='pending' &&
-                isset($entry['expires_at']) && (int)$entry['expires_at']<now())
-                $entry['status']='expired';
+        $time=now();
+        $visible=[];
+        foreach($rows as $entry) {
+            $historyId=(string)($entry['historyId']??'');
+            if(preg_match('/^real:([0-9]+)$/D',$historyId,$match)) {
+                $native=query_one($db,'SELECT status,expires_at,expired_at,btc_address,btc_sats,
+                    quote_usd_cents,quote_source,payment_ref,proof_url,proof_submitted_at
+                    FROM orders WHERE id=? AND user_id=?',[(int)$match[1],$actor['id']]);
+                if(!$native)continue;
+                $expiredAt=$native['expired_at']===null?(int)$native['expires_at']:(int)$native['expired_at'];
+                if($native['status']==='expired' && $expiredAt<=$time-86400)continue;
+                $entry['native_order']=true;
+                $entry['can_pay']=$native['status']==='pending' && (int)$native['expires_at']>$time &&
+                    $entry['status']==='pending';
+                $entry['expires_at']=(int)$native['expires_at'];
+                $entry['expired_at']=$native['expired_at']===null?null:(int)$native['expired_at'];
+                $entry['btc_address']=(string)$native['btc_address'];
+                $entry['btc_sats']=(int)$native['btc_sats'];
+                $entry['quote_usd_cents']=(int)$native['quote_usd_cents'];
+                $entry['quote_source']=(string)$native['quote_source'];
+                $entry['payment_ref']=$native['payment_ref'];
+                $entry['proof_url']=$native['proof_url'];
+                $entry['proof_submitted_at']=$native['proof_submitted_at']===null?null:(int)$native['proof_submitted_at'];
+            } else {
+                $entry['native_order']=false;
+                $entry['can_pay']=false;
+                $entry['proof_url']=null;
+                $entry['proof_submitted_at']=null;
+            }
+            $visible[]=$entry;
         }
-        unset($entry);
-        json_out(['orders'=>$rows]);
+        json_out(['orders'=>$visible]);
     }
     if ($action === 'admin.overview' && $method === 'GET') {
         auth_user($db,true);
@@ -1083,10 +1171,59 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     if ($action === 'admin.orders' && $method === 'GET') {
         auth_user($db,true);
         $list=query_all($db,'SELECT o.id,o.user_id,u.login,o.plan_id,
-            CASE WHEN o.status="pending" AND o.expires_at<? THEN "expired" ELSE o.status END AS status,
-            o.created_at,o.expires_at,o.btc_sats,o.btc_address,o.quote_usd_cents,o.quote_source,o.payment_ref
-            FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.id DESC LIMIT 100',[now()]);
+            o.status,o.created_at,o.expires_at,o.expired_at,o.btc_sats,o.btc_address,
+            o.quote_usd_cents,o.quote_source,o.payment_ref,o.proof_url,o.proof_submitted_at
+            FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.id DESC LIMIT 100');
         json_out(['orders'=>$list]);
+    }
+    if ($action === 'admin.notifications' && $method === 'GET') {
+        $actor=auth_user($db,true);
+        $adminId=(int)$actor['id'];
+        $notifications=query_all($db,'SELECT n.id,n.event_type,n.order_id,n.user_id,u.login,
+            o.plan_id,n.created_at,r.read_at,n.simulation
+            FROM admin_notifications n
+            JOIN orders o ON o.id=n.order_id
+            JOIN users u ON u.id=n.user_id
+            LEFT JOIN admin_notification_reads r
+              ON r.notification_id=n.id AND r.admin_id=?
+            ORDER BY n.id DESC LIMIT 30',[$adminId]);
+        $mapped=[];
+        foreach($notifications as &$notification) {
+            $mapped[]=[
+              'id'=>(int)$notification['id'],
+              'eventType'=>(string)$notification['event_type'],
+              'orderId'=>(int)$notification['order_id'],
+              'userId'=>(int)$notification['user_id'],
+              'login'=>(string)$notification['login'],
+              'planId'=>(string)$notification['plan_id'],
+              'createdAt'=>(int)$notification['created_at'],
+              'readAt'=>$notification['read_at']===null?null:(int)$notification['read_at'],
+              'simulation'=>(bool)$notification['simulation']
+            ];
+        }
+        unset($notification);
+        $unread=query_one($db,'SELECT COUNT(*) AS n FROM admin_notifications n
+            WHERE NOT EXISTS (SELECT 1 FROM admin_notification_reads r
+              WHERE r.notification_id=n.id AND r.admin_id=?)',[$adminId]);
+        json_out(['notifications'=>$mapped,'unreadCount'=>(int)($unread['n']??0)]);
+    }
+    if ($action === 'admin.notifications.read' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);
+        $id=param_id(request_body(),'notificationId');
+        if(!query_one($db,'SELECT id FROM admin_notifications WHERE id=?',[$id]))
+            fail(404,'Notificação não encontrada');
+        execute_sql($db,'INSERT OR IGNORE INTO admin_notification_reads
+            (notification_id,admin_id,read_at) VALUES (?,?,?)',
+            [$id,$actor['id'],now()]);
+        json_out(['ok'=>true]);
+    }
+    if ($action === 'admin.notifications.read-all' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);
+        $time=now();
+        execute_sql($db,'INSERT OR IGNORE INTO admin_notification_reads
+            (notification_id,admin_id,read_at)
+            SELECT id,?,? FROM admin_notifications',[$actor['id'],$time]);
+        json_out(['ok'=>true]);
     }
     if ($action === 'admin.member.edit' && $method === 'POST') {
         $actor=require_post_csrf($db,true);$body=request_body();
@@ -1167,7 +1304,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         if(!$simulation && !preg_match('/^[a-fA-F0-9]{64}$/D',$paymentRef))
             fail(422,'Informe o TXID BTC válido antes de confirmar pagamento real');
         if (($body['paymentConfirmed'] ?? false)!==true) fail(422,'Confirmação administrativa obrigatória');
-        atomic($db, static function () use ($db,$actor,$id,$paymentRef,$simulation): void {
+        $approved=atomic($db, static function () use ($db,$actor,$id,$paymentRef,$simulation): bool {
             $order=query_one($db,'SELECT * FROM orders WHERE id=?',[$id]);
             if (!$order || $order['status']!=='pending') fail(409,'Pedido inexistente ou não pendente');
             $time=now();
@@ -1175,9 +1312,9 @@ function api_dispatch(PDO $db, string $action, string $method): never {
                 $reused=query_one($db,'SELECT id FROM orders WHERE lower(payment_ref)=? AND id!=?',[$paymentRef,$id]);
                 if ($reused) fail(409,'TXID já associado a outro pagamento');
             }
-            if ((int)$order['expires_at']<$time) {
-                execute_sql($db,'UPDATE orders SET status="expired" WHERE id=?',[$id]);
-                fail(409,'Pedido expirado; nova contratação necessária');
+            if ((int)$order['expires_at']<=$time) {
+                execute_sql($db,'UPDATE orders SET status="expired",expired_at=expires_at WHERE id=?',[$id]);
+                return false;
             }
             $member=query_one($db,'SELECT status FROM users WHERE id=?',[$order['user_id']]);
             if (!$member || $member['status']!=='active') fail(409,'Conta inativa');
@@ -1191,6 +1328,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
               [$order['user_id'],$order['plan_id'],$order['snapshot_json'],$id,$time,$time+$days*86400,$actor['id']]);
             execute_sql($db,'UPDATE orders SET status="approved",approved_by=?,approved_at=?,payment_ref=? WHERE id=?',
               [$actor['id'],$time,$simulation?null:$paymentRef,$id]);
+            add_admin_order_notification($db,$id,(int)$order['user_id'],'payment_confirmed',$simulation,$time);
             if(in_array($order['plan_id'],['VIP_01','VIP_02','VIP_03','VIP_04'],true)) {
                 execute_sql($db,'UPDATE withdraw_requests SET vip_state="eligible"
                    WHERE user_id=? AND status="pending" AND vip_state="awaiting_vip"',
@@ -1200,7 +1338,9 @@ function api_dispatch(PDO $db, string $action, string $method): never {
                 (int)$order['user_id'],
                 ['orderId'=>$id,'planId'=>$order['plan_id'],'paymentTxid'=>$simulation?null:$paymentRef,
                  'simulation'=>$simulation,'realPaymentVerified'=>!$simulation]);
+            return true;
         });
+        if(!$approved)fail(409,'Pedido expirado; nova contratação necessária');
         json_out(['ok'=>true]);
     }
     if ($action === 'admin.withdrawals' && $method === 'GET') {
