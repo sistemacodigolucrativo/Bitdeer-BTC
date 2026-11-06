@@ -23,6 +23,14 @@ const dictionary: Record<string,{en:string;es:string}> = {
     "en": "Close",
     "es": "Cerrar"
   },
+  "Editar membro": {
+    "en": "Edit member",
+    "es": "Editar miembro"
+  },
+  "Fechar edição": {
+    "en": "Close editor",
+    "es": "Cerrar edición"
+  },
   "Sair": {
     "en": "Sign out",
     "es": "Salir"

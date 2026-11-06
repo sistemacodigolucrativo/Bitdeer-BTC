@@ -5,7 +5,7 @@ import { copyToClipboard } from '../../utils/clipboard';
 import { LanguageCode } from '../../types';
 import { adminText, adminDateLocale, adminStatus } from '../../i18n/adminTexts';
 import { MOCKUP_LOCK, useLegitPreviewCountdown, useProjectCopy } from '../../i18n/copyMode';
-import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headphones, Menu, ChevronDown, ChevronUp } from 'lucide-react';
+import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headphones, Menu, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
 type MemberDetails = {member: Member & {phone: string;wallet_address:string}; contracts:Array<{id:number;plan_id:string;started_at:number;expires_at:number}>;orders:Array<{id:number;plan_id:string;status:string;payment_ref:string|null}>;balanceUsd:string;bonusSatoshis:number};
@@ -84,6 +84,10 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
     try {await api(action,body);setNotice(tx("Alteração registrada."));await refresh();}
     catch(e){setNotice((e as Error).message);}
     finally{setBusy(false);}
+  }
+  function closeMemberEditor(){
+    setEditingMember(null);setDetails(null);setVerificationId(null);
+    setNewMemberPassword('');setVerificationReference('');setNotice('');
   }
   async function createMarceloDemo(){
     if(!window.confirm(copy('adminMarceloPrompt')))return;
@@ -166,8 +170,8 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
     const remainingSeconds=seconds%60;
     return [hours,minutes,remainingSeconds].map(value=>String(value).padStart(2,'0')).join(':');
   })();
-  return <div className="h-full w-full bg-[#121526] text-white flex flex-col overflow-hidden">
-    <header className="relative px-4 py-3 bg-[#171b2d] border-b border-[#2b3350] flex justify-between items-center z-40">
+  return <div className="relative h-full w-full bg-[#121526] text-white flex flex-col overflow-hidden">
+    <header className={editingMember?'hidden':'relative px-4 py-3 bg-[#171b2d] border-b border-[#2b3350] flex justify-between items-center z-40'}>
       <strong>Bitdeer BTC <span className="text-xs text-slate-400">· {tx('Administração')}</span></strong>
       <div className="flex items-center gap-2">
         <div className="hidden sm:block text-right">
@@ -210,7 +214,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
         <button type="button" onClick={onLogout} className="flex gap-3 items-center p-3 text-sm"><LogOut size={17}/>{tx("Sair")}</button>
       </nav>}
     </header>
-    <main className="flex-1 overflow-auto p-4 md:p-7 space-y-4">
+    <main className={editingMember?'hidden':'flex-1 overflow-auto p-4 md:p-7 space-y-4'}>
       <div className="flex justify-between items-center"><h1 className="text-xl font-bold">
         {tx(section==='overview'?'Visão geral':section==='members'?'Gerenciamento de membros':section==='plans'?'Catálogo VIP':section==='orders'?'Pedidos pendentes':section==='withdrawals'?'Solicitações de saque':section==='audit'?'Auditoria administrativa':section==='tickets'?'Tickets de suporte':'Configurações')}
       </h1><button aria-label={tx("Atualizar")} onClick={()=>void refresh()}><RefreshCw size={18}/></button></div>
@@ -284,7 +288,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
               <button disabled={busy} className={btn} onClick={()=>
                 void api<MemberDetails>('admin.member.details',undefined,{id:m.id})
                   .then(d=>{setDetails(d);setEditingMember({...d.member});setVerificationId(null);
-                    setNewMemberPassword('');setVerificationReference('');})
+                    setNewMemberPassword('');setVerificationReference('');setNotice('');})
                   .catch(e=>setNotice((e as Error).message))}>{tx("Detalhes / Editar")}</button>
               {m.status==='active' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'suspended'})}>{tx("Suspender")}</button>}
               {m.status==='suspended' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'active'})}>{tx("Reativar")}</button>}
@@ -299,90 +303,6 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
           <span className="text-xs">{Math.floor(offset/50)+1} / {Math.max(1,Math.ceil(total/50))}</span>
           <button disabled={offset+50>=total} className={btn} onClick={()=>setOffset(offset+50)}>{tx("Próxima")}</button>
         </div>
-        {details && <div className="bg-[#1b2137] rounded-xl p-4 space-y-2 text-sm">
-          <h3 className="font-semibold">{tx("Detalhes de")} #{details.member.id} — {details.member.login}</h3>
-          <p>{tx("Plano(s) contratados:")} {details.contracts.length}</p>
-          <p>{copy('adminInternalBalanceLabel')} US$ {details.balanceUsd} · {copy('adminInternalSatoshisLabel')} {details.bonusSatoshis}</p>
-          <p>{tx("Últimos pedidos:")} {details.orders.length}</p>
-          {details.contracts.length>0 && <section className="mt-4 space-y-2">
-            <h4 className="font-bold text-xs">{tx("Histórico de contratos VIP")}</h4>
-            {details.contracts.map(c=><div key={c.id} className="p-3 bg-[#101827] border border-[#2b3350] rounded-xl text-xs">
-              <p className="font-bold">{c.plan_id} · {tx("Contrato")} #{c.id}</p>
-              <p>{tx("Ativação:")} {new Date(c.started_at*1000).toLocaleString(dateLocale)}</p>
-              <p>{tx("Vencimento:")} {new Date(c.expires_at*1000).toLocaleString(dateLocale)}</p>
-            </div>)}
-          </section>}
-          {details.orders.length>0 && <section className="space-y-2">
-            <h4 className="font-bold text-xs">{tx("Últimos pedidos")}</h4>
-            {details.orders.map(o=><div key={o.id} className="text-xs p-2 border-b border-[#2b3350]">
-              {tx("Pedido")} #{o.id} · {o.plan_id} · {adminStatus(language,o.status)}
-              <p className="font-mono text-slate-400 break-all mt-1">TXID: {o.payment_ref || (o.status==='approved'?copy('adminMissingPaymentRef'):tx('Não informado'))}</p>
-            </div>)}
-          </section>}
-          <button className="text-indigo-300 underline" onClick={()=>setDetails(null)}>{tx("Fechar detalhes")}</button>
-        </div>}
-        {editingMember && <form className="rounded-xl bg-[#1b2137] p-4 space-y-3"
-          onSubmit={e=>{e.preventDefault();void change('admin.member.edit',{
-            userId:editingMember.id,login:editingMember.login,displayName:editingMember.display_name,
-            email:editingMember.email,phone:editingMember.phone ?? '',walletAddress:editingMember.wallet_address ?? '',
-          });}}>
-          <strong>{tx("Editar perfil de")} {editingMember.login}</strong>
-          {(['login','display_name','email','phone','wallet_address'] as const).map(k=><label key={k} className="block text-sm">
-            {tx(({login:'Nome de usuário (login)',display_name:'Nome',email:'E-mail',phone:'Telefone',wallet_address:'Endereço BTC'} as const)[k])}
-            <input type={k==='email'?'email':k==='phone'?'tel':'text'}
-               autoComplete={k==='email'?'email':k==='phone'?'tel':'off'}
-               className="w-full bg-[#11182c] p-3 rounded-lg mt-1" value={editingMember[k] ?? ''}
-              onChange={e=>setEditingMember(m=>m?{...m,[k]:e.target.value}:m)}/>
-          </label>)}
-          <p className="text-xs text-slate-400">{tx("A alteração do login preserva os dados e históricos. Permissões administrativas não podem ser editadas por este formulário.")}</p>
-          <button className={btn} disabled={busy}>{tx("Salvar perfil")}</button>
-          <button type="button" className="ml-2 text-sm" onClick={()=>setEditingMember(null)}>{tx("Cancelar")}</button>
-        </form>}
-        {editingMember && <AdminMemberRecords key={editingMember.id}
-          userId={editingMember.id} plans={plans} language={language} onChanged={()=>{void refresh();
-            void api<MemberDetails>('admin.member.details',undefined,{id:editingMember.id}).then(setDetails).catch(()=>{});
-          }}/>}
-        {editingMember && <section className="rounded-xl bg-[#1b2137] p-4 space-y-3">
-          <h3 className="font-bold text-sm">{tx("Redefinição administrativa de senha")}</h3>
-          <p className="text-xs text-amber-300">{tx("Verifique a identidade do membro por meio independente antes de emitir a autorização. Não registre documentos, senhas ou dados sensíveis no campo de referência.")}</p>
-          <select value={verificationMethod} onChange={e=>setVerificationMethod(e.target.value)}
-            className="bg-[#11182c] w-full p-3 rounded-lg text-sm">
-            <option value="approved">{tx("APROVADO")}</option>
-            <option value="in_person">{tx("Verificação presencial")}</option>
-            <option value="other_offline">{tx("Outro método independente")}</option>
-          </select>
-          <label className="block text-xs text-slate-300">
-            {tx("Referência da verificação realizada")}
-            <input value={verificationReference} onChange={e=>setVerificationReference(e.target.value)}
-              placeholder={tx("Ex.: protocolo SUP-12345 ou número do atendimento")}
-              className="mt-2 w-full bg-[#11182c] p-3 rounded-lg text-sm"/>
-            <span className="mt-1 block text-slate-400">{tx("Informe um protocolo, número de atendimento ou identificação interna do registro. Não informe senhas ou documentos pessoais.")}</span>
-          </label>
-          <button type="button" disabled={busy || verificationReference.trim().length<6} className={btn} onClick={()=>{
-            if(!editingMember)return;
-            setBusy(true);setNotice('');
-            void api<{verificationId:number}>('admin.identity.verify',{
-              userId:editingMember.id,verificationMethod,verificationReference
-            }).then(result=>{setVerificationId(result.verificationId);
-              setNotice(tx("Verificação registrada. Autorização válida por 10 minutos."));})
-              .catch(e=>setNotice((e as Error).message)).finally(()=>setBusy(false));
-          }}>{tx("Registrar verificação de identidade")}</button>
-          {verificationId!==null && <div className="space-y-3 border-t border-[#2b3350] pt-3">
-            <label className="text-xs block">{tx("Nova senha")}
-              <input type="password" minLength={12} maxLength={256}
-                autoComplete="new-password" value={newMemberPassword} onChange={e=>setNewMemberPassword(e.target.value)}
-                className="w-full bg-[#11182c] rounded-lg p-3 mt-1"/>
-            </label>
-            <button disabled={busy || newMemberPassword.length<12} className={btn} onClick={()=>{
-              if(!editingMember)return;
-              setBusy(true);setNotice('');
-              void api('admin.password.reset',{userId:editingMember.id,verificationId,newPassword:newMemberPassword})
-                .then(()=>{setVerificationId(null);setNewMemberPassword('');
-                  setNotice(tx("Senha redefinida. Sessões existentes revogadas. Informe a nova senha ao membro por canal seguro."));})
-                .catch(e=>setNotice((e as Error).message)).finally(()=>setBusy(false));
-            }}>{tx("Redefinir senha e revogar sessões")}</button>
-          </div>}
-        </section>}
       </>}
       {section==='plans' && <>
         <p className="text-xs text-slate-400">{tx("Cada plano pode ser expandido para edição. Novas regras valem apenas para futuros contratos e renovações.")}</p>
@@ -587,5 +507,110 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
         <p className="text-xs text-slate-400">{tx("O instalador de primeira execução está disponível sem chave somente por acesso local ao servidor. Não é liberado para criação administrativa pública.")}</p>
       </section>}
     </main>
+    {editingMember && <section role="region" aria-labelledby="admin-member-editor-title"
+      data-testid="admin-member-editor"
+      className="absolute inset-0 z-50 flex min-h-0 flex-col bg-[#121526]">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#2b3350] bg-[#171b2d] px-4 py-3">
+        <div className="min-w-0">
+          <h1 id="admin-member-editor-title" className="text-lg font-bold">{tx("Editar membro")}</h1>
+          <p className="text-xs text-slate-400">{editingMember.login} · #{editingMember.id}</p>
+        </div>
+        <button type="button" data-testid="admin-member-editor-close"
+          aria-label={tx("Fechar edição")} title={tx("Fechar edição")}
+          onClick={closeMemberEditor}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#262d49] text-slate-100">
+          <X size={20}/>
+        </button>
+      </header>
+      {notice && <p role="status" className="mx-4 mt-3 shrink-0 rounded-lg bg-[#292a40] p-3 text-sm text-amber-300">{notice}</p>}
+      <main className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 md:p-7">
+        {details && <section className="space-y-2 rounded-xl bg-[#1b2137] p-4 text-sm">
+          <h2 className="font-semibold">{tx("Detalhes de")} #{details.member.id} — {details.member.login}</h2>
+          <p>{tx("Plano(s) contratados:")} {details.contracts.length}</p>
+          <p>{copy('adminInternalBalanceLabel')} US$ {details.balanceUsd} · {copy('adminInternalSatoshisLabel')} {details.bonusSatoshis}</p>
+          <p>{tx("Últimos pedidos:")} {details.orders.length}</p>
+          {details.contracts.length>0 && <section className="mt-4 space-y-2">
+            <h3 className="font-bold text-xs">{tx("Histórico de contratos VIP")}</h3>
+            {details.contracts.map(c=><div key={c.id} className="rounded-xl border border-[#2b3350] bg-[#101827] p-3 text-xs">
+              <p className="font-bold">{c.plan_id} · {tx("Contrato")} #{c.id}</p>
+              <p>{tx("Ativação:")} {new Date(c.started_at*1000).toLocaleString(dateLocale)}</p>
+              <p>{tx("Vencimento:")} {new Date(c.expires_at*1000).toLocaleString(dateLocale)}</p>
+            </div>)}
+          </section>}
+          {details.orders.length>0 && <section className="space-y-2">
+            <h3 className="font-bold text-xs">{tx("Últimos pedidos")}</h3>
+            {details.orders.map(o=><div key={o.id} className="border-b border-[#2b3350] p-2 text-xs">
+              {tx("Pedido")} #{o.id} · {o.plan_id} · {adminStatus(language,o.status)}
+              <p className="mt-1 break-all font-mono text-slate-400">TXID: {o.payment_ref || (o.status==='approved'?copy('adminMissingPaymentRef'):tx('Não informado'))}</p>
+            </div>)}
+          </section>}
+        </section>}
+        <form id="admin-member-profile-form" data-testid="admin-member-profile-form"
+          className="space-y-3 rounded-xl bg-[#1b2137] p-4"
+          onSubmit={e=>{e.preventDefault();void change('admin.member.edit',{
+            userId:editingMember.id,login:editingMember.login,displayName:editingMember.display_name,
+            email:editingMember.email,phone:editingMember.phone ?? '',walletAddress:editingMember.wallet_address ?? '',
+          });}}>
+          <h2 className="font-semibold">{tx("Editar perfil de")} {editingMember.login}</h2>
+          {(['login','display_name','email','phone','wallet_address'] as const).map(k=><label key={k} className="block text-sm">
+            {tx(({login:'Nome de usuário (login)',display_name:'Nome',email:'E-mail',phone:'Telefone',wallet_address:'Endereço BTC'} as const)[k])}
+            <input type={k==='email'?'email':k==='phone'?'tel':'text'}
+              autoComplete={k==='email'?'email':k==='phone'?'tel':'off'}
+              className="mt-1 w-full rounded-lg bg-[#11182c] p-3" value={editingMember[k] ?? ''}
+              onChange={e=>setEditingMember(m=>m?{...m,[k]:e.target.value}:m)}/>
+          </label>)}
+          <p className="text-xs text-slate-400">{tx("A alteração do login preserva os dados e históricos. Permissões administrativas não podem ser editadas por este formulário.")}</p>
+        </form>
+        <AdminMemberRecords key={editingMember.id}
+          userId={editingMember.id} plans={plans} language={language} onChanged={()=>{void refresh();
+            void api<MemberDetails>('admin.member.details',undefined,{id:editingMember.id}).then(setDetails).catch(()=>{});
+          }}/>
+        <section className="space-y-3 rounded-xl bg-[#1b2137] p-4">
+          <h2 className="text-sm font-bold">{tx("Redefinição administrativa de senha")}</h2>
+          <p className="text-xs text-amber-300">{tx("Verifique a identidade do membro por meio independente antes de emitir a autorização. Não registre documentos, senhas ou dados sensíveis no campo de referência.")}</p>
+          <select value={verificationMethod} onChange={e=>setVerificationMethod(e.target.value)}
+            className="w-full rounded-lg bg-[#11182c] p-3 text-sm">
+            <option value="approved">{tx("APROVADO")}</option>
+            <option value="in_person">{tx("Verificação presencial")}</option>
+            <option value="other_offline">{tx("Outro método independente")}</option>
+          </select>
+          <label className="block text-xs text-slate-300">
+            {tx("Referência da verificação realizada")}
+            <input value={verificationReference} onChange={e=>setVerificationReference(e.target.value)}
+              placeholder={tx("Ex.: protocolo SUP-12345 ou número do atendimento")}
+              className="mt-2 w-full rounded-lg bg-[#11182c] p-3 text-sm"/>
+            <span className="mt-1 block text-slate-400">{tx("Informe um protocolo, número de atendimento ou identificação interna do registro. Não informe senhas ou documentos pessoais.")}</span>
+          </label>
+          <button type="button" disabled={busy || verificationReference.trim().length<6} className={btn} onClick={()=>{
+            setBusy(true);setNotice('');
+            void api<{verificationId:number}>('admin.identity.verify',{
+              userId:editingMember.id,verificationMethod,verificationReference
+            }).then(result=>{setVerificationId(result.verificationId);
+              setNotice(tx("Verificação registrada. Autorização válida por 10 minutos."));})
+              .catch(e=>setNotice((e as Error).message)).finally(()=>setBusy(false));
+          }}>{tx("Registrar verificação de identidade")}</button>
+          {verificationId!==null && <div className="space-y-3 border-t border-[#2b3350] pt-3">
+            <label className="block text-xs">{tx("Nova senha")}
+              <input type="password" minLength={12} maxLength={256}
+                autoComplete="new-password" value={newMemberPassword} onChange={e=>setNewMemberPassword(e.target.value)}
+                className="mt-1 w-full rounded-lg bg-[#11182c] p-3"/>
+            </label>
+            <button type="button" disabled={busy || newMemberPassword.length<12} className={btn} onClick={()=>{
+              setBusy(true);setNotice('');
+              void api('admin.password.reset',{userId:editingMember.id,verificationId,newPassword:newMemberPassword})
+                .then(()=>{setVerificationId(null);setNewMemberPassword('');
+                  setNotice(tx("Senha redefinida. Sessões existentes revogadas. Informe a nova senha ao membro por canal seguro."));})
+                .catch(e=>setNotice((e as Error).message)).finally(()=>setBusy(false));
+            }}>{tx("Redefinir senha e revogar sessões")}</button>
+          </div>}
+        </section>
+      </main>
+      <footer className="shrink-0 border-t border-[#2b3350] bg-[#171b2d] p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <button type="submit" form="admin-member-profile-form" data-testid="admin-member-profile-save"
+          disabled={busy} className={btn+' min-h-11 w-full'}>
+          {tx("Salvar perfil")}
+        </button>
+      </footer>
+    </section>}
   </div>;
 };
