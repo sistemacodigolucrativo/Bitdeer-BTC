@@ -28,9 +28,9 @@ export const legitimoCopy = {
     es: 'Tu panel muestra minería y pagos Bitcoin confirmados.'
   },
   homeBalanceLabel: {
-    pt: 'Saldo de mineração confirmado (USD)',
-    en: 'Verified mining balance (USD)',
-    es: 'Saldo de minería verificado (USD)'
+    pt: '',
+    en: '',
+    es: ''
   },
   homeBtcLabel: {
     pt: 'Bitcoin minerado e confirmado (BTC)',
@@ -38,9 +38,9 @@ export const legitimoCopy = {
     es: 'Bitcoin minado y confirmado (BTC)'
   },
   homeNotice: {
-    pt: 'Mineração e recompensas Bitcoin confirmadas pelo serviço.',
-    en: 'Bitcoin mining and rewards confirmed by the service.',
-    es: 'Minería y recompensas Bitcoin confirmadas por el servicio.'
+    pt: '',
+    en: '',
+    es: ''
   },
   equipmentAlt: {
     pt: 'Equipamento de mineração conectado',
@@ -103,9 +103,9 @@ export const legitimoCopy = {
     es: 'Pagos BTC confirmados'
   },
   paymentFeedNotice: {
-    pt: 'Pagamentos Bitcoin confirmados na blockchain.',
-    en: 'Bitcoin payments confirmed on the blockchain.',
-    es: 'Pagos Bitcoin confirmados en la blockchain.'
+    pt: '',
+    en: '',
+    es: ''
   },
   topMinersNotice: {
     pt: 'Ranking dos mineradores com resultados e saldos Bitcoin confirmados.',

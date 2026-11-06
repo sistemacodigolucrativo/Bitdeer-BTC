@@ -54,7 +54,7 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
   return <section data-testid="simulated-payments" data-simulation="true"
     className="bg-[#171b2d] border border-[#262e49] rounded-2xl p-3 space-y-3 min-w-0">
     <h3 className="font-bold text-sm">{copy('paymentFeedTitle')}</h3>
-    <p role="note" className="text-[11px] leading-relaxed text-amber-200/90">{copy('paymentFeedNotice')}</p>
+    {copy('paymentFeedNotice') && <p role="note" className="text-[11px] leading-relaxed text-amber-200/90">{copy('paymentFeedNotice')}</p>}
     {loading&&rows.length===0&&!error&&<p role="status" className="text-xs text-slate-400">{tr.loading}</p>}
     {error&&<p role="alert" className="text-xs text-red-300">{error}</p>}
     <div data-testid="btc-payments-scroll"

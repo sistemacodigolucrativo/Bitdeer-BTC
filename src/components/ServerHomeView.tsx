@@ -15,17 +15,17 @@ const details = {
   pt:{mining:'Painel de mineração', active:'Sessão ativa',
     inactive:'Sessão inativa',check:'Atualizar',history:'Histórico',rewards:'Recompensas',
     daily:'Bônus diário',claim:'Resgatar bônus',
-    faq:'Perguntas frequentes',session:'Fim da sessão',
+    faq:'Perguntas frequentes',session:'Sua sessão encerra em',
     vip:'Plano VIP válido até', noHash:'Capacidade de mineração'},
   en:{mining:'Mining panel', active:'Session active',
     inactive:'Session inactive',check:'Refresh',history:'History',rewards:'Rewards',
     daily:'Daily bonus',claim:'Claim bonus',
-    faq:'Frequently asked questions',session:'Session ends',
+    faq:'Frequently asked questions',session:'Your session ends in',
     vip:'VIP plan expires', noHash:'Mining capacity'},
   es:{mining:'Panel de minería', active:'Sesión activa',
     inactive:'Sesión inactiva',check:'Actualizar',history:'Historial',rewards:'Recompensas',
     daily:'Bono diario',claim:'Reclamar bono',
-    faq:'Preguntas frecuentes',session:'Fin de sesión',
+    faq:'Preguntas frecuentes',session:'Tu sesión termina en',
     vip:'Plan VIP hasta', noHash:'Capacidad de minería'}
 };
 export const ServerHomeView: React.FC<Props> = ({
@@ -47,8 +47,8 @@ export const ServerHomeView: React.FC<Props> = ({
     (account.plan.expiresAt===null || account.plan.expiresAt>clock/1000);
   const ends=account?.mining.sessionEndsAt;
   const seconds=ends ? Math.max(0,ends-Math.floor(clock/1000)):0;
-  const remaining=Math.floor(seconds/60).toString().padStart(2,'0')+':'+
-    (seconds%60).toString().padStart(2,'0');
+  const remaining=[Math.floor(seconds/3600),Math.floor((seconds%3600)/60),seconds%60]
+    .map(value=>String(value).padStart(2,'0')).join(':');
   const isVip=account?.plan.id!=='FREE' && account?.plan.id!==undefined;
   const stamp=(v:number)=>new Date(v*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR');
   return <div className="space-y-4 select-none pb-4">
@@ -82,8 +82,7 @@ export const ServerHomeView: React.FC<Props> = ({
         <strong data-testid="mining-live-btc" className="text-2xl font-bold font-mono text-amber-300">{liveBtc??'—'} BTC</strong>
 
         <p data-testid="mining-live-usd" className="text-xs text-slate-300 mt-1">
-          {copy('homeBalanceLabel')}:
-          {' '}US$ {liveBalanceUsd.toFixed(8)}
+          US$ {liveBalanceUsd.toFixed(8)}
         </p>
       </div>
       <div className="flex justify-between items-center mb-5">
@@ -110,11 +109,11 @@ export const ServerHomeView: React.FC<Props> = ({
         disabled={busy}
         className={'w-full py-4 px-4 rounded-2xl font-bold text-sm flex justify-center items-center gap-2 disabled:opacity-40 '+
           (status?'bg-emerald-600 hover:bg-emerald-500':'bg-[#f43f5e] hover:bg-[#e11d48]')}>
-        {status?<><Zap size={18}/>{t.stopMining}{ends?' • '+remaining:''}</>:t.startMining}
+        {status?<><Zap size={18}/>{t.stopMining}</>:t.startMining}
       </button>
-      {status && ends!==null && ends!==undefined && <p className="mt-3 flex items-center gap-2 text-xs text-slate-400"><Clock size={14}/>{d.session}: {stamp(ends)}</p>}
+      {status && ends!==null && ends!==undefined && <p data-testid="session-countdown" className="mt-3 flex items-center gap-2 text-xs text-slate-400"><Clock size={14}/>{d.session}: {remaining}</p>}
       {isVip && account?.plan.expiresAt && <p className="mt-2 text-xs text-slate-400">{d.vip}: {stamp(account.plan.expiresAt)}</p>}
-      <p role="note" className="mt-3 text-[11px] leading-relaxed text-amber-200/90">{copy('homeNotice')}</p>
+      {copy('homeNotice') && <p role="note" className="mt-3 text-[11px] leading-relaxed text-amber-200/90">{copy('homeNotice')}</p>}
     </section>
   </div>;
 };
