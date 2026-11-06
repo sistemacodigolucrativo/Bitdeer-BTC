@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "d83_xETU9MmV0eckLvgrn"
+uri = "file://docs/RELATORIO_REDESIGN_VISUAL.md"
+type = "text"
+title = "Relatório do redesign visual premium"
+description = "Resumo das alterações, arquivos preservados, validações e limitações da entrega."
+logical_id = "7573705c-d52b-4291-9ca5-93a3e7112791"
+content_hash = "sha256:24ab38eb1adb1fdf3a80afeee074d14cd6f5d8c6fd7e780610f7defaec19c906"
+size = 5374
+mtime_ms = 1793923945491
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:71048682-45bf-450c-aa41-29d3503e5ab8/7573705c-d52b-4291-9ca5-93a3e7112791/5cc9dafa-7a8f-44bb-9c40-b308ec53d0d9"
+storage_version_token = "1793924003528223"
+content_type = "text/markdown"
