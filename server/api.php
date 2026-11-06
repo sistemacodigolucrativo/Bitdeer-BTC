@@ -207,6 +207,35 @@ function ensure_member_features(PDO $db): void {
         $db->exec('ALTER TABLE plans ADD COLUMN withdraw_min_cents INTEGER NOT NULL DEFAULT 0');
     if (!in_array('withdraw_after_days',$cols,true))
         $db->exec('ALTER TABLE plans ADD COLUMN withdraw_after_days INTEGER NOT NULL DEFAULT 0');
+    $orderCols=array_column(query_all($db,'PRAGMA table_info(orders)'),'name');
+    if(!in_array('quote_expires_at',$orderCols,true))
+        $db->exec('ALTER TABLE orders ADD COLUMN quote_expires_at INTEGER NOT NULL DEFAULT 0');
+    if(!in_array('payment_proof_url',$orderCols,true))
+        $db->exec("ALTER TABLE orders ADD COLUMN payment_proof_url TEXT NOT NULL DEFAULT ''");
+    if(!in_array('payment_proof_submitted_at',$orderCols,true))
+        $db->exec('ALTER TABLE orders ADD COLUMN payment_proof_submitted_at INTEGER');
+    // Give still-live legacy orders the new 30-minute window without reviving
+    // any order whose previous deadline has already passed.
+    execute_sql($db,'UPDATE orders SET expires_at=created_at+1800
+        WHERE status="pending" AND expires_at>? AND expires_at<created_at+1800',[now()]);
+    execute_sql($db,'UPDATE orders SET quote_expires_at=expires_at WHERE quote_expires_at=0');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_orders_expiry ON orders(status,expires_at)');
+    $db->exec("CREATE TABLE IF NOT EXISTS admin_notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL REFERENCES orders(id),
+      event_type TEXT NOT NULL CHECK(event_type IN
+        ('vip_request','proof_submitted','payment_confirmed','simulation_approved')),
+      simulation INTEGER NOT NULL DEFAULT 0 CHECK(simulation IN (0,1)),
+      created_at INTEGER NOT NULL
+    )");
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_admin_notifications_created
+      ON admin_notifications(created_at DESC)');
+    $db->exec("CREATE TABLE IF NOT EXISTS admin_notification_reads (
+      notification_id INTEGER NOT NULL REFERENCES admin_notifications(id),
+      admin_id INTEGER NOT NULL REFERENCES users(id),
+      read_at INTEGER NOT NULL,
+      PRIMARY KEY(notification_id,admin_id)
+    )");
     $db->exec("CREATE TABLE IF NOT EXISTS language_preferences (
       user_id INTEGER PRIMARY KEY REFERENCES users(id),
       language TEXT NOT NULL DEFAULT 'pt' CHECK(language IN ('pt','en','es'))
@@ -257,6 +286,16 @@ function ensure_member_features(PDO $db): void {
     $db->exec('INSERT OR IGNORE INTO app_settings(name,value) VALUES ("payment_mode","simulation")');
 
 }
+function expire_pending_orders(PDO $db, ?int $at=null): void {
+    execute_sql($db,'UPDATE orders SET status="expired"
+      WHERE status="pending" AND expires_at<=?',[$at??now()]);
+}
+function record_admin_notification(PDO $db,int $orderId,string $eventType,bool $simulation=false): void {
+    if(!in_array($eventType,['vip_request','proof_submitted','payment_confirmed','simulation_approved'],true))
+        throw new InvalidArgumentException('Invalid admin notification event');
+    execute_sql($db,'INSERT INTO admin_notifications(order_id,event_type,simulation,created_at)
+      VALUES (?,?,?,?)',[$orderId,$eventType,$simulation?1:0,now()]);
+}
 /** Only the original four VIP tiers unlock review of an internal payout request. */
 function vip_eligible_at(PDO $db,int $memberId,int $at): bool {
     $contract=query_one($db,'SELECT id FROM contracts WHERE user_id=?
@@ -284,6 +323,7 @@ function normalize_member_phone(string $value): ?string {
 function is_valid_member_phone(string $value): bool { return normalize_member_phone($value)!==null; }
 function api_dispatch(PDO $db, string $action, string $method): never {
     ensure_member_features($db);
+    expire_pending_orders($db);
     // Member-only fictional announcement setting, disabled unless explicitly enabled by an admin.
     if ($action === 'demo.new-investors.settings' && $method === 'GET') {
         $actor=auth_user($db);
@@ -682,8 +722,9 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         if (!btc_receive_address_valid($address)) {
             fail(503,'Endereço de recebimento BTC não configurado');
         }
-        $order=atomic($db, static function () use ($db,$actor,$plan,$quote,$sats,$address): int {
+        $order=atomic($db, static function () use ($db,$actor,$plan,$quote,$sats,$address): array {
             $time=now();
+            $expiresAt=$time+1800;
             // Recheck active plan and pricing inside the write transaction.
             // Re-check wallet confirmation inside the payment write transaction.
             $flag=query_one($db,'SELECT value FROM app_settings WHERE name="btc_address_confirmed"');
@@ -697,19 +738,79 @@ function api_dispatch(PDO $db, string $action, string $method): never {
                 [$actor['id'],$time,$time]);
             if ($active) fail(409,'Já existe contratação VIP ativa');
             execute_sql($db,'INSERT INTO orders(user_id,plan_id,snapshot_json,status,created_at,expires_at,
-                 btc_address,btc_sats,quote_usd_cents,quote_source)
-                 VALUES (?,?,?,"pending",?,?,?,?,?,?)',
-                [$actor['id'],$plan['id'],json_encode($plan,JSON_THROW_ON_ERROR),$time,$time+900,
-                    $address,$sats,(int)round($quote['usd']*100),$quote['source']]);
-            return (int)$db->lastInsertId();
+                 btc_address,btc_sats,quote_usd_cents,quote_source,quote_expires_at)
+                 VALUES (?,?,?,"pending",?,?,?,?,?,?,?)',
+                [$actor['id'],$plan['id'],json_encode($plan,JSON_THROW_ON_ERROR),$time,$expiresAt,
+                    $address,$sats,(int)round($quote['usd']*100),$quote['source'],$expiresAt]);
+            $orderId=(int)$db->lastInsertId();
+            record_admin_notification($db,$orderId,'vip_request');
+            return ['orderId'=>$orderId,'createdAt'=>$time,'expiresAt'=>$expiresAt,
+                'quoteExpiresAt'=>$expiresAt];
         });
-        json_out(['orderId'=>$order,'status'=>'pending','activation'=>'manual',
+        json_out(['orderId'=>$order['orderId'],'status'=>'pending','activation'=>'manual',
+          'planId'=>$plan['id'],'createdAt'=>$order['createdAt'],
           'priceUsd'=>number_format($plan['price_cents']/100,2,'.',''),
           'quoteRateUsd'=>number_format($quote['usd'],2,'.',''),
           'quoteSource'=>$quote['source'],
           'btcAddress'=>$address,'btcSatoshis'=>$sats,
           'btcAmount'=>number_format($sats/100000000,8,'.',''),
-          'expiresAt'=>$quote['quoted_at']+900],201);
+          'quoteExpiresAt'=>$order['quoteExpiresAt'],'expiresAt'=>$order['expiresAt'],
+          'paymentProofUrl'=>null,'paymentProofSubmittedAt'=>null],201);
+    }
+    if ($action === 'orders.payment' && $method === 'GET') {
+        $actor=auth_user($db);
+        if($actor['role']!=='member')fail(403,'Conta de membro necessária');
+        $id=isset($_GET['id'])&&is_string($_GET['id'])
+            ?filter_var($_GET['id'],FILTER_VALIDATE_INT):false;
+        if($id===false||$id===null||(int)$id<=0)fail(422,'Identificador do pedido inválido');
+        $order=query_one($db,'SELECT * FROM orders WHERE id=? AND user_id=?',[(int)$id,$actor['id']]);
+        if(!$order)fail(404,'Pedido não encontrado');
+        if($order['status']!=='pending'||(int)$order['expires_at']<=now()) {
+            expire_pending_orders($db);
+            fail(409,'Pedido expirado ou indisponível. Solicite uma nova ativação VIP.');
+        }
+        $snapshot=json_decode($order['snapshot_json'],true,512,JSON_THROW_ON_ERROR);
+        json_out(['orderId'=>(int)$order['id'],'status'=>'pending','planId'=>$order['plan_id'],
+          'createdAt'=>(int)$order['created_at'],
+          'priceUsd'=>number_format((int)$snapshot['price_cents']/100,2,'.',''),
+          'quoteRateUsd'=>number_format((int)$order['quote_usd_cents']/100,2,'.',''),
+          'quoteSource'=>$order['quote_source'],'btcAddress'=>$order['btc_address'],
+          'btcSatoshis'=>(int)$order['btc_sats'],
+          'btcAmount'=>number_format((int)$order['btc_sats']/100000000,8,'.',''),
+          'quoteExpiresAt'=>(int)$order['quote_expires_at'],
+          'expiresAt'=>(int)$order['expires_at'],
+          'paymentProofUrl'=>$order['payment_proof_url'],
+          'paymentProofSubmittedAt'=>$order['payment_proof_submitted_at']===null
+            ?null:(int)$order['payment_proof_submitted_at']]);
+    }
+    if ($action === 'orders.proof.submit' && $method === 'POST') {
+        $actor=require_post_csrf($db);
+        if($actor['role']!=='member')fail(403,'Conta de membro necessária');
+        $body=request_body();
+        $id=param_id($body,'orderId');
+        $url=trim(string_field($body,'proofUrl',2048));
+        $parts=parse_url($url);
+        if(strlen($url)>2048||!filter_var($url,FILTER_VALIDATE_URL)||
+            !is_array($parts)||strtolower((string)($parts['scheme']??''))!=='https'||
+            empty($parts['host'])||isset($parts['user'])||isset($parts['pass'])||
+            preg_match('/[\x00-\x20\x7f]/',$url))
+            fail(422,'Informe um link HTTPS válido para o comprovante');
+        $result=atomic($db,static function()use($db,$actor,$id,$url):array {
+            $order=query_one($db,'SELECT id,status,expires_at,payment_proof_url,
+                payment_proof_submitted_at FROM orders WHERE id=? AND user_id=?',[$id,$actor['id']]);
+            if(!$order)fail(404,'Pedido não encontrado');
+            if($order['status']!=='pending'||(int)$order['expires_at']<=now())
+                fail(409,'Pedido expirado ou indisponível; solicite uma nova ativação VIP.');
+            if($order['payment_proof_url']===$url)
+                return ['submittedAt'=>(int)$order['payment_proof_submitted_at'],'unchanged'=>true];
+            $submittedAt=now();
+            execute_sql($db,'UPDATE orders SET payment_proof_url=?,payment_proof_submitted_at=?
+                WHERE id=? AND status="pending"',[$url,$submittedAt,$id]);
+            record_admin_notification($db,$id,'proof_submitted');
+            return ['submittedAt'=>$submittedAt,'unchanged'=>false];
+        });
+        json_out(['ok'=>true,'submittedAt'=>$result['submittedAt'],
+          'unchanged'=>$result['unchanged'],'paymentConfirmed'=>false]);
     }
     if ($action === 'mock.payments.latest' && $method === 'POST') {
         $actor=require_post_csrf($db);
