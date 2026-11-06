@@ -1,8 +1,15 @@
 # Checklist de textos: antes e depois
 
 **Objetivo:** preparar a copy final de produção para uma interface povoada com dados reais, substituindo rótulos temporários de simulação quando as fontes reais estiverem integradas.  
-**Escopo deste arquivo:** propostas de texto; nenhuma tela, regra, API ou dado foi alterado.  
+**Escopo deste arquivo:** propostas de texto e status de aplicação; nenhuma API, regra de negócio ou dado foi alterado.
 **Cópias cobertas:** projeto da raiz (preview) e clone `ProjetoGIT`.
+
+## Status da aplicação
+
+- **Aplicado:** item 14, com uma formulação mais direta para deixar claro que a atribuição manual de plano não confirma pagamento BTC.
+- **Não aplicado:** itens 1–13. O backend atual ainda fornece perfis, pagamentos, cadastros, saques, equipamentos ou aprovações demonstrativos. Os textos de produção desses itens dependem de integração e confirmação de dados reais.
+- A única alteração implementada nesta etapa foi de texto na interface administrativa, na raiz e em `ProjetoGIT`. Nenhuma API, regra de negócio ou dado foi alterado.
+- Verificação realizada: `bun run lint` e `bun run build` passaram na raiz e em `ProjetoGIT`. O navegador exibiu a tela de login; os painéis autenticados não foram verificados visualmente.
 
 ## Premissa para aplicar os textos “DEPOIS”
 
@@ -202,11 +209,9 @@ Enquanto houver dados fictícios, a visualização preenchida deve permanecer is
 
   “Atribuição sem simular pagamento real; mantém o histórico contratual anterior.”
 
-- [ ] **DEPOIS**
+- [x] **DEPOIS — aplicado**
 
-  “Atribuir plano manualmente”
-
-  Manter a distinção administrativa: essa ação, por si só, não deve ser apresentada como confirmação de pagamento BTC.
+  “Plano atribuído manualmente; esta ação não confirma pagamento BTC.”
 
 - **Localização:** `src/components/admin/AdminMemberRecords.tsx:117–120`; também em `ProjetoGIT/src/components/admin/AdminMemberRecords.tsx`. Traduções em `src/i18n/adminTexts.ts:786–788`.
 

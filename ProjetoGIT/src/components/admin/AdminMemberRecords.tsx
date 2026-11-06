@@ -117,7 +117,7 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];language:La
                 void submit('admin.member.plan.assign',{planId});
             }}>{tx("Aplicar plano")}</button>
         </div>
-        <p className="text-[11px] text-slate-400">{tx("Atual:")} {data.planId}. {tx('Atribuição sem simular pagamento real; mantém o histórico contratual anterior.')}</p>
+        <p className="text-[11px] text-slate-400">{tx("Atual:")} {data.planId}. {tx('Plano atribuído manualmente; esta ação não confirma pagamento BTC.')}</p>
       </div>
       <div className="border-t border-[#303a56] pt-3 space-y-2">
         <h4 className="font-bold text-sm">{tx("Saldo interno (USD e BTC equivalente)")}</h4>

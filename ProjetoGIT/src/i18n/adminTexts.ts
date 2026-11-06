@@ -783,9 +783,9 @@ const dictionary: Record<string,{en:string;es:string}> = {
     "en": "Current:",
     "es": "Actual:"
   },
-  "Atribuição sem simular pagamento real; mantém o histórico contratual anterior.": {
-    "en": "Assignment does not simulate a real payment and preserves earlier contract history.",
-    "es": "La asignación no simula un pago real y conserva el historial contractual anterior."
+  "Plano atribuído manualmente; esta ação não confirma pagamento BTC.": {
+    "en": "Plan assigned manually; this action does not confirm BTC payment.",
+    "es": "Plan asignado manualmente; esta acción no confirma el pago BTC."
   },
   "Saldo interno (USD e BTC equivalente)": {
     "en": "Internal balance (USD and BTC equivalent)",
