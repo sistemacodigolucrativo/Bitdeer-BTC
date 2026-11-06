@@ -147,9 +147,34 @@ export const mockupCopy = {
     es: 'Modo Mockup'
   },
   adminModeLockedNote: {
-    pt: 'Ativo e bloqueado até concluir a integração final do back-end.',
-    en: 'On and locked until the final backend integration is complete.',
-    es: 'Activo y bloqueado hasta completar la integración final del backend.'
+    pt: 'Alternador bloqueado; use a prévia temporária de 2 horas neste navegador.',
+    en: 'Toggle locked; use the temporary 2-hour preview in this browser.',
+    es: 'Alternador bloqueado; usa la vista previa temporal de 2 horas en este navegador.'
+  },
+  adminPreviewTitle: {
+    pt: 'Prévia temporária dos textos legítimos',
+    en: 'Temporary legitimate-copy preview',
+    es: 'Vista previa temporal de textos legítimos'
+  },
+  adminPreviewDescription: {
+    pt: 'Só troca os textos neste navegador por 2 horas. Depois, volta ao Mockup; os demais usuários não são afetados.',
+    en: 'Changes copy only in this browser for 2 hours. It then returns to Mockup; other users are unaffected.',
+    es: 'Solo cambia los textos en este navegador por 2 horas. Luego vuelve a Mockup; los demás usuarios no se ven afectados.'
+  },
+  adminPreviewStart: {
+    pt: 'Ver modo legítimo por 2 horas',
+    en: 'Preview legitimate copy for 2 hours',
+    es: 'Ver modo legítimo durante 2 horas'
+  },
+  adminPreviewCountdownLabel: {
+    pt: 'Modo legítimo ativo neste navegador. Volta ao Mockup em:',
+    en: 'Legitimate copy is active in this browser. Returns to Mockup in:',
+    es: 'Los textos legítimos están activos en este navegador. Vuelven a Mockup en:'
+  },
+  adminPreviewStorageError: {
+    pt: 'Não foi possível iniciar a prévia: o armazenamento deste navegador está indisponível.',
+    en: 'Could not start the preview: this browser’s storage is unavailable.',
+    es: 'No se pudo iniciar la vista previa: el almacenamiento de este navegador no está disponible.'
   },
   adminMarceloTitle: {
     pt: 'Conta demonstrativa · Marcelo',

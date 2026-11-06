@@ -4,7 +4,7 @@ import { AdminMemberRecords } from './AdminMemberRecords';
 import { copyToClipboard } from '../../utils/clipboard';
 import { LanguageCode } from '../../types';
 import { adminText, adminDateLocale, adminStatus } from '../../i18n/adminTexts';
-import { MOCKUP_LOCK, useProjectCopy } from '../../i18n/copyMode';
+import { MOCKUP_LOCK, useLegitPreviewCountdown, useProjectCopy } from '../../i18n/copyMode';
 import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headphones, Menu, ChevronDown, ChevronUp } from 'lucide-react';
 
 type Member = {id: number; login: string; display_name: string; email: string; status: string; balance_units: number; plan_id: string; phone?: string; wallet_address?: string};
@@ -16,7 +16,8 @@ type Ticket = {id:number;user_id:number;login:string;subject:string;message:stri
   notification_status:'pending'|'accepted'|'failed';created_at:number};
 export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onChangeLanguage:(language:LanguageCode)=>void;onLogout:()=>void}> = ({user,language,onChangeLanguage,onLogout}) => {
   const tx=(portuguese:string)=>adminText(language,portuguese);
-  const {copy,mockupMode,setMockupMode}=useProjectCopy(language);
+  const {copy,mockupMode,setMockupMode,legitPreviewActive,startLegitPreview}=useProjectCopy(language);
+  const previewRemainingMs=useLegitPreviewCountdown();
   const dateLocale=adminDateLocale(language);
   const [section,setSection]=useState<'overview'|'members'|'plans'|'orders'|'settings'|'audit'|'tickets'|'withdrawals'>('overview');
   const [menuOpen,setMenuOpen]=useState(false);
@@ -158,6 +159,13 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
     <button className="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3 py-2 text-xs font-bold" disabled={busy}>{tx("Salvar alterações")}</button>
   </form>;
   const btn='rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 px-3 py-2 text-xs font-bold';
+  const previewCountdown=(()=>{
+    const seconds=Math.ceil(previewRemainingMs/1000);
+    const hours=Math.floor(seconds/3600);
+    const minutes=Math.floor((seconds%3600)/60);
+    const remainingSeconds=seconds%60;
+    return [hours,minutes,remainingSeconds].map(value=>String(value).padStart(2,'0')).join(':');
+  })();
   return <div className="h-full w-full bg-[#121526] text-white flex flex-col overflow-hidden">
     <header className="relative px-4 py-3 bg-[#171b2d] border-b border-[#2b3350] flex justify-between items-center z-40">
       <strong>Bitdeer BTC <span className="text-xs text-slate-400">· {tx('Administração')}</span></strong>
@@ -169,7 +177,9 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
               disabled={MOCKUP_LOCK} onChange={e=>setMockupMode(e.target.checked)}
               data-testid="admin-mockup-mode-toggle" className="h-4 w-4 accent-amber-400"/>
           </label>
-          <p className="text-[10px] text-slate-400">{copy('adminModeLockedNote')}</p>
+          {legitPreviewActive
+            ? <p className="text-[10px] text-amber-300">{previewCountdown}</p>
+            : <p className="text-[10px] text-slate-400">{copy('adminModeLockedNote')}</p>}
         </div>
         <div className="sm:hidden">
           <label className="flex items-center gap-1.5 text-[10px] font-semibold">
@@ -484,6 +494,24 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
         {!audit.length && <p className="text-sm text-slate-400">{tx("Nenhuma ação registrada.")}</p>}
       </div>}
       {section==='settings' && <section className="space-y-6">
+        {MOCKUP_LOCK && <section data-testid="admin-legit-copy-preview"
+          className="rounded-xl border border-amber-300/25 bg-[#1b2137] p-4 space-y-3">
+          <div className="space-y-1">
+            <h2 className="font-semibold">{copy('adminPreviewTitle')}</h2>
+            <p className="text-xs text-slate-300">{copy('adminPreviewDescription')}</p>
+          </div>
+          {legitPreviewActive
+            ? <p className="text-sm text-amber-200" role="timer">
+                {copy('adminPreviewCountdownLabel')}{' '}
+                <strong data-testid="admin-legit-copy-countdown">{previewCountdown}</strong>
+              </p>
+            : <button type="button" className={btn} data-testid="admin-legit-copy-preview-start"
+                onClick={()=>{
+                  if(!startLegitPreview())setNotice(copy('adminPreviewStorageError'));
+                }}>
+                {copy('adminPreviewStart')}
+              </button>}
+        </section>}
         <section data-testid="admin-demo-investors-settings"
           className="rounded-xl border border-[#374461] bg-[#1b2137] p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
