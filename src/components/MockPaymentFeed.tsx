@@ -10,12 +10,12 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const tr=language==='en'
-    ?{title:'Latest BTC Payments',name:'Name',date:'Date / time',id:'Transaction',value:'Value (USD)',
+    ?{title:'Demonstration BTC payments',notice:'Fictional records for demonstration; no real payments were made.',name:'Name',date:'Date / time',id:'Transaction',value:'Value (USD)',
       amount:'Amount (BTC)',loading:'Loading records…'}
     :language==='es'
-    ?{title:'Últimos Pagos BTC',name:'Nombre',date:'Fecha / hora',id:'Transacción',value:'Valor (USD)',
+    ?{title:'Pagos BTC de demostración',notice:'Registros ficticios de demostración; no se realizaron pagos reales.',name:'Nombre',date:'Fecha / hora',id:'Transacción',value:'Valor (USD)',
       amount:'Cantidad (BTC)',loading:'Cargando registros…'}
-    :{title:'Últimos Pagamentos BTC',name:'Nome',date:'Data / hora',id:'Transação',value:'Valor (USD)',
+    :{title:'Pagamentos BTC de demonstração',notice:'Registros fictícios para demonstração; nenhum pagamento real foi realizado.',name:'Nome',date:'Data / hora',id:'Transação',value:'Valor (USD)',
       amount:'Quantidade (BTC)',loading:'Carregando registros…'};
   const locale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
 
@@ -52,6 +52,7 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
   return <section data-testid="simulated-payments" data-simulation="true"
     className="bg-[#171b2d] border border-[#262e49] rounded-2xl p-3 space-y-3 min-w-0">
     <h3 className="font-bold text-sm">{tr.title}</h3>
+    <p role="note" className="text-[11px] leading-relaxed text-amber-200/90">{tr.notice}</p>
     {loading&&rows.length===0&&!error&&<p role="status" className="text-xs text-slate-400">{tr.loading}</p>}
     {error&&<p role="alert" className="text-xs text-red-300">{error}</p>}
     <div data-testid="btc-payments-scroll"

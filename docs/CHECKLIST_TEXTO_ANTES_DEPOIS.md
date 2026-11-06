@@ -7,9 +7,14 @@
 ## Status da aplicação
 
 - **Aplicado:** item 14, com uma formulação mais direta para deixar claro que a atribuição manual de plano não confirma pagamento BTC.
-- **Não aplicado:** itens 1–13. O backend atual ainda fornece perfis, pagamentos, cadastros, saques, equipamentos ou aprovações demonstrativos. Os textos de produção desses itens dependem de integração e confirmação de dados reais.
-- A única alteração implementada nesta etapa foi de texto na interface administrativa, na raiz e em `ProjetoGIT`. Nenhuma API, regra de negócio ou dado foi alterado.
-- Verificação realizada: `bun run lint` e `bun run build` passaram na raiz e em `ProjetoGIT`. O navegador exibiu a tela de login; os painéis autenticados não foram verificados visualmente.
+- **Copy intermediária aplicada:** itens 1, 2, 6, 7, 8 e 9. A interface identifica registros fictícios e contas de demonstração, informa que a animação não verifica mineração e diferencia o equivalente interno em BTC.
+- Os itens 3 e 4 já exibiam avisos de demonstração; o item 10 mantém capacidade/equipamento como ilustrativos; os itens 11–13 continuam descrevendo aprovação interna e ausência de envio/confirmação BTC.
+- Os textos de produção “DEPOIS” que dependem de pagamentos, saques, atividade de mineração ou cadastros reais permanecem pendentes da integração e confirmação dessas fontes.
+- As alterações foram somente de apresentação e tradução, na raiz e em `ProjetoGIT`. Nenhuma API, regra de negócio, dado ou estrutura foi alterada.
+- Verificação: `bun run lint` e `bun run build` passaram na raiz e em `ProjetoGIT`; `git diff --check` passou e os oito arquivos de interface/tradução alterados ficaram iguais entre as cópias.
+- O workflow reiniciou e serviu o preview. A captura mostrou a tela pública de login; a interface autenticada não foi verificada visualmente. O navegador registrou `401` na consulta sem sessão e um `404` de recurso não identificado; o `401` é compatível com a ausência de sessão, e o `404` não foi atribuído a estas alterações.
+- `tests/browser_smoke.mjs` não foi executado porque Playwright não está instalado no projeto.
+- O build emitiu avisos não impeditivos já existentes sobre `__dirname` na configuração Vite e o bundle JavaScript acima de 500 kB.
 
 ## Premissa para aplicar os textos “DEPOIS”
 

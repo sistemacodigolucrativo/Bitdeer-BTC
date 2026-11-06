@@ -204,11 +204,11 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
       </div>}
       {section==='members' && <>
         <section className="rounded-xl border border-[#303a56] bg-[#1b2137] p-3 space-y-2" data-testid="admin-marcelo-demo">
-          <p className="text-sm font-semibold">{tx("Conta padrão Marcelo")}</p>
+          <p className="text-sm font-semibold">{tx("Conta demonstrativa · Marcelo")}</p>
           <p className="text-xs text-slate-400">{tx("Histórico de aproximadamente cinco meses: recompensas, bônus, VIP 01–03 e saques. Plano atual FREE; saldo interno US$ 1.837,42.")}</p>
           <button type="button" data-testid="admin-seed-marcelo" disabled={busy||demoMarceloExists}
             className={btn+' disabled:opacity-50'} onClick={()=>void createMarceloDemo()}>
-            {tx(demoMarceloExists?'Conta padrão já criada':'Criar conta padrão Marcelo')}
+            {tx(demoMarceloExists?'Conta de demonstração já criada':'Criar conta demonstrativa')}
           </button>
           {demoMarceloAccess&&<div role="status" className="rounded-lg border border-amber-400/40 p-3 bg-[#11182c] text-xs space-y-1">
             <p className="text-amber-300 font-semibold">{tx("Credenciais exibidas uma única vez. Guarde-as em local seguro.")}</p>
@@ -219,11 +219,11 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
           </div>}
         </section>
         <section className="rounded-xl border border-cyan-400/25 bg-gradient-to-br from-[#17283a] to-[#1b2137] p-3 space-y-2" data-testid="admin-random-user">
-          <p className="text-sm font-semibold">Random User</p>
+          <p className="text-sm font-semibold">{tx("Membro fictício de demonstração")}</p>
           <p className="text-xs text-slate-300">{tx("Cria uma conta povoada com nome, login e e-mail fictícios coerentes, além do mesmo saldo e histórico do Marcelo.")}</p>
           <button type="button" data-testid="admin-seed-random-user" disabled={busy}
             className={btn+' disabled:opacity-50'} onClick={()=>void createRandomUser()}>
-            Random User
+            {tx("Criar membro de demonstração")}
           </button>
           {randomUserAccess&&<div role="status" className="rounded-lg border border-cyan-300/30 p-3 bg-[#11182c] text-xs space-y-1">
             <p className="text-cyan-200 font-semibold">{tx("Usuário criado. Credenciais exibidas somente nesta sessão.")}</p>

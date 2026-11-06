@@ -111,21 +111,21 @@ const dictionary: Record<string,{en:string;es:string}> = {
     "en": "Counts come from SQLite and do not represent revenue or confirmed on-chain BTC.",
     "es": "Los recuentos provienen de SQLite y no representan ingresos ni BTC confirmados en blockchain."
   },
-  "Conta padrão Marcelo": {
-    "en": "Default Marcelo account",
-    "es": "Cuenta predeterminada de Marcelo"
+  "Conta demonstrativa · Marcelo": {
+    "en": "Demonstration account · Marcelo",
+    "es": "Cuenta demostrativa · Marcelo"
   },
   "Histórico de aproximadamente cinco meses: recompensas, bônus, VIP 01–03 e saques. Plano atual FREE; saldo interno US$ 1.837,42.": {
     "en": "About five months of rewards, bonuses, VIP 01–03 and withdrawal history. Current plan FREE; internal balance US$ 1,837.42.",
     "es": "Unos cinco meses de recompensas, bonos, VIP 01–03 y retiros. Plan actual FREE; saldo interno US$ 1.837,42."
   },
-  "Conta padrão já criada": {
-    "en": "Default account already created",
-    "es": "Cuenta predeterminada ya creada"
+  "Conta de demonstração já criada": {
+    "en": "Demonstration account already created",
+    "es": "Cuenta de demostración ya creada"
   },
-  "Criar conta padrão Marcelo": {
-    "en": "Create default Marcelo account",
-    "es": "Crear cuenta predeterminada de Marcelo"
+  "Criar conta demonstrativa": {
+    "en": "Create demonstration account",
+    "es": "Crear cuenta demostrativa"
   },
   "Credenciais exibidas uma única vez. Guarde-as em local seguro.": {
     "en": "Credentials are shown once. Keep them safe.",
@@ -150,6 +150,14 @@ const dictionary: Record<string,{en:string;es:string}> = {
   "Cria uma conta povoada com nome, login e e-mail fictícios coerentes, além do mesmo saldo e histórico do Marcelo.": {
     "en": "Creates a fictional account with matching name, username and email, and the same demonstration balance and history as Marcelo.",
     "es": "Crea una cuenta ficticia con nombre, usuario y correo coherentes, y el mismo saldo e historial demostrativo que Marcelo."
+  },
+  "Membro fictício de demonstração": {
+    "en": "Fictional demonstration member",
+    "es": "Miembro ficticio de demostración"
+  },
+  "Criar membro de demonstração": {
+    "en": "Create demonstration member",
+    "es": "Crear miembro de demostración"
   },
   "Usuário criado. Credenciais exibidas somente nesta sessão.": {
     "en": "User created. Credentials are shown only during this session.",

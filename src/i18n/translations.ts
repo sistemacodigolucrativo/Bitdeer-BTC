@@ -16,6 +16,7 @@ export interface Translations {
   terminal: {
     systemReady: string;
     enterWorkspace: string;
+    notice: string;
   };
   login: {
     title: string;
@@ -125,7 +126,8 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     terminal: {
       systemReady: 'SYSTEM READY FOR OPERATION',
-      enterWorkspace: 'ENTER WORKSPACE'
+      enterWorkspace: 'ENTER WORKSPACE',
+      notice: 'Demo animation: these steps do not verify a node connection or actual mining.'
     },
     login: {
       title: 'BTC Cloud Mining',
@@ -158,8 +160,8 @@ export const translations: Record<LanguageCode, Translations> = {
       totalBtc: 'Total BTC',
       miningPanel: 'MINING PANEL',
       activeMiners: 'Active Miners',
-      startMining: 'Start Mining',
-      stopMining: 'Mining Active (Pause)',
+      startMining: 'Start Session',
+      stopMining: 'Pause Session',
       miningNotice: 'Mining sessions run for 30 minutes. You can restart manually when the timer ends.',
       dailyReward: 'Daily Reward',
       boostMining: 'Claim Boost',
@@ -233,7 +235,8 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     terminal: {
       systemReady: 'SISTEMA PRONTO PARA OPERAÇÃO',
-      enterWorkspace: 'ENTRAR NO PAINEL'
+      enterWorkspace: 'ENTRAR NO PAINEL',
+      notice: 'Animação demonstrativa: estas etapas não verificam conexão com um nó nem mineração real.'
     },
     login: {
       title: 'BTC Cloud Mining',
@@ -266,8 +269,8 @@ export const translations: Record<LanguageCode, Translations> = {
       totalBtc: 'Total BTC',
       miningPanel: 'PAINEL DE MINERAÇÃO',
       activeMiners: 'Mineradores Ativos',
-      startMining: 'Iniciar Mineração',
-      stopMining: 'Mineração Ativa (Pausar)',
+      startMining: 'Iniciar sessão',
+      stopMining: 'Pausar sessão',
       miningNotice: 'A sessão de mineração dura 30 minutos. Reinicie manualmente ao término do cronômetro.',
       dailyReward: 'Recompensa Diária',
       boostMining: 'Resgatar',
@@ -341,7 +344,8 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     terminal: {
       systemReady: 'SISTEMA LISTO PARA OPERACIÓN',
-      enterWorkspace: 'ENTRAR AL PANEL'
+      enterWorkspace: 'ENTRAR AL PANEL',
+      notice: 'Animación demostrativa: estos pasos no verifican una conexión con un nodo ni minería real.'
     },
     login: {
       title: 'BTC Cloud Mining',
@@ -374,8 +378,8 @@ export const translations: Record<LanguageCode, Translations> = {
       totalBtc: 'Total BTC',
       miningPanel: 'PANEL DE MINERÍA',
       activeMiners: 'Mineros Activos',
-      startMining: 'Iniciar Minería',
-      stopMining: 'Minería Activa (Pausar)',
+      startMining: 'Iniciar sesión',
+      stopMining: 'Pausar sesión',
       miningNotice: 'La sesión dura 30 minutos. Reinicia manualmente al finalizar el cronómetro.',
       dailyReward: 'Recompensa Diaria',
       boostMining: 'Reclamar',
