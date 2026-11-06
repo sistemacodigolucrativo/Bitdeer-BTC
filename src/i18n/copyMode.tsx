@@ -71,6 +71,14 @@ export const CopyModeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [now, previewUntil]);
 
   useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.projectCopyMode = mockupMode ? 'mockup' : 'legitimate';
+    return () => {
+      delete root.dataset.projectCopyMode;
+    };
+  }, [mockupMode]);
+
+  useEffect(() => {
     const syncPreview = (event: StorageEvent) => {
       if (event.key !== PREVIEW_STORAGE_KEY && event.key !== null) return;
       const until = Number(event.newValue);

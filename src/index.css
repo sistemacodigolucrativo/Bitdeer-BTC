@@ -492,6 +492,44 @@ body {
   }
 }
 
+/* Keep legitimate-copy text readable on small screens without changing
+   Mockup mode or the desktop presentation. */
+@media (max-width: 767px) {
+  html[data-project-copy-mode="legitimate"] .btc-app-viewport {
+    min-width: 0;
+  }
+
+  html[data-project-copy-mode="legitimate"] .btc-app-viewport :where(.flex, .inline-flex, .grid) > * {
+    min-width: 0;
+  }
+
+  html[data-project-copy-mode="legitimate"] .btc-app-viewport :where(
+    h1, h2, h3, h4, h5, h6, p, li, label, button, a, small, strong, em, code, dt, dd, th, td
+  ) {
+    overflow-wrap: break-word;
+  }
+
+  html[data-project-copy-mode="legitimate"] .btc-app-viewport :where(h1, h2, h3, h4, h5, h6) {
+    text-wrap: balance;
+  }
+
+  html[data-project-copy-mode="legitimate"] .btc-app-viewport :where(p, li) {
+    text-wrap: pretty;
+  }
+
+  html[data-project-copy-mode="legitimate"] .btc-app-viewport .truncate {
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  html[data-project-copy-mode="legitimate"] .btc-app-viewport :where(input, select, textarea) {
+    max-width: 100%;
+    min-width: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .btc-app-shell *,
   .btc-app-viewport * {
