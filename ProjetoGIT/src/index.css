@@ -450,6 +450,30 @@ body {
   overscroll-behavior: contain;
 }
 
+.admin-notifications-panel {
+  box-sizing: border-box;
+  position: fixed;
+  top: max(4.25rem, calc(env(safe-area-inset-top, 0px) + 0.75rem));
+  left: 50%;
+  right: auto;
+  width: min(22rem, calc(100vw - 1.5rem));
+  max-width: calc(100vw - 1.5rem);
+  transform: translateX(-50%);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 640px) {
+  .admin-notifications-panel {
+    position: absolute;
+    top: calc(100% + 0.65rem);
+    left: auto;
+    right: 0;
+    width: min(22rem, calc(100vw - 2rem));
+    max-width: calc(100vw - 2rem);
+    transform: none;
+  }
+}
+
 .btc-app-shell [data-testid="member-bottom-nav"] {
   border-color: var(--btc-border);
   background-color: var(--btc-shell);

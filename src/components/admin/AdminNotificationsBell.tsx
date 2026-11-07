@@ -156,7 +156,7 @@ export const AdminNotificationsBell: React.FC<Props> = ({
           <section
             role="dialog"
             aria-label={t.label}
-            className="fixed left-1/2 top-[4.25rem] z-50 w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] -translate-x-1/2 overflow-hidden rounded-2xl border border-[#343b59] bg-[#171b2d] text-white shadow-2xl shadow-slate-950/45 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+0.65rem)] sm:translate-x-0"
+            className="admin-notifications-panel z-50 overflow-hidden rounded-2xl border border-[#343b59] bg-[#171b2d] text-white shadow-2xl shadow-slate-950/45"
           >
             <header className="flex items-center justify-between gap-3 border-b border-white/[0.08] bg-[#1b2034] px-4 py-3.5">
               <div className="flex min-w-0 items-center gap-2.5">
@@ -257,9 +257,9 @@ export const AdminNotificationsBell: React.FC<Props> = ({
                                 {t.simulatedNotice}
                               </p>
                             )}
-                            <div className="mt-2.5 flex min-w-0 items-center justify-between gap-2">
-                              <span className="inline-flex min-w-0 items-center gap-1 text-[10px] text-slate-500">
-                                <Clock3 size={11} aria-hidden="true" />
+                            <div className="mt-2.5 flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                              <span className="inline-flex min-w-0 flex-1 items-start gap-1 text-[10px] text-slate-500">
+                                <Clock3 className="mt-0.5 shrink-0" size={11} aria-hidden="true" />
                                   <time className="min-w-0 whitespace-normal break-words" dateTime={new Date(notification.createdAt * 1000).toISOString()}>
                                   {new Date(notification.createdAt * 1000).toLocaleString(locale)}
                                 </time>
