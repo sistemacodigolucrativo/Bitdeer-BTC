@@ -23,6 +23,14 @@ const dictionary: Record<string,{en:string;es:string}> = {
     "en": "Close",
     "es": "Cerrar"
   },
+  "Editar membro": {
+    "en": "Edit member",
+    "es": "Editar miembro"
+  },
+  "Fechar edição": {
+    "en": "Close editor",
+    "es": "Cerrar edición"
+  },
   "Sair": {
     "en": "Sign out",
     "es": "Salir"
@@ -107,26 +115,6 @@ const dictionary: Record<string,{en:string;es:string}> = {
     "en": "Approved orders",
     "es": "Pedidos aprobados"
   },
-  "Contagens obtidas do banco SQLite; não representam faturamento ou BTC confirmado na blockchain.": {
-    "en": "Counts come from SQLite and do not represent revenue or confirmed on-chain BTC.",
-    "es": "Los recuentos provienen de SQLite y no representan ingresos ni BTC confirmados en blockchain."
-  },
-  "Conta padrão Marcelo": {
-    "en": "Default Marcelo account",
-    "es": "Cuenta predeterminada de Marcelo"
-  },
-  "Histórico de aproximadamente cinco meses: recompensas, bônus, VIP 01–03 e saques. Plano atual FREE; saldo interno US$ 1.837,42.": {
-    "en": "About five months of rewards, bonuses, VIP 01–03 and withdrawal history. Current plan FREE; internal balance US$ 1,837.42.",
-    "es": "Unos cinco meses de recompensas, bonos, VIP 01–03 y retiros. Plan actual FREE; saldo interno US$ 1.837,42."
-  },
-  "Conta padrão já criada": {
-    "en": "Default account already created",
-    "es": "Cuenta predeterminada ya creada"
-  },
-  "Criar conta padrão Marcelo": {
-    "en": "Create default Marcelo account",
-    "es": "Crear cuenta predeterminada de Marcelo"
-  },
   "Credenciais exibidas uma única vez. Guarde-as em local seguro.": {
     "en": "Credentials are shown once. Keep them safe.",
     "es": "Las credenciales se muestran una sola vez. Guárdelas en un lugar seguro."
@@ -146,10 +134,6 @@ const dictionary: Record<string,{en:string;es:string}> = {
   "Ocultar credenciais": {
     "en": "Hide credentials",
     "es": "Ocultar credenciales"
-  },
-  "Cria uma conta povoada com nome, login e e-mail fictícios coerentes, além do mesmo saldo e histórico do Marcelo.": {
-    "en": "Creates a fictional account with matching name, username and email, and the same demonstration balance and history as Marcelo.",
-    "es": "Crea una cuenta ficticia con nombre, usuario y correo coherentes, y el mismo saldo e historial demostrativo que Marcelo."
   },
   "Usuário criado. Credenciais exibidas somente nesta sessão.": {
     "en": "User created. Credentials are shown only during this session.",
@@ -235,14 +219,6 @@ const dictionary: Record<string,{en:string;es:string}> = {
     "en": "Purchased plans:",
     "es": "Planes contratados:"
   },
-  "Saldo interno:": {
-    "en": "Internal balance:",
-    "es": "Saldo interno:"
-  },
-  "satoshis internos:": {
-    "en": "internal satoshis:",
-    "es": "satoshis internos:"
-  },
   "Últimos pedidos:": {
     "en": "Recent orders:",
     "es": "Pedidos recientes:"
@@ -270,10 +246,6 @@ const dictionary: Record<string,{en:string;es:string}> = {
   "Pedido": {
     "en": "Order",
     "es": "Pedido"
-  },
-  "Não existe — aprovação simulada": {
-    "en": "Not available — simulated approval",
-    "es": "No existe — aprobación simulada"
   },
   "Não informado": {
     "en": "Not provided",
@@ -395,17 +367,9 @@ const dictionary: Record<string,{en:string;es:string}> = {
     "en": "Price (USD)",
     "es": "Precio (USD)"
   },
-  "Recompensa diária interna (USD)": {
-    "en": "Daily internal reward (USD)",
-    "es": "Recompensa interna diaria (USD)"
-  },
   "Bônus diário (USD)": {
     "en": "Daily bonus (USD)",
     "es": "Bono diario (USD)"
-  },
-  "Bônus diário (satoshis internos)": {
-    "en": "Daily bonus (internal satoshis)",
-    "es": "Bono diario (satoshis internos)"
   },
   "Duração do plano (dias)": {
     "en": "Plan duration (days)",
@@ -418,14 +382,6 @@ const dictionary: Record<string,{en:string;es:string}> = {
   "Valor mínimo de saque (USD)": {
     "en": "Minimum withdrawal (USD)",
     "es": "Retiro mínimo (USD)"
-  },
-  "Capacidade ilustrativa": {
-    "en": "Illustrative capacity",
-    "es": "Capacidad ilustrativa"
-  },
-  "Equipamento ilustrativo": {
-    "en": "Illustrative equipment",
-    "es": "Equipo ilustrativo"
   },
   "Disponível para novas adesões": {
     "en": "Available for new subscriptions",
@@ -471,21 +427,9 @@ const dictionary: Record<string,{en:string;es:string}> = {
     "en": "Pending review",
     "es": "Pendiente de revisión"
   },
-  "Aprovada (simulação interna; sem envio de BTC)": {
-    "en": "Approved (internal simulation; no BTC transfer)",
-    "es": "Aprobada (simulación interna; sin transferencia BTC)"
-  },
   "Rejeitada": {
     "en": "Rejected",
     "es": "Rechazada"
-  },
-  "equivalência interna": {
-    "en": "internal equivalent",
-    "es": "equivalencia interna"
-  },
-  "Aceitar solicitação (conferência interna)": {
-    "en": "Accept request (internal review)",
-    "es": "Aceptar solicitud (revisión interna)"
   },
   "Rejeitar e devolver saldo": {
     "en": "Reject and refund balance",
@@ -518,10 +462,6 @@ const dictionary: Record<string,{en:string;es:string}> = {
   "Rejeitar pedido": {
     "en": "Reject order",
     "es": "Rechazar pedido"
-  },
-  "Aprovar simulação e ativar VIP": {
-    "en": "Approve simulation and activate VIP",
-    "es": "Aprobar simulación y activar VIP"
   },
   "Nenhum ticket registrado.": {
     "en": "No support tickets found.",
@@ -675,10 +615,6 @@ const dictionary: Record<string,{en:string;es:string}> = {
     "en": "Diagnostics unavailable.",
     "es": "Diagnóstico no disponible."
   },
-  "Cotações: Coinbase e CoinGecko; a disponibilidade de rede deve ser verificada no domínio real. O sistema não confirma blockchain nem entrega de e-mail automaticamente.": {
-    "en": "Quotes: Coinbase and CoinGecko. Verify connectivity on your real domain. The system does not automatically confirm blockchain transactions or email delivery.",
-    "es": "Cotizaciones: Coinbase y CoinGecko. Verifique la conexión en el dominio real. El sistema no confirma automáticamente operaciones en blockchain ni entregas de correo."
-  },
   "O instalador de primeira execução está disponível sem chave somente por acesso local ao servidor. Não é liberado para criação administrativa pública.": {
     "en": "The first-run installer allows keyless setup only through local server access, never public administration.",
     "es": "El instalador inicial permite configuraciones sin clave solo mediante acceso local, nunca de forma pública."
@@ -686,22 +622,6 @@ const dictionary: Record<string,{en:string;es:string}> = {
   "Alteração registrada.": {
     "en": "Change saved.",
     "es": "Cambio guardado."
-  },
-  "Criar a conta padrão Marcelo? Uma conta existente não será modificada.": {
-    "en": "Create the default Marcelo account? Existing accounts will not be changed.",
-    "es": "¿Crear la cuenta predeterminada de Marcelo? Las cuentas existentes no se modificarán."
-  },
-  "Conta padrão Marcelo criada. Guarde as credenciais exibidas apenas nesta sessão.": {
-    "en": "Default Marcelo account created. Keep the credentials shown in this session.",
-    "es": "Cuenta predeterminada de Marcelo creada. Guarde las credenciales mostradas en esta sesión."
-  },
-  "Criar um Random User povoado com os mesmos dados padrão do Marcelo?": {
-    "en": "Create a Random User with the same demonstration data as Marcelo?",
-    "es": "¿Crear un usuario aleatorio con los mismos datos demostrativos de Marcelo?"
-  },
-  "Random User criado com sucesso. Guarde as credenciais exibidas apenas nesta sessão.": {
-    "en": "Random User created. Save the credentials shown in this session.",
-    "es": "Usuario aleatorio creado. Guarde las credenciales mostradas en esta sesión."
   },
   "Usuário copiado.": {
     "en": "Username copied.",
@@ -735,10 +655,6 @@ const dictionary: Record<string,{en:string;es:string}> = {
     "en": "External review reference (minimum 6 characters):",
     "es": "Referencia de revisión externa (mínimo 6 caracteres):"
   },
-  "Registrar conferência? Esta ação NÃO transmite BTC.": {
-    "en": "Record review? This action does NOT transfer BTC.",
-    "es": "¿Registrar revisión? Esta acción NO transfiere BTC."
-  },
   "Motivo da rejeição (mínimo 6 caracteres):": {
     "en": "Rejection reason (minimum 6 characters):",
     "es": "Motivo del rechazo (mínimo 6 caracteres):"
@@ -750,10 +666,6 @@ const dictionary: Record<string,{en:string;es:string}> = {
   "Rejeitar o pedido e manter o plano inalterado?": {
     "en": "Reject this order without changing the plan?",
     "es": "¿Rechazar el pedido sin cambiar el plan?"
-  },
-  "Aprovar somente como simulação interna? Nenhum pagamento BTC real foi confirmado.": {
-    "en": "Approve as internal simulation only? No real BTC payment has been confirmed.",
-    "es": "¿Aprobar solo como simulación interna? No se confirmó ningún pago BTC real."
   },
   "Excluir este ticket da listagem? O registro de auditoria será preservado.": {
     "en": "Remove this ticket from the list? The audit record will be retained.",
@@ -782,14 +694,6 @@ const dictionary: Record<string,{en:string;es:string}> = {
   "Atual:": {
     "en": "Current:",
     "es": "Actual:"
-  },
-  "Atribuição sem simular pagamento real; mantém o histórico contratual anterior.": {
-    "en": "Assignment does not simulate a real payment and preserves earlier contract history.",
-    "es": "La asignación no simula un pago real y conserva el historial contractual anterior."
-  },
-  "Saldo interno (USD e BTC equivalente)": {
-    "en": "Internal balance (USD and BTC equivalent)",
-    "es": "Saldo interno (USD y equivalente BTC)"
   },
   "Cotação BTC/USD: US$": {
     "en": "BTC/USD quote: US$",
@@ -822,10 +726,6 @@ const dictionary: Record<string,{en:string;es:string}> = {
   "Salvar saldo": {
     "en": "Save balance",
     "es": "Guardar saldo"
-  },
-  "O BTC é equivalência do saldo USD na cotação atual, não uma carteira na blockchain.": {
-    "en": "BTC represents the USD balance at the current quote; it is not an on-chain wallet.",
-    "es": "El BTC representa el saldo USD al tipo de cambio actual; no es una billetera blockchain."
   },
   "Adicionar, editar ou ocultar históricos": {
     "en": "Add, edit or hide histories",
@@ -871,21 +771,9 @@ const dictionary: Record<string,{en:string;es:string}> = {
     "en": "End (date/time)",
     "es": "Fin (fecha/hora)"
   },
-  "Recompensa (unidades internas)": {
-    "en": "Reward (internal units)",
-    "es": "Recompensa (unidades internas)"
-  },
   "Resgate (data/hora)": {
     "en": "Claim (date/time)",
     "es": "Cobro (fecha/hora)"
-  },
-  "Bônus USD (unidades internas)": {
-    "en": "USD bonus (internal units)",
-    "es": "Bono USD (unidades internas)"
-  },
-  "Satoshis internos": {
-    "en": "Internal satoshis",
-    "es": "Satoshis internos"
   },
   "Estado": {
     "en": "Status",
@@ -894,14 +782,6 @@ const dictionary: Record<string,{en:string;es:string}> = {
   "Registro (data/hora)": {
     "en": "Recorded (date/time)",
     "es": "Registro (fecha/hora)"
-  },
-  "Bitcoin equivalente (satoshis)": {
-    "en": "Bitcoin equivalent (satoshis)",
-    "es": "Equivalente Bitcoin (satoshis)"
-  },
-  "Crédito interno (centavos)": {
-    "en": "Internal credit (cents)",
-    "es": "Crédito interno (centavos)"
   },
   "Ativação (data/hora)": {
     "en": "Activation (date/time)",
@@ -914,10 +794,6 @@ const dictionary: Record<string,{en:string;es:string}> = {
   "Remover este registro do histórico?": {
     "en": "Remove this history entry?",
     "es": "¿Eliminar este registro del historial?"
-  },
-  "Confirmar ajuste do saldo interno? A operação será registrada na auditoria.": {
-    "en": "Confirm internal balance adjustment? The action will be logged.",
-    "es": "¿Confirmar el ajuste del saldo interno? Se registrará la operación en la auditoría."
   },
   "Alteração salva no SQLite.": {
     "en": "Change saved to SQLite.",

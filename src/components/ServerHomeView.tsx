@@ -3,6 +3,7 @@ import { Gift, Clock, Zap } from 'lucide-react';
 import { MemberData } from '../services/api';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
+import { useProjectCopy } from '../i18n/copyMode';
 
 type Props = {
   account: MemberData | null; language: LanguageCode; busy: boolean;
@@ -11,20 +12,20 @@ type Props = {
   onRewards: () => void; onHistory: () => void; onAvatarClick:()=>void; avatarLocked:boolean;
 };
 const details = {
-  pt:{balance:'Saldo interno (USD)',mining:'Painel de mineração', active:'Mineração ativa',
+  pt:{mining:'Painel de mineração', active:'Sessão ativa',
     inactive:'Sessão inativa',check:'Atualizar',history:'Histórico',rewards:'Recompensas',
-    daily:'Bônus diário',claim:'Resgatar bônus',notice:'Registros internos de recompensas. Não comprovam Bitcoin efetivamente minerado.',
-    faq:'Perguntas frequentes',session:'Fim da sessão',
+    daily:'Bônus diário',claim:'Resgatar bônus',
+    faq:'Perguntas frequentes',session:'Sua sessão encerra em',
     vip:'Plano VIP válido até', noHash:'Capacidade de mineração'},
-  en:{balance:'Internal USD balance',mining:'Mining panel', active:'Mining running',
-    inactive:'Mining stopped',check:'Refresh',history:'History',rewards:'Rewards',
-    daily:'Daily bonus',claim:'Claim bonus',notice:'Internal rewards only. This does not prove actual Bitcoin mining.',
-    faq:'Frequently asked questions',session:'Session ends',
+  en:{mining:'Mining panel', active:'Session active',
+    inactive:'Session inactive',check:'Refresh',history:'History',rewards:'Rewards',
+    daily:'Daily bonus',claim:'Claim bonus',
+    faq:'Frequently asked questions',session:'Your session ends in',
     vip:'VIP plan expires', noHash:'Mining capacity'},
-  es:{balance:'Saldo interno USD',mining:'Panel de minería', active:'Minería activa',
-    inactive:'Minería detenida',check:'Actualizar',history:'Historial',rewards:'Recompensas',
-    daily:'Bono diario',claim:'Reclamar bono',notice:'Recompensas internas, no prueba de minería real de Bitcoin.',
-    faq:'Preguntas frecuentes',session:'Fin de sesión',
+  es:{mining:'Panel de minería', active:'Sesión activa',
+    inactive:'Sesión inactiva',check:'Actualizar',history:'Historial',rewards:'Recompensas',
+    daily:'Bono diario',claim:'Reclamar bono',
+    faq:'Preguntas frecuentes',session:'Tu sesión termina en',
     vip:'Plan VIP hasta', noHash:'Capacidad de minería'}
 };
 export const ServerHomeView: React.FC<Props> = ({
@@ -32,6 +33,7 @@ export const ServerHomeView: React.FC<Props> = ({
 }) => {
   const t=translations[language]?.home ?? translations.pt.home;
   const d=details[language] ?? details.pt;
+  const { copy } = useProjectCopy(language);
   const [clock,setClock]=useState(Date.now());
   const [avatarFailed,setAvatarFailed]=useState(false);
   const avatarUrl=account?.profile.avatarUrl ?? '';
@@ -45,8 +47,8 @@ export const ServerHomeView: React.FC<Props> = ({
     (account.plan.expiresAt===null || account.plan.expiresAt>clock/1000);
   const ends=account?.mining.sessionEndsAt;
   const seconds=ends ? Math.max(0,ends-Math.floor(clock/1000)):0;
-  const remaining=Math.floor(seconds/60).toString().padStart(2,'0')+':'+
-    (seconds%60).toString().padStart(2,'0');
+  const remaining=[Math.floor(seconds/3600),Math.floor((seconds%3600)/60),seconds%60]
+    .map(value=>String(value).padStart(2,'0')).join(':');
   const isVip=account?.plan.id!=='FREE' && account?.plan.id!==undefined;
   const stamp=(v:number)=>new Date(v*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR');
   return <div className="space-y-4 select-none pb-4">
@@ -75,13 +77,12 @@ export const ServerHomeView: React.FC<Props> = ({
       </div>
       <div className="bg-[#11182b] border border-[#303b59] rounded-2xl px-4 py-3 mb-4">
         <p className="text-[11px] text-slate-400">
-          {language==='en'?'Bitcoin counter - BTC':language==='es'?'Contador de Bitcoin - BTC':'Contador de Bitcoin - BTC'}
+          {copy('homeBtcLabel')}
         </p>
         <strong data-testid="mining-live-btc" className="text-2xl font-bold font-mono text-amber-300">{liveBtc??'—'} BTC</strong>
 
         <p data-testid="mining-live-usd" className="text-xs text-slate-300 mt-1">
-          USD:
-          {' '}US$ {liveBalanceUsd.toFixed(8)}
+          US$ {liveBalanceUsd.toFixed(8)}
         </p>
       </div>
       <div className="flex justify-between items-center mb-5">
@@ -95,7 +96,7 @@ export const ServerHomeView: React.FC<Props> = ({
             {status?d.active:d.inactive}
           </p>
         </div>
-        <svg viewBox="0 0 120 70" className="w-24 h-16 drop-shadow-md" aria-label={language==='en'?'Illustrative equipment graphic':language==='es'?'Gráfico ilustrativo del equipo':'Equipamento gráfico ilustrativo'}>
+        <svg viewBox="0 0 120 70" className="w-24 h-16 drop-shadow-md" aria-label={copy('equipmentAlt')}>
           <rect x="10" y="10" width="95" height="50" rx="6" fill="#1e294b" stroke="#3b82f6" strokeWidth="1.5"/>
           <circle cx="35" cy="35" r="16" fill="#0f172a" stroke="#60a5fa" strokeWidth="1.5"/>
           <circle cx="75" cy="35" r="16" fill="#0f172a" stroke="#60a5fa" strokeWidth="1.5"/>
@@ -108,10 +109,11 @@ export const ServerHomeView: React.FC<Props> = ({
         disabled={busy}
         className={'w-full py-4 px-4 rounded-2xl font-bold text-sm flex justify-center items-center gap-2 disabled:opacity-40 '+
           (status?'bg-emerald-600 hover:bg-emerald-500':'bg-[#f43f5e] hover:bg-[#e11d48]')}>
-        {status?<><Zap size={18}/>{t.stopMining}{ends?' • '+remaining:''}</>:t.startMining}
+        {status?<><Zap size={18}/>{t.stopMining}</>:t.startMining}
       </button>
-      {status && ends!==null && ends!==undefined && <p className="mt-3 flex items-center gap-2 text-xs text-slate-400"><Clock size={14}/>{d.session}: {stamp(ends)}</p>}
+      {status && ends!==null && ends!==undefined && <p data-testid="session-countdown" className="mt-3 flex items-center gap-2 text-xs text-slate-400"><Clock size={14}/>{d.session}: {remaining}</p>}
       {isVip && account?.plan.expiresAt && <p className="mt-2 text-xs text-slate-400">{d.vip}: {stamp(account.plan.expiresAt)}</p>}
+      {copy('homeNotice') && <p role="note" className="mt-3 text-[11px] leading-relaxed text-amber-200/90">{copy('homeNotice')}</p>}
     </section>
   </div>;
 };

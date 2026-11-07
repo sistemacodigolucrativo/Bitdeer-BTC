@@ -28,3 +28,17 @@ mtime_ms = 1793940845203
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:71048682-45bf-450c-aa41-29d3503e5ab8/82488516-2476-427e-be57-909b26927295/3cde435a-e782-4adc-8021-2086c8948269"
 storage_version_token = "1793940867875928"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "rDYanDyUYmvAbSudgtOe8"
+uri = "file://docs/CHECKLIST_TEXTO_ANTES_DEPOIS.md"
+type = "text"
+title = "Checklist antes e depois — copy de produção"
+description = "Versão revisada para a interface final povoada com backend real, com condições para usar textos de pagamentos, saques e mineração confirmados."
+logical_id = "bfbfd00b-75b8-493a-b926-fc4b4a69228f"
+content_hash = "sha256:d7e6b4b409649557ef7838862bb33b9c22e2cab1b19ef17396b7bfa66ec90d7f"
+size = 9927
+mtime_ms = 1793942088259
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:71048682-45bf-450c-aa41-29d3503e5ab8/bfbfd00b-75b8-493a-b926-fc4b4a69228f/4fbdbd76-05eb-472c-8421-e92b33dd864c"
+storage_version_token = "1793942107952716"
+content_type = "text/markdown"

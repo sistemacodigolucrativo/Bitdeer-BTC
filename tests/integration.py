@@ -86,10 +86,16 @@ assert order["btcAmount"]=="0.00025000"
 assert order["quoteSource"]=="CI fixture"
 assert order["btcAddress"].startswith("bc1")
 assert order["expiresAt"]-order["createdAt"]==1800
+assert order["quoteExpiresAt"]==order["expiresAt"]
 assert order["proofUrl"] is None and order["proofSubmittedAt"] is None
+payment_snapshot=alice.call(f"orders.payment&id={order['orderId']}")
+assert payment_snapshot["orderId"]==order["orderId"]
+assert payment_snapshot["quoteExpiresAt"]==order["quoteExpiresAt"]
 resumed=alice.call("orders.resume",{"orderId":order["orderId"]})
 assert resumed["orderId"]==order["orderId"] and resumed["btcAmount"]==order["btcAmount"]
 assert resumed["expiresAt"]==order["expiresAt"]
+assert resumed["quoteExpiresAt"]==order["quoteExpiresAt"]
+assert resumed["proofUrl"] is None and resumed["paymentProofUrl"] is None
 other_member=Client()
 other_member.call("login",{"login":"bob","password":"anotherpassword123"})
 other_member.call("orders.resume",{"orderId":order["orderId"]},404)
@@ -107,6 +113,18 @@ request_event=next(n for n in initial_notifications["notifications"]
   if n["eventType"]=="activation_requested" and n["orderId"]==order["orderId"])
 assert request_event["userId"]==alice_user["id"] and not request_event["simulation"]
 assert initial_notifications["unreadCount"]>=1
+# Normalize notification names written by the pre-merge remote schema.
+with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as db:
+    created_at=int(time.time())
+    db.execute("INSERT INTO admin_notifications(order_id,event_type,simulation,created_at) VALUES(?,?,?,?)",
+      (order["orderId"],"vip_request",0,created_at))
+    db.execute("INSERT INTO admin_notifications(order_id,event_type,simulation,created_at) VALUES(?,?,?,?)",
+      (order["orderId"],"simulation_approved",1,created_at))
+legacy_events=admin.call("admin.notifications")["notifications"]
+assert any(n["eventType"]=="activation_requested" and n["userId"]==alice_user["id"]
+  for n in legacy_events)
+assert any(n["eventType"]=="payment_confirmed" and n["simulation"]
+  for n in legacy_events)
 alice.call("orders.proof.submit",{"orderId":order["orderId"],
   "proofUrl":"javascript:alert(1)"},422)
 alice.call("orders.proof.submit",{"orderId":order["orderId"],
@@ -123,7 +141,13 @@ admin.call("admin.notifications.read-all",{})
 assert admin.call("admin.notifications")["unreadCount"]==0
 proof_update=alice.call("orders.proof.submit",{"orderId":order["orderId"],
   "proofUrl":"https://receipts.example/proofs/alice-order-v2"})
-assert proof_update["proofSubmittedAt"]>0
+assert proof_update["proofSubmittedAt"]>0 and not proof_update["unchanged"]
+payment_snapshot=alice.call(f"orders.payment&id={order['orderId']}")
+assert payment_snapshot["proofUrl"]=="https://receipts.example/proofs/alice-order-v2"
+assert payment_snapshot["paymentProofUrl"]==payment_snapshot["proofUrl"]
+duplicate_proof=alice.call("orders.proof.submit",{"orderId":order["orderId"],
+  "proofUrl":"https://receipts.example/proofs/alice-order-v2"})
+assert duplicate_proof["unchanged"]
 assert any(n["eventType"]=="proof_updated" and n["orderId"]==order["orderId"]
   for n in admin.call("admin.notifications")["notifications"])
 # The fictional toast starts disabled; only admins may change its SQLite setting.

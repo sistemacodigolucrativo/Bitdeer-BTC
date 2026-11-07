@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Shield } from 'lucide-react';
 import { LanguageCode } from '../../types';
+import { useProjectCopy } from '../../i18n/copyMode';
 
 interface PrivacyPolicyModalProps {
   language: LanguageCode;
@@ -8,8 +9,9 @@ interface PrivacyPolicyModalProps {
 }
 
 export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
-  onClose
+  language,onClose
 }) => {
+  const {copy}=useProjectCopy(language);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-[#181d33] border border-[#2d3656] rounded-3xl w-full max-w-sm max-h-[85vh] flex flex-col shadow-2xl overflow-hidden text-white select-none">
@@ -31,7 +33,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
 
         {/* Content */}
         <div className="p-4 overflow-y-auto text-xs text-slate-300 space-y-3 leading-relaxed">
-          <p className="font-semibold text-white">1. Cloud-Based Internal Rewards Technology</p>
+          <p className="font-semibold text-white">{copy('privacyRewardsHeading')}</p>
           <p className="text-slate-400">
             Our platform operates exclusively through remote cloud infrastructure. Your mobile device is never utilized for hardware compute or battery-intensive proof-of-work mining.
           </p>

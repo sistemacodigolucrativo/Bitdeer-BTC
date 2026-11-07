@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { LanguageCode } from '../types';
 import { api } from '../services/api';
+import { useProjectCopy } from '../i18n/copyMode';
 
 type DemoInvestor = { flag: string; name: string; city: string; state: string };
 // Fictional, display-only profiles. The toast never reads the real members table.
@@ -28,10 +29,10 @@ const profiles: DemoInvestor[] = [
   {flag:'🇺🇾',name:'Martín Silva',city:'Montevideo',state:'MO'},
   {flag:'🇵🇾',name:'Andrés Benítez',city:'Asunción',state:'ASU'},
 ];
-const labels: Record<LanguageCode, {title:string;event:string;demo:string}> = {
-  pt: {title:'Novos investidores',event:'Acabou de se cadastrar',demo:'Simulação · dados fictícios'},
-  en: {title:'New investors',event:'Just signed up',demo:'Simulation · fictional data'},
-  es: {title:'Nuevos inversores',event:'Acaba de registrarse',demo:'Simulación · datos ficticios'},
+const labels: Record<LanguageCode, {title:string;event:string}> = {
+  pt: {title:'Novos investidores',event:'Acabou de se cadastrar'},
+  en: {title:'New investors',event:'Just signed up'},
+  es: {title:'Nuevos inversores',event:'Acaba de registrarse'},
 };
 function shuffled(avoid?:DemoInvestor):DemoInvestor[] {
   const list=[...profiles];
@@ -47,6 +48,7 @@ function shuffled(avoid?:DemoInvestor):DemoInvestor[] {
 const randomDelay=()=>30000+Math.floor(Math.random()*90001);
 
 export const NewInvestorToast: React.FC<{language:LanguageCode}> = ({language}) => {
+  const {copy}=useProjectCopy(language);
   const [enabled,setEnabled]=useState(false);
   const [current,setCurrent]=useState<DemoInvestor|null>(null);
   const [leaving,setLeaving]=useState(false);
@@ -112,7 +114,7 @@ export const NewInvestorToast: React.FC<{language:LanguageCode}> = ({language}) 
           <p className="text-sm font-extrabold tracking-tight">{t.title}</p>
           <p className="break-words text-xs font-semibold leading-relaxed">{current.flag} {current.name} - {current.city} - {current.state}</p>
           <p className="text-xs text-rose-200">❤️ {t.event}</p>
-          <p className="text-[10px] text-slate-300">{t.demo}</p>
+          <p className="text-[10px] text-slate-300">{copy('investorToastDemoLabel')}</p>
         </div>
       </div>
     </div>

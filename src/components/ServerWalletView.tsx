@@ -2,6 +2,7 @@ import React, {useMemo} from 'react';
 import {Wallet, Coins, Lock, TrendingUp} from 'lucide-react';
 import {MemberData} from '../services/api';
 import {LanguageCode} from '../types';
+import { useProjectCopy } from '../i18n/copyMode';
 type RecordItem={start_ts:number;earned_units:number;end_ts:number;plan_id:string};
 type Props={account:MemberData|null;language:LanguageCode;accruals:RecordItem[];
   onEdit:()=>void;onWithdraw:()=>void;liveBtc:string|null;
@@ -9,16 +10,17 @@ type Props={account:MemberData|null;language:LanguageCode;accruals:RecordItem[];
 export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit,onWithdraw,liveBtc,liveBalanceUsd})=>{
   const locale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const t=language==='en'
-    ?{title:'Wallet',balance:'Internal rewards',sats:'Internal satoshi bonuses',
+    ?{title:'Wallet',
       address:'BTC address registered',empty:'No address registered',edit:'Edit wallet',
-      chart:'Earned USD — last 7 days',withdraw:'Withdraw',btc:'BTC equivalent'}
+      chart:'Earned USD — last 7 days',withdraw:'Withdraw'}
     :language==='es'
-    ?{title:'Billetera',balance:'Recompensas internas',sats:'Bonos internos en satoshis',
+    ?{title:'Billetera',
       address:'Dirección BTC registrada',empty:'Ninguna dirección registrada',edit:'Editar billetera',
-      chart:'USD acreditados — últimos 7 días',withdraw:'Retirar',btc:'Equivalente en BTC'}
-    :{title:'Carteira',balance:'Recompensas internas',sats:'Bônus internos em satoshis',
+      chart:'USD acreditados — últimos 7 días',withdraw:'Retirar'}
+    :{title:'Carteira',
       address:'Endereço BTC cadastrado',empty:'Nenhum endereço cadastrado',edit:'Editar carteira',
-      chart:'USD creditados — últimos 7 dias',withdraw:'Sacar',btc:'Equivalente em BTC'};
+      chart:'USD creditados — últimos 7 dias',withdraw:'Sacar'};
+  const { copy } = useProjectCopy(language);
   const days=useMemo(()=>{
     const today=new Date();today.setHours(0,0,0,0);
     const result=Array.from({length:7},(_,i)=>({
@@ -37,15 +39,15 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
     </header>
     <div className="relative bg-[#191e32] border border-[#262e49] rounded-3xl p-5 shadow-md overflow-hidden">
       <div className="absolute right-0 top-0 h-28 w-28 bg-indigo-600/10 blur-2xl rounded-full"/>
-      <p className="text-xs text-slate-400">{t.balance}</p>
+      <p className="text-xs text-slate-400">{copy('walletBalanceLabel')}</p>
       <p data-testid="wallet-live-usd" className="block whitespace-nowrap text-[clamp(0.85rem,4.1vw,1.875rem)] tracking-tight leading-tight font-extrabold font-mono tabular-nums mt-3">US$ {account?liveBalanceUsd.toFixed(8):'0.00000000'}</p>
-      <p className="text-xs text-slate-300 mt-3">{t.btc}:
+      <p className="text-xs text-slate-300 mt-3">{copy('walletBtcLabel')}:
         <strong data-testid="wallet-live-btc" className="font-mono ml-2">{liveBtc??'—'} BTC</strong>
       </p>
 
       <button onClick={onWithdraw} className="mt-4 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold w-full">{t.withdraw}</button>
       <p className="flex gap-2 items-center text-xs text-slate-300 mt-4">
-        <Coins size={18} className="text-amber-400"/>{t.sats}: {(account?.mining.bonusSatoshisBalance||0).toLocaleString(locale)}
+        <Coins size={18} className="text-amber-400"/>{copy('walletSatoshisLabel')}: {(account?.mining.bonusSatoshisBalance||0).toLocaleString(locale)}
       </p>
       <p className="mt-4 pt-3 border-t border-[#323b58] flex items-center justify-between text-xs text-slate-400">
         {account?.plan.id||'FREE'}<Lock size={14}/>

@@ -582,6 +582,20 @@ try {
   // The admin editor is available only for a real member.
   const memberCard=adminPage.locator('article').filter({hasText:'browsermember'}).first();
   await memberCard.getByRole('button',{name:'Detalhes / Editar'}).click();
+  const memberEditPage=adminPage.getByTestId('admin-member-editor');
+  await memberEditPage.waitFor({timeout:10000});
+  const profileForm=adminPage.getByTestId('admin-member-profile-form');
+  await profileForm.waitFor({timeout:10000});
+  if(await profileForm.locator('input').count()!==5)
+    throw Error('Member profile editor is missing a field');
+  const profileSave=adminPage.getByTestId('admin-member-profile-save');
+  await profileSave.waitFor({timeout:10000});
+  await profileSave.click();
+  await adminPage.getByRole('status').filter({hasText:'Alteração registrada.'}).waitFor({timeout:10000});
+  await adminPage.getByTestId('admin-member-editor-close').click();
+  await memberEditPage.waitFor({state:'detached',timeout:10000});
+  await memberCard.getByRole('button',{name:'Detalhes / Editar'}).waitFor({timeout:10000});
+  await memberCard.getByRole('button',{name:'Detalhes / Editar'}).click();
   const editor=adminPage.getByTestId('admin-member-records');
   await editor.waitFor({timeout:10000});
   await editor.getByTestId('admin-member-balance').waitFor({timeout:10000});
@@ -607,8 +621,11 @@ try {
   if(await adminPage.getByText('Sincronizando interface...').count())throw Error('Admin React error boundary shown');
   // All administration sections, not just member pages, must follow the selected language.
   await adminPage.getByTestId('admin-language-selector').selectOption('en');
-  await adminPage.getByRole('heading',{name:'Member management'}).waitFor({timeout:10000});
+  await adminPage.getByRole('heading',{name:'Edit member'}).waitFor({timeout:10000});
   await editor.getByText(/Member plan, balance and history/).waitFor({timeout:10000});
+  await adminPage.getByTestId('admin-member-editor-close').click();
+  await memberEditPage.waitFor({state:'detached',timeout:10000});
+  await adminPage.getByRole('heading',{name:'Member management'}).waitFor({timeout:10000});
   await adminPage.getByRole('button',{name:'Open administration menu'}).click();
   await adminPage.getByRole('button',{name:'Overview',exact:true}).click();
   await adminPage.getByRole('heading',{name:'Overview'}).waitFor({timeout:10000});

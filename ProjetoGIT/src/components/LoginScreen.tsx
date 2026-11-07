@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
+import { useProjectCopy } from '../i18n/copyMode';
 import { AuthUser, login as backendLogin, register as backendRegister } from '../services/api';
 
 interface LoginScreenProps {
@@ -14,6 +15,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLoginSuccess
 }) => {
   const t = translations[language].login;
+  const { copy } = useProjectCopy(language);
   const [loginInput, setLoginInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [registerMode, setRegisterMode] = useState(false);
@@ -97,7 +99,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
         {/* Subtitle */}
         <p className="text-xs text-slate-400 text-center max-w-xs leading-relaxed mb-6">
-          {t.subtitle}
+          {copy('loginSubtitle')}
         </p>
 
         {/* Conventional Authentication Form (Login + Password + Optional Invite Code) */}
@@ -206,7 +208,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         </div>
 
         <p className="text-[10px] text-slate-500 leading-tight">
-          {t.disclaimer}
+          {copy('loginDisclaimer')}
         </p>
       </footer>
     </div>

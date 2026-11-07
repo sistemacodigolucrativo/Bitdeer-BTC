@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { LanguageCode } from '../../types';
 import { translations } from '../../i18n/translations';
+import { useProjectCopy } from '../../i18n/copyMode';
 import { miningService } from '../../services/miningService';
 import { storageService } from '../../services/storageService';
 import { MiningRecordModal } from './MiningRecordModal';
@@ -53,6 +54,7 @@ export const SettingTab: React.FC<SettingTabProps> = ({
   onLogout
 }) => {
   const t = translations[language].setting;
+  const { copy } = useProjectCopy(language);
   const [copied, setCopied] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -351,7 +353,7 @@ export const SettingTab: React.FC<SettingTabProps> = ({
       {/* App Version Info */}
       <div className="text-center pt-1 text-[11px] text-slate-500">
         <p>{t.version}</p>
-        <p className="mt-0.5">Bitcoin Cloud Mining — projeto demonstrativo</p>
+        <p className="mt-0.5">{copy('settingsProjectLabel')}</p>
       </div>
 
       {/* Toast Notification */}

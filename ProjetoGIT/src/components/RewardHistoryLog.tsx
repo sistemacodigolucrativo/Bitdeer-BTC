@@ -1,7 +1,7 @@
 import React,{useMemo,useState} from 'react';
 import {LanguageCode} from '../types';
 import {memberTexts} from '../i18n/memberTexts';
-import {memberViewCopy} from '../i18n/memberViewCopy';
+import {useProjectCopy} from '../i18n/copyMode';
 
 export type RewardHistoryData={
   accruals:Array<{plan_id:string;start_ts:number;end_ts:number;earned_units:number;adminEdited?:boolean}>;
@@ -12,15 +12,15 @@ type Row={kind:'accrual'|'bonus';at:number;plan:string;detail:string};
 export const RewardHistoryLog:React.FC<{language:LanguageCode;ledger:RewardHistoryData;onRefresh:()=>void;}>=({language,ledger,onRefresh})=>{
   const [page,setPage]=useState(1);
   const words=memberTexts[language]||memberTexts.pt;
-  const tr=memberViewCopy[language];
+  const {copy}=useProjectCopy(language);
   const dateLocale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const labels=language==='en'?{accrual:'Mining credit',bonus:'Daily bonus',previous:'Previous',next:'Next',page:'Page'}:
     language==='es'?{accrual:'Crédito de minería',bonus:'Bono diario',previous:'Anterior',next:'Siguiente',page:'Página'}:
     {accrual:'Crédito de mineração',bonus:'Bônus diário',previous:'Anterior',next:'Próxima',page:'Página'};
   const rows=useMemo<Row[]>(()=>[
-    ...ledger.accruals.map(r=>({kind:'accrual' as const,at:r.end_ts,plan:r.plan_id,detail:`${words.earnedUnits}: ${r.earned_units}`})),
-    ...ledger.bonuses.map(r=>({kind:'bonus' as const,at:r.claimed_at,plan:r.plan_id,detail:`${r.bonus_satoshis} ${tr.satoshis} · ${r.bonus_usd_units} ${tr.units}`})),
-  ].sort((a,b)=>b.at-a.at),[ledger,words.earnedUnits,tr.satoshis,tr.units]);
+    ...ledger.accruals.map(r=>({kind:'accrual' as const,at:r.end_ts,plan:r.plan_id,detail:`${copy('historyEarnedUnits')}: ${r.earned_units}`})),
+    ...ledger.bonuses.map(r=>({kind:'bonus' as const,at:r.claimed_at,plan:r.plan_id,detail:`${r.bonus_satoshis} ${copy('historySatoshis')} · ${r.bonus_usd_units} ${copy('historyUsdUnits')}`})),
+  ].sort((a,b)=>b.at-a.at),[ledger,copy]);
   const pages=Math.max(1,Math.ceil(rows.length/10));
   const current=Math.min(page,pages);
   const visible=rows.slice((current-1)*10,current*10);

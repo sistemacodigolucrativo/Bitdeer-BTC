@@ -14,6 +14,7 @@ import { LanguageScreen } from './components/LanguageScreen';
 import { TerminalInitScreen } from './components/TerminalInitScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { CongratulationsModal } from './components/CongratulationsModal';
+import { CopyModeProvider } from './i18n/copyMode';
 
 
 class AppErrorBoundary extends React.Component<
@@ -239,6 +240,7 @@ export default function App() {
   };
 
   return (
+    <CopyModeProvider>
     <AppErrorBoundary language={language}>
       <div className={`btc-app-shell ${theme === 'light' ? 'theme-light bg-slate-100 text-slate-900' : 'bg-[#121526] text-slate-100'} flex flex-col items-center justify-center p-0 md:p-6 overflow-hidden transition-colors duration-200`}>
         {/* Mobile App Viewport Container */}
@@ -288,5 +290,6 @@ export default function App() {
         </main>
       </div>
     </AppErrorBoundary>
+    </CopyModeProvider>
   );
 }

@@ -2,6 +2,7 @@ import React,{useEffect,useState} from 'react';
 import {api,Plan} from '../../services/api';
 import {LanguageCode} from '../../types';
 import {adminText,adminStatus,adminDateLocale} from '../../i18n/adminTexts';
+import {useProjectCopy} from '../../i18n/copyMode';
 
 type Kind='accrual'|'bonus'|'purchase'|'withdrawal'|'subscription';
 type Entry=Record<string,string|number|boolean|null|undefined>&{historyId:string;adminEdited:boolean;simulation:boolean};
@@ -22,10 +23,7 @@ const fields:Record<Kind,string[]>={
 };
 const names:Record<string,string>={
   plan_id:'Plano',start_ts:'Início (data/hora)',end_ts:'Fim (data/hora)',
-  earned_units:'Recompensa (unidades internas)',
-  claimed_at:'Resgate (data/hora)',bonus_usd_units:'Bônus USD (unidades internas)',
-  bonus_satoshis:'Satoshis internos',status:'Estado',created_at:'Registro (data/hora)',
-  btc_sats:'Bitcoin equivalente (satoshis)',usd_cents:'Crédito interno (centavos)',
+  claimed_at:'Resgate (data/hora)',status:'Estado',created_at:'Registro (data/hora)',
   started_at:'Ativação (data/hora)',expires_at:'Vencimento (data/hora)'
 };
 const dateFields=new Set(['start_ts','end_ts','claimed_at','created_at','started_at','expires_at']);
@@ -53,6 +51,7 @@ function dateInput(value:string):string{
 export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];language:LanguageCode;onChanged:()=>void}>=
 ({userId,plans,language,onChanged})=>{
   const tx=(portuguese:string)=>adminText(language,portuguese);
+  const {copy}=useProjectCopy(language);
   const dateLocale=adminDateLocale(language);
   const [data,setData]=useState<Data|null>(null);
   const [kind,setKind]=useState<Kind>('accrual');
@@ -94,6 +93,14 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];language:La
     if(!window.confirm(tx("Remover este registro do histórico?")))return;
     void submit('admin.member.history.save',{kind,operation:'delete',historyId:entry.historyId,fields:{}});
   }
+  const fieldLabel=(key:string)=>{
+    if(key==='earned_units')return copy('adminRecordUnitsLabel');
+    if(key==='bonus_usd_units')return copy('adminRecordUsdUnitsLabel');
+    if(key==='bonus_satoshis'||key==='btc_satoshis')return copy('adminRecordSatoshisLabel');
+    if(key==='btc_sats')return copy('adminRecordBtcEquivalent');
+    if(key==='usd_cents')return copy('adminRecordCreditCentsLabel');
+    return tx(names[key]||key);
+  };
   const fieldClass='w-full mt-1 rounded-lg bg-[#11182c] border border-[#303a56] p-2 text-xs';
   return <section data-testid="admin-member-records" className="rounded-xl bg-[#1b2137] border border-[#303a56] p-4 space-y-4">
     <header><h3 className="font-bold">{tx('Plano, saldo e históricos do membro')} #{userId}</h3></header>
@@ -117,10 +124,10 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];language:La
                 void submit('admin.member.plan.assign',{planId});
             }}>{tx("Aplicar plano")}</button>
         </div>
-        <p className="text-[11px] text-slate-400">{tx("Atual:")} {data.planId}. {tx('Atribuição sem simular pagamento real; mantém o histórico contratual anterior.')}</p>
+        <p className="text-[11px] text-slate-400">{tx("Atual:")} {data.planId}. {copy('adminManualPlanNotice')}</p>
       </div>
       <div className="border-t border-[#303a56] pt-3 space-y-2">
-        <h4 className="font-bold text-sm">{tx("Saldo interno (USD e BTC equivalente)")}</h4>
+        <h4 className="font-bold text-sm">{copy('adminRecordsBalanceLabel')}</h4>
         <p className="font-mono text-sm" data-testid="admin-member-balance">US$ {data.balanceUsd} · {data.balanceBtc??'—'} BTC</p>
         <p className="text-xs text-slate-400">{data.btcUsd?tx('Cotação BTC/USD: US$')+' '+data.btcUsd+' · '+(data.quoteSource||''):tx('Cotação indisponível; ajustes bloqueados.')}</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -138,11 +145,11 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];language:La
           <button data-testid="admin-member-balance-save" type="button" disabled={busy||!data.btcUsd||(!amount&&mode!=='clear')}
             className="rounded-lg bg-indigo-600 px-3 py-2 text-xs disabled:opacity-50"
             onClick={()=>{
-              if(window.confirm(tx("Confirmar ajuste do saldo interno? A operação será registrada na auditoria.")))
+              if(window.confirm(copy('adminConfirmBalanceChange')))
                 void submit('admin.member.balance.adjust',{currency,mode,amount:mode==='clear'?'0':amount});
             }}>{tx("Salvar saldo")}</button>
         </div>
-        <p className="text-[11px] text-slate-400">{tx("O BTC é equivalência do saldo USD na cotação atual, não uma carteira na blockchain.")}</p>
+        <p className="text-[11px] text-slate-400">{copy('adminBtcNotWalletNotice')}</p>
       </div>
       <div className="border-t border-[#303a56] pt-3 space-y-3">
         <h4 className="font-bold text-sm">{tx("Adicionar, editar ou ocultar históricos")}</h4>
@@ -156,7 +163,7 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];language:La
           onSubmit={save}>
           <p className="text-xs font-semibold">{tx(historyId?'Editar':'Adicionar')} — {tx(kinds[kind])}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {fields[kind].map(key=><label key={key} className="text-xs block">{tx(names[key]||key)}
+            {fields[kind].map(key=><label key={key} className="text-xs block">{fieldLabel(key)}
               {key==='plan_id'?<select required className={fieldClass} value={draft[key]||''}
                   onChange={e=>setDraft(d=>d?{...d,[key]:e.target.value}:d)}>
                   {plans.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}

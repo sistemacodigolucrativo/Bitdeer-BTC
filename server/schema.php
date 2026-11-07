@@ -77,14 +77,22 @@ CREATE TABLE IF NOT EXISTS orders (
   approved_by INTEGER REFERENCES users(id), approved_at INTEGER,
   btc_address TEXT NOT NULL DEFAULT '', btc_sats INTEGER NOT NULL DEFAULT 0,
   quote_usd_cents INTEGER NOT NULL DEFAULT 0, quote_source TEXT NOT NULL DEFAULT '',
-  payment_ref TEXT UNIQUE, expired_at INTEGER, proof_url TEXT, proof_submitted_at INTEGER
+  quote_expires_at INTEGER NOT NULL DEFAULT 0,
+  payment_ref TEXT UNIQUE,
+  expired_at INTEGER,
+  proof_url TEXT,
+  proof_submitted_at INTEGER,
+  payment_proof_url TEXT NOT NULL DEFAULT '',
+  payment_proof_submitted_at INTEGER
 );
+CREATE INDEX IF NOT EXISTS idx_orders_expiry ON orders(status,expires_at);
 CREATE TABLE IF NOT EXISTS admin_notifications (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   event_type TEXT NOT NULL CHECK(event_type IN
-    ('activation_requested','proof_submitted','proof_updated','payment_confirmed')),
+    ('activation_requested','vip_request','proof_submitted','proof_updated',
+     'payment_confirmed','simulation_approved')),
   order_id INTEGER NOT NULL REFERENCES orders(id),
-  user_id INTEGER NOT NULL REFERENCES users(id),
+  user_id INTEGER REFERENCES users(id),
   created_at INTEGER NOT NULL,
   simulation INTEGER NOT NULL DEFAULT 0 CHECK(simulation IN (0,1))
 );

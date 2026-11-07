@@ -9,8 +9,6 @@ export interface Translations {
     pt: { name: string; nativeName: string; region: string };
   };
   onboardingPreview: {
-    stepTitle: string;
-    stepSubtitle: string;
     mineNowBtn: string;
   };
   terminal: {
@@ -19,7 +17,6 @@ export interface Translations {
   };
   login: {
     title: string;
-    subtitle: string;
     loginLabel: string;
     loginPlaceholder: string;
     passwordLabel: string;
@@ -28,7 +25,6 @@ export interface Translations {
     validationError: string;
     terms: string;
     privacy: string;
-    disclaimer: string;
   };
   congratulations: {
     title: string;
@@ -119,17 +115,14 @@ export const translations: Record<LanguageCode, Translations> = {
       pt: { name: 'Português', nativeName: 'Portuguese', region: 'Global' }
     },
     onboardingPreview: {
-      stepTitle: 'Explore the Bitcoin reward simulator',
-      stepSubtitle: 'Track internal credits, plan sessions and history from your phone.',
       mineNowBtn: 'Mine Now'
     },
     terminal: {
       systemReady: 'SYSTEM READY FOR OPERATION',
-      enterWorkspace: 'ENTER WORKSPACE'
+      enterWorkspace: 'ENTER WORKSPACE',
     },
     login: {
       title: 'BTC Cloud Mining',
-      subtitle: 'Access your account to view internal reward records.',
       loginLabel: 'Username',
       loginPlaceholder: 'Enter your username',
       passwordLabel: 'Password',
@@ -138,7 +131,6 @@ export const translations: Record<LanguageCode, Translations> = {
       validationError: 'Please enter a valid username and password (minimum 10 characters).',
       terms: 'Terms of Use',
       privacy: 'Privacy Policy',
-      disclaimer: 'Reward balances are internal ledger entries, not evidence of actual Bitcoin mining or blockchain deposits.'
     },
     congratulations: {
       title: 'Congratulations',
@@ -158,8 +150,8 @@ export const translations: Record<LanguageCode, Translations> = {
       totalBtc: 'Total BTC',
       miningPanel: 'MINING PANEL',
       activeMiners: 'Active Miners',
-      startMining: 'Start Mining',
-      stopMining: 'Mining Active (Pause)',
+      startMining: 'Start Session',
+      stopMining: 'Pause Session',
       miningNotice: 'Mining sessions run for 30 minutes. You can restart manually when the timer ends.',
       dailyReward: 'Daily Reward',
       boostMining: 'Claim Boost',
@@ -227,17 +219,14 @@ export const translations: Record<LanguageCode, Translations> = {
       pt: { name: 'Português', nativeName: 'Português', region: 'Global' }
     },
     onboardingPreview: {
-      stepTitle: 'Explore a simulação de recompensas em Bitcoin',
-      stepSubtitle: 'Acompanhe créditos internos, sessões e históricos de planos pelo celular.',
       mineNowBtn: 'Minerar Agora'
     },
     terminal: {
       systemReady: 'SISTEMA PRONTO PARA OPERAÇÃO',
-      enterWorkspace: 'ENTRAR NO PAINEL'
+      enterWorkspace: 'ENTRAR NO PAINEL',
     },
     login: {
       title: 'BTC Cloud Mining',
-      subtitle: 'Acesse sua conta e consulte os registros internos de recompensas.',
       loginLabel: 'Nome de usuário',
       loginPlaceholder: 'Digite seu nome de usuário',
       passwordLabel: 'Senha',
@@ -246,7 +235,6 @@ export const translations: Record<LanguageCode, Translations> = {
       validationError: 'Informe nome de usuário e senha válidos (mínimo 10 caracteres).',
       terms: 'Termos de Uso',
       privacy: 'Política de Privacidade',
-      disclaimer: 'Os créditos exibidos são registros internos, não comprovam mineração real nem depósitos em blockchain.'
     },
     congratulations: {
       title: 'Parabéns!',
@@ -266,8 +254,8 @@ export const translations: Record<LanguageCode, Translations> = {
       totalBtc: 'Total BTC',
       miningPanel: 'PAINEL DE MINERAÇÃO',
       activeMiners: 'Mineradores Ativos',
-      startMining: 'Iniciar Mineração',
-      stopMining: 'Mineração Ativa (Pausar)',
+      startMining: 'Iniciar sessão',
+      stopMining: 'Pausar sessão',
       miningNotice: 'A sessão de mineração dura 30 minutos. Reinicie manualmente ao término do cronômetro.',
       dailyReward: 'Recompensa Diária',
       boostMining: 'Resgatar',
@@ -335,17 +323,14 @@ export const translations: Record<LanguageCode, Translations> = {
       pt: { name: 'Português', nativeName: 'Português', region: 'Global' }
     },
     onboardingPreview: {
-      stepTitle: 'Explora la simulación de recompensas Bitcoin',
-      stepSubtitle: 'Consulta créditos internos, sesiones y el historial de planes desde tu teléfono.',
       mineNowBtn: 'Minar Ahora'
     },
     terminal: {
       systemReady: 'SISTEMA LISTO PARA OPERACIÓN',
-      enterWorkspace: 'ENTRAR AL PANEL'
+      enterWorkspace: 'ENTRAR AL PANEL',
     },
     login: {
       title: 'BTC Cloud Mining',
-      subtitle: 'Accede a tu cuenta y consulta los registros de recompensas internas.',
       loginLabel: 'Nombre de usuario',
       loginPlaceholder: 'Ingresa tu nombre de usuario',
       passwordLabel: 'Contraseña',
@@ -354,7 +339,6 @@ export const translations: Record<LanguageCode, Translations> = {
       validationError: 'Ingresa un usuario y una contraseña válidos (mínimo 10 caracteres).',
       terms: 'Términos de Uso',
       privacy: 'Política de Privacidade',
-      disclaimer: 'Los créditos son registros internos, no demuestran minería real ni depósitos en la blockchain.'
     },
     congratulations: {
       title: '¡Felicitaciones!',
@@ -374,8 +358,8 @@ export const translations: Record<LanguageCode, Translations> = {
       totalBtc: 'Total BTC',
       miningPanel: 'PANEL DE MINERÍA',
       activeMiners: 'Mineros Activos',
-      startMining: 'Iniciar Minería',
-      stopMining: 'Minería Activa (Pausar)',
+      startMining: 'Iniciar sesión',
+      stopMining: 'Pausar sesión',
       miningNotice: 'La sesión dura 30 minutos. Reinicia manualmente al finalizar el cronómetro.',
       dailyReward: 'Recompensa Diaria',
       boostMining: 'Reclamar',
