@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Gift, Clock, Zap } from 'lucide-react';
 import { MemberData } from '../services/api';
 import { LanguageCode } from '../types';
@@ -28,6 +28,11 @@ const details = {
     faq:'Preguntas frecuentes',session:'Tu sesión termina en',
     vip:'Plan VIP hasta', noHash:'Capacidad de minería'}
 };
+const greetingCopy = {
+  pt:{hello:'Olá,', welcome:'seja bem-vindo!', returning:'seja bem-vindo novamente!', member:'Membro', plan:'Plano'},
+  en:{hello:'Hello,', welcome:'welcome!', returning:'welcome back!', member:'Member', plan:'Plan'},
+  es:{hello:'Hola,', welcome:'te damos la bienvenida', returning:'te damos la bienvenida de nuevo', member:'Miembro', plan:'Plan'}
+};
 export const ServerHomeView: React.FC<Props> = ({
   account,language,busy,liveBtc,liveBalanceUsd,onStart,onStop,onRewards,onHistory,onAvatarClick,avatarLocked
 }) => {
@@ -36,8 +41,31 @@ export const ServerHomeView: React.FC<Props> = ({
   const { copy } = useProjectCopy(language);
   const [clock,setClock]=useState(Date.now());
   const [avatarFailed,setAvatarFailed]=useState(false);
+  const [welcomeVisit,setWelcomeVisit]=useState<{userId:number|null;returning:boolean}>({userId:null,returning:false});
+  const processedWelcomeUser=useRef<number|null>(null);
   const avatarUrl=account?.profile.avatarUrl ?? '';
+  const welcome=greetingCopy[language] ?? greetingCopy.pt;
+  const fullName=account?.profile.displayName.trim() || account?.user.login || welcome.member;
+  const nameParts=fullName.split(/\s+/).filter(Boolean);
+  const compactName=nameParts.length>2?`${nameParts.slice(0,2).join(' ')} ...`:fullName;
+  const planId=account?.plan.id ?? 'FREE';
+  const planLabel=planId.toUpperCase()==='FREE'?'Free':planId.replace(/_/g,' ').toUpperCase();
+  const returning=welcomeVisit.userId===account?.user.id && welcomeVisit.returning;
   useEffect(()=>setAvatarFailed(false),[avatarUrl]);
+  useEffect(()=>{
+    const userId=account?.user.id;
+    if(userId===undefined || processedWelcomeUser.current===userId)return;
+    processedWelcomeUser.current=userId;
+    let hasVisited=false;
+    try{
+      const key=`btc-member-home-welcomed-v1:${userId}`;
+      hasVisited=window.localStorage.getItem(key)==='visited';
+      window.localStorage.setItem(key,'visited');
+    }catch{
+      // The greeting remains usable when browser storage is unavailable.
+    }
+    setWelcomeVisit({userId,returning:hasVisited});
+  },[account?.user.id]);
   useEffect(()=>{
     const timer=setInterval(()=>setClock(Date.now()),1000);
     return ()=>clearInterval(timer);
@@ -53,14 +81,27 @@ export const ServerHomeView: React.FC<Props> = ({
   const stamp=(v:number)=>new Date(v*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR');
   return <div className="space-y-4 select-none pb-4">
     <div data-testid="home-welcome-card" className="flex items-center gap-3 bg-[#171b2d] border border-[#252c45] rounded-2xl p-3 shadow-sm">
-      <button type="button" onClick={onAvatarClick} disabled={avatarLocked} aria-label={language==='en'?'Set profile image':language==='es'?'Definir imagen de perfil':'Definir imagem de perfil'}
-        title={avatarLocked?(language==='en'?'Profile image already set':language==='es'?'Imagen de perfil ya definida':'Imagem de perfil já definida'):undefined}
-        className="w-10 h-10 shrink-0 overflow-hidden rounded-full bg-emerald-600 flex justify-center items-center text-white font-bold">
-        {avatarUrl&&!avatarFailed?<img src={avatarUrl} alt="" onError={()=>setAvatarFailed(true)} className="h-full w-full object-cover"/>:(account?.profile.displayName || account?.user.login || 'M').charAt(0).toUpperCase()}
-      </button>
+      <div className="relative mr-1 h-10 w-10 shrink-0 overflow-visible">
+        <button type="button" onClick={onAvatarClick} disabled={avatarLocked} aria-label={language==='en'?'Set profile image':language==='es'?'Definir imagen de perfil':'Definir imagem de perfil'}
+          title={avatarLocked?(language==='en'?'Profile image already set':language==='es'?'Imagen de perfil ya definida':'Imagem de perfil já definida'):undefined}
+          className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-emerald-600 text-white font-bold ring-2 ring-[#54c8d5]/30">
+          {avatarUrl&&!avatarFailed?<img src={avatarUrl} alt="" onError={()=>setAvatarFailed(true)} className="h-full w-full object-cover"/>:fullName.charAt(0).toUpperCase()}
+        </button>
+        <span data-testid="home-plan-badge" aria-label={`${welcome.plan}: ${planLabel}`} title={`${welcome.plan}: ${planLabel}`}
+          className={'pointer-events-none absolute bottom-0 right-0 z-10 max-w-[3.5rem] translate-x-1/2 translate-y-1/2 single-line-ellipsis rounded-full border-2 border-[#171b2d] px-1.5 py-0.5 text-[8px] font-black leading-none shadow-md '+
+            (isVip?'bg-amber-300 text-slate-950':'bg-slate-600 text-white')}>
+          {planLabel}
+        </span>
+      </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] text-slate-400 truncate">{language==='en'?'Welcome back':language==='es'?'Bienvenido de nuevo':'Boas-vindas'}</p>
-        <p className="text-sm font-extrabold text-white truncate">{account?.profile.displayName || account?.user.login || (language==='en'?'Member':language==='es'?'Miembro':'Membro')}</p>
+        <p data-testid="home-welcome-name" className="flex min-w-0 items-center gap-1 text-[11px] leading-tight text-slate-400">
+          <span className="shrink-0">{welcome.hello}</span>
+          <span className="min-w-0 flex-1 single-line-ellipsis font-semibold text-slate-200" title={fullName}>{compactName}</span>
+          <span className="shrink-0">,</span>
+        </p>
+        <p data-testid="home-welcome-message" className="mt-0.5 single-line-ellipsis text-sm font-extrabold leading-tight text-white">
+          {returning?welcome.returning:welcome.welcome}
+        </p>
       </div>
       <div className="flex shrink-0 items-center">
         <button type="button" data-testid="home-rewards-shortcut" onClick={onRewards}

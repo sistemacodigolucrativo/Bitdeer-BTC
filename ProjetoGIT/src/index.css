@@ -562,3 +562,26 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Consistent card-title hierarchy across the member workspace. */
+.btc-app-viewport section :is(h2, h3, h4) {
+  border-inline-start: 3px solid var(--btc-amber);
+  color: var(--btc-cyan);
+  font-weight: 800;
+  letter-spacing: 0.025em;
+  padding-inline-start: 0.55rem;
+}
+
+.single-line-ellipsis {
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-project-copy-mode="legitimate"] .btc-app-viewport .single-line-ellipsis {
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

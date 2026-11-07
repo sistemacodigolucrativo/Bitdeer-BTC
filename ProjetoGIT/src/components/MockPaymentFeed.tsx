@@ -5,6 +5,17 @@ import { useProjectCopy } from '../i18n/copyMode';
 
 type Entry={hash:string;name:string;country:string;flag:string;valueUsd:string;btc:string;createdAt:number};
 type LatestPayments={records:Entry[];total:number;simulation:true};
+const MAX_PAYMENT_NAME_CHARACTERS=24;
+const displayPaymentName=(name:string)=>{
+  const characters=Array.from(name.trim());
+  if(characters.length<=MAX_PAYMENT_NAME_CHARACTERS)return name.trim();
+  return `${characters.slice(0,MAX_PAYMENT_NAME_CHARACTERS-3).join('').trimEnd()}...`;
+};
+const displayTransactionId=(id:string)=>{
+  const characters=Array.from(id);
+  if(characters.length<=16)return id;
+  return `${characters.slice(0,8).join('')}...${characters.slice(-4).join('')}`;
+};
 
 export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
   const { copy } = useProjectCopy(language);
@@ -74,14 +85,17 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
         <tbody>
           {rows.map(row=><tr data-testid="simulated-payment-row" key={row.hash}>
             <td className={cell+' border-l rounded-l-lg'}>
-              <span className="flex items-center justify-center gap-1 truncate font-semibold" title={row.name}><span aria-label={row.country} className="shrink-0">{row.flag}</span><span className="truncate">{row.name}</span></span>
+              <span className="flex min-w-0 items-center justify-center gap-1 font-semibold" title={row.name}>
+                <span aria-label={row.country} className="shrink-0">{row.flag}</span>
+                <span className="min-w-0 flex-1 single-line-ellipsis text-center" aria-label={row.name}>{displayPaymentName(row.name)}</span>
+              </span>
             </td>
             <td className={cell+' tabular-nums whitespace-nowrap'}>
               {new Date(row.createdAt*1000).toLocaleString(locale)}
             </td>
             <td className={cell}>
-              <span data-testid="payment-hash" className="block max-w-full truncate font-mono text-[10px] text-slate-400"
-                title={row.hash}>{row.hash}</span>
+              <span data-testid="payment-hash" className="block max-w-full single-line-ellipsis font-mono text-[10px] text-slate-400"
+                title={row.hash}>{displayTransactionId(row.hash)}</span>
             </td>
             <td className={cell+' font-mono tabular-nums whitespace-nowrap'}>US$ {row.valueUsd}</td>
             <td className={cell+' border-r rounded-r-lg font-mono tabular-nums whitespace-nowrap'}>{row.btc} BTC</td>
