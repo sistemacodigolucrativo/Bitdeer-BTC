@@ -91,6 +91,8 @@ try {
   const currentPlan=store.getByTestId('store-active-plan');
   if(await currentPlan.locator('svg.lucide-shield-check').count()!==1)
     throw Error('Current plan shield should remain beside the card title');
+  if(await store.getByText('Plano atual',{exact:true}).count()!==1)
+    throw Error('The active plan label must not be duplicated in the purchase card');
   const figure=store.getByTestId('store-plan-illustration');
   await figure.waitFor({timeout:10000});
   if(await figure.evaluate(el=>el.getBoundingClientRect().height)>112)
@@ -106,6 +108,24 @@ try {
   await page.getByTestId('home-rewards-shortcut').waitFor({timeout:10000});
   const welcomeCard=page.getByTestId('home-welcome-card');
   await welcomeCard.waitFor({timeout:10000});
+  if(await page.getByTestId('home-plan-badge').count())
+    throw Error('The plan badge must not cover the profile avatar');
+  const greetingStyles=await page.getByTestId('home-welcome-name').evaluate(el=>{
+    const name=el.querySelector('strong');
+    const welcome=document.querySelector('[data-testid="home-welcome-message"]');
+    return {greeting:getComputedStyle(el).fontWeight,name:name?getComputedStyle(name).fontWeight:'',
+      welcome:welcome?getComputedStyle(welcome).fontWeight:'',
+      welcomeSize:welcome?getComputedStyle(welcome).fontSize:'',welcomeWrap:welcome?getComputedStyle(welcome).whiteSpace:''};
+  });
+  if(Number(greetingStyles.greeting)>=600||Number(greetingStyles.name)<700||
+     Number(greetingStyles.welcome)>=600||greetingStyles.welcomeWrap!=='nowrap')
+    throw Error('The welcome greeting must keep a bold single-line name above normal welcome copy');
+  const dailyPlanStyles=await page.getByTestId('home-plan-daily-card').evaluate(el=>{
+    const text=el.firstElementChild;
+    return {align:getComputedStyle(el).textAlign,wrap:text?getComputedStyle(text).whiteSpace:''};
+  });
+  if(dailyPlanStyles.align!=='center'||dailyPlanStyles.wrap!=='nowrap')
+    throw Error('The green plan/daily-value card must keep centered single-line text');
   if(await welcomeCard.getByText(/Plano atual:|Current plan:|Plan actual:|Plano Free/i).count())
     throw Error('Welcome card must not display the active plan');
   if(await welcomeCard.getByRole('button',{name:/Atualizar|Refresh|Actualizar/i}).count())
@@ -129,8 +149,15 @@ try {
   // while mining, without writing local browser balances.
   const homeValue=page.getByTestId('mining-live-usd');
   await homeValue.waitFor({timeout:10000});
+  const welcomeTopBeforeMining=(await welcomeCard.boundingBox())?.y;
   await page.getByRole('button',{name:/Iniciar Mineração|Start Mining|Iniciar Minería/}).click();
   await page.getByRole('button',{name:/Mineração Ativa|Mining Active|Minería Activa/}).waitFor({timeout:10000});
+  const savedToast=page.getByTestId('saved-toast');
+  await savedToast.waitFor({timeout:5000});
+  const toastLayout=await savedToast.evaluate(el=>({position:getComputedStyle(el).position,opacity:getComputedStyle(el).opacity}));
+  const welcomeTopAfterMining=(await welcomeCard.boundingBox())?.y;
+  if(toastLayout.position!=='fixed'||welcomeTopBeforeMining!==welcomeTopAfterMining)
+    throw Error('The saved notice must float without shifting the home cards');
   const firstUsd=await homeValue.innerText();
   await page.waitForTimeout(2500);
   const secondUsd=await homeValue.innerText();
@@ -250,6 +277,10 @@ try {
   const displayedIds=await page.getByTestId('payment-hash').evaluateAll(nodes=>nodes.map(x=>x.getAttribute('title')||''));
   if(displayedIds.join('|')!==hashes.join('|'))
     throw Error('Wallet must render the backend mock samples in descending date order');
+  const displayedTransactionIds=await page.getByTestId('payment-hash').allTextContents();
+  const expectedTransactionIds=hashes.map(id=>id.length>12?id.slice(0,6)+'...'+id.slice(-6):id);
+  if(displayedTransactionIds.join('|')!==expectedTransactionIds.join('|'))
+    throw Error('Transaction IDs must show six characters, an ellipsis and six trailing characters');
   const localDates=await page.evaluate(stamps=>{
     const today=new Date();
     const yesterday=new Date(today);

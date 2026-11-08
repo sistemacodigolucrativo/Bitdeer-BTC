@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AuthUser, MemberData, Plan, api } from '../services/api';
 import { CustomerSupportView } from './workspace/CustomerSupportView';
 import { WalletRequiredModal } from './workspace/WalletRequiredModal';
@@ -49,6 +49,7 @@ export const MemberWorkspace: React.FC<{
   const [checkout, setCheckout] = useState<PurchaseOrder|null>(null);
   const [checkoutQr, setCheckoutQr] = useState('');
   const [checkoutCopied,setCheckoutCopied]=useState<'address'|'btc'|null>(null);
+  const [checkoutStep,setCheckoutStep]=useState<1|2|3>(1);
   const [ledger, setLedger] = useState<{
     accruals: Array<{plan_id:string;start_ts:number;end_ts:number;earned_units:number}>;
     bonuses: Array<{plan_id:string;claimed_at:number;bonus_usd_units:number;bonus_satoshis:number}>;
@@ -58,6 +59,18 @@ export const MemberWorkspace: React.FC<{
   const [avatarDraft,setAvatarDraft]=useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [savedToast,setSavedToast]=useState('');
+  const [savedToastVisible,setSavedToastVisible]=useState(false);
+  const savedToastTimer=useRef<number|undefined>(undefined);
+  const savedToastClearTimer=useRef<number|undefined>(undefined);
+  const showSavedToast=()=>{
+    if(savedToastTimer.current!==undefined)window.clearTimeout(savedToastTimer.current);
+    if(savedToastClearTimer.current!==undefined)window.clearTimeout(savedToastClearTimer.current);
+    setSavedToast(words.saved);
+    setSavedToastVisible(true);
+    savedToastTimer.current=window.setTimeout(()=>setSavedToastVisible(false),2200);
+    savedToastClearTimer.current=window.setTimeout(()=>setSavedToast(''),2500);
+  };
   const [btcUsd,setBtcUsd]=useState<number|null>(()=>readLastKnownQuote()?.rate??null);
   const [quotePhase,setQuotePhase]=useState<'loading'|'ready'|'unavailable'>('loading');
   const [btcQuote,setBtcQuote]=useState<{source:string;quotedAt:number}|null>(()=>{
@@ -78,10 +91,15 @@ export const MemberWorkspace: React.FC<{
   const [withdrawPage,setWithdrawPage]=useState(1);
   const withdrawPages=Math.max(1,Math.ceil(withdrawHistory.length/10));
   const currentWithdrawPage=Math.min(withdrawPage,withdrawPages);
+  useEffect(()=>()=> {
+    if(savedToastTimer.current!==undefined)window.clearTimeout(savedToastTimer.current);
+    if(savedToastClearTimer.current!==undefined)window.clearTimeout(savedToastClearTimer.current);
+  },[]);
   const visibleWithdrawHistory=useMemo(()=>[...withdrawHistory]
     .sort((a,b)=>Number(b.created_at)-Number(a.created_at)||Number(b.id)-Number(a.id))
     .slice((currentWithdrawPage-1)*10,currentWithdrawPage*10),
     [withdrawHistory,currentWithdrawPage]);
+  useEffect(()=>setCheckoutStep(1),[checkout?.orderId]);
   // The PHP/SQLite profile is authoritative. Only complete USD cents can be
   // requested; fractional accruals are not counted as withdrawable cents.
   // The BTC figure is a quote-based equivalent of that very same USD balance,
@@ -279,8 +297,8 @@ export const MemberWorkspace: React.FC<{
       }
       const result = await api<PurchaseOrder | {ok:boolean}>(action,body);
       if (action==='orders.create') setCheckout(result as PurchaseOrder);
-      setNotice(action==='orders.create'
-        ? words.orderCreated : words.saved);
+      if(action==='mining.start')showSavedToast();
+      else setNotice(action==='orders.create'?words.orderCreated:words.saved);
       await reload();
       if (action==='rewards.claim' || action==='mining.stop') {api<typeof ledger>('ledger').then(setLedger).catch(()=>{});}
     } catch(e) { setNotice((e as Error).message); }
@@ -302,6 +320,12 @@ export const MemberWorkspace: React.FC<{
       className={'flex flex-1 min-w-0 flex-col items-center justify-center text-[10px] sm:text-[11px] gap-1 rounded-xl py-1.5 transition-colors '+(page===p?'text-white bg-indigo-500/15':'text-slate-400 hover:text-white')}>
       <Icon size={20} className="shrink-0"/><span className="w-full truncate text-center">{label}</span></button>;
   return <div className="relative w-full h-full flex flex-col bg-[#121526] text-white">
+    {savedToast&&<div data-testid="saved-toast" role="status" aria-live="polite"
+      style={{top:'calc(env(safe-area-inset-top, 0px) + 0.75rem)'}}
+      className={'pointer-events-none fixed left-1/2 z-[200] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl border border-emerald-300/25 bg-[#16352f]/95 px-4 py-3 text-center text-sm font-semibold text-emerald-100 shadow-xl backdrop-blur transition-all duration-300 '+
+        (savedToastVisible?'translate-y-0 opacity-100':'-translate-y-2 opacity-0')}>
+      {savedToast}
+    </div>}
     {page==='wallet' && account!==null && !account.profile.walletAddress &&
       <WalletRequiredModal language={language} onRegister={registerRequiredWallet}/>}
     {withdrawPopup && <div role="dialog" aria-modal="true" aria-label={language==='en'?'Active VIP plan required':language==='es'?'Se requiere un plan VIP activo':'Plano VIP ativo necessário'}
@@ -497,22 +521,89 @@ export const MemberWorkspace: React.FC<{
           <ServerStoreView plans={plans} activePlanId={account?.plan.id ?? 'FREE'}
             suggestedPlanId={storeRecommended}
             language={language} busy={busy} onPurchase={planId=>void act('orders.create',{planId})}/>
-          {checkout && <div role="dialog" aria-modal="true" className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm"><section className="w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto bg-[#1b2137] border border-indigo-600/50 rounded-2xl p-4 space-y-3 shadow-2xl">
-            <h3 className="font-bold">{tr.order} #{checkout.orderId} — {words.pendingPayment}</h3>
-            <p className="text-sm" >{words.price}: US$ {checkout.priceUsd}</p>
-            <p className="text-sm" >{words.exactAmount}: <strong>{checkout.btcAmount} BTC</strong> ({checkout.btcSatoshis} satoshis)</p>
-            <p className="text-xs text-slate-400" >{words.quotation}: US$ {checkout.quoteRateUsd} {tr.perBtc} · {checkout.quoteSource}</p>
-            <p className="text-xs text-amber-300" >{words.quoteExpiry} {new Date(checkout.expiresAt*1000).toLocaleString(dateLocale)}. {words.expiredWarning}</p>
-            {checkoutQr && <img src={checkoutQr} alt={tr.qrAlt} className="mx-auto rounded-lg w-40 h-40"/>}
-            <p className="w-full break-all rounded-lg bg-[#11182c] p-3 text-center font-mono text-[11px] leading-relaxed text-slate-100">{checkout.btcAddress}</p>
-            <div className="flex gap-2">
-              <button className={'flex-1 rounded-xl p-2 text-xs transition-colors '+(checkoutCopied==='address'?'bg-emerald-600':'bg-indigo-600')}
-                onClick={()=>{void copy(checkout.btcAddress);setCheckoutCopied('address');window.setTimeout(()=>setCheckoutCopied(null),1600);}}>{checkoutCopied==='address'?'✓ '+(language==='en'?'Copied':language==='es'?'Copiado':'Copiado'):words.copyAddress}</button>
-              <button className={'flex-1 rounded-xl p-2 text-xs transition-colors '+(checkoutCopied==='btc'?'bg-emerald-600':'bg-indigo-600')}
-                onClick={()=>{void copy(checkout.btcAmount);setCheckoutCopied('btc');window.setTimeout(()=>setCheckoutCopied(null),1600);}}>{checkoutCopied==='btc'?'✓ '+(language==='en'?'Copied':language==='es'?'Copiado':'Copiado'):words.copyBtc}</button>
-            </div>
-            <button className="text-indigo-300 text-xs underline" onClick={()=>setCheckout(null)}>{words.close}</button>
-          </section></div>}
+          {checkout && <div role="dialog" aria-modal="true" aria-labelledby="checkout-step-title"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm">
+            <section className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-indigo-600/50 bg-[#1b2137] shadow-2xl">
+              <header className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-3 py-2.5">
+                <h3 id="checkout-step-title" className="single-line-ellipsis min-w-0 text-sm font-bold text-white">
+                  {language==='en'?'Payment instructions':language==='es'?'Instrucciones de pago':'Instruções de pagamento'}
+                </h3>
+                <button type="button" aria-label={words.close} onClick={()=>setCheckout(null)}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-300 hover:bg-white/10">×</button>
+              </header>
+              <div data-testid="checkout-step-content" className="min-h-0 flex-1 overflow-y-auto p-3">
+                {checkoutStep===1&&<div data-testid="checkout-stage-1" className="flex flex-col items-center gap-3">
+                  <p className="text-center text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                    {language==='en'?'Scan the QR code':language==='es'?'Escanee el código QR':'Leia o QR Code'}
+                  </p>
+                  {checkoutQr?<img src={checkoutQr} alt={tr.qrAlt} className="h-44 w-44 rounded-lg bg-white p-2"/>:
+                    <div role="status" className="h-44 w-44 animate-pulse rounded-lg bg-slate-700"/>}
+                  <p className="rounded-lg border border-amber-300/15 bg-amber-300/5 px-3 py-2 text-center text-[11px] leading-relaxed text-amber-200">
+                    {language==='en'?'Check the amount and address before sending. Do not pay after expiry.':
+                      language==='es'?'Compruebe el importe y la dirección antes de enviar. No pague después del vencimiento.':
+                      'Confira o valor e o endereço antes de enviar. Não pague após o vencimento.'}
+                  </p>
+                </div>}
+                {checkoutStep===2&&<div data-testid="checkout-stage-2" className="space-y-3">
+                  <div className="rounded-xl border border-amber-300/20 bg-amber-300/5 p-3">
+                    <p className="text-[10px] font-semibold uppercase text-amber-100/70">{words.exactAmount}</p>
+                    <p className="mt-1 break-all font-mono text-xl font-bold text-amber-100">{checkout.btcAmount} BTC</p>
+                    <p className="mt-1 text-xs text-slate-300">US$ {checkout.priceUsd} · {checkout.btcSatoshis.toLocaleString(dateLocale)} sats</p>
+                    <button type="button" className={'mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold '+(checkoutCopied==='btc'?'bg-emerald-600 text-white':'bg-indigo-600 text-white')}
+                      onClick={()=>{void copy(checkout.btcAmount);setCheckoutCopied('btc');window.setTimeout(()=>setCheckoutCopied(null),1600);}}>
+                      {checkoutCopied==='btc'?'✓ '+(language==='en'?'Copied':'Copiado'):words.copyBtc}
+                    </button>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-[#11182c] p-3">
+                    <p className="mb-1 text-[10px] font-semibold uppercase text-slate-400">{language==='en'?'Bitcoin address':language==='es'?'Dirección Bitcoin':'Endereço Bitcoin'}</p>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-center font-mono text-[10px] text-slate-100" title={checkout.btcAddress}>{checkout.btcAddress}</code>
+                      <button type="button" className={'min-h-9 shrink-0 rounded-lg px-2.5 text-[11px] font-semibold '+(checkoutCopied==='address'?'bg-emerald-600 text-white':'bg-indigo-600 text-white')}
+                        onClick={()=>{void copy(checkout.btcAddress);setCheckoutCopied('address');window.setTimeout(()=>setCheckoutCopied(null),1600);}}>
+                        {checkoutCopied==='address'?'✓ '+(language==='en'?'Copied':'Copiado'):words.copyAddress}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-[#141827] p-3 text-xs">
+                    <p>{words.quotation}: US$ {checkout.quoteRateUsd} {tr.perBtc} · {checkout.quoteSource}</p>
+                    <p className="mt-2 text-amber-200">{words.quoteExpiry}: {new Date(checkout.expiresAt*1000).toLocaleString(dateLocale)}.</p>
+                  </div>
+                  <p className="rounded-lg border border-amber-300/15 bg-amber-300/5 px-3 py-2 text-[11px] leading-relaxed text-amber-200">
+                    {language==='en'?'Check the amount and address before sending. Do not pay after expiry.':
+                      language==='es'?'Compruebe el importe y la dirección antes de enviar. No pague después del vencimiento.':
+                      'Confira o valor e o endereço antes de enviar. Não pague após o vencimento.'}
+                  </p>
+                </div>}
+                {checkoutStep===3&&<div data-testid="checkout-stage-3" className="space-y-3">
+                  <h4 className="font-semibold text-slate-100">{language==='en'?'Submit proof for review':language==='es'?'Enviar comprobante para revisión':'Enviar comprovante para análise'}</h4>
+                  <p className="text-xs leading-relaxed text-slate-300">{language==='en'
+                    ?'This project copy does not support proof submission. Payment activation remains subject to manual verification.'
+                    :language==='es'
+                    ?'Esta copia del proyecto no permite enviar comprobantes. La activación del pago requiere verificación manual.'
+                    :'Esta cópia do projeto não permite enviar comprovantes. A ativação do pagamento depende de verificação manual.'}</p>
+                </div>}
+              </div>
+              <footer className="shrink-0 border-t border-white/10 px-3 py-2.5">
+                <div className="mb-2 flex items-center justify-between text-[10px] text-slate-400">
+                  <span>{tr.order} <strong className="font-mono">#{checkout.orderId}</strong></span>
+                  <span data-testid="checkout-step-number" aria-live="polite">{checkoutStep}/3</span>
+                </div>
+                <div className="mb-2 h-1 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-indigo-300 transition-[width] duration-300" style={{width:`${checkoutStep/3*100}%`}}/>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <button type="button" onClick={()=>setCheckoutStep(checkoutStep===3?2:1)} disabled={checkoutStep===1}
+                    className="min-h-9 min-w-24 rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-200 disabled:opacity-40">
+                    {language==='en'?'Back':language==='es'?'Volver':'Voltar'}
+                  </button>
+                  <button type="button" onClick={()=>setCheckoutStep(checkoutStep===1?2:3)} disabled={checkoutStep===3}
+                    className="min-h-9 min-w-24 rounded-lg bg-indigo-300 px-3 text-xs font-bold text-[#171b2d] disabled:opacity-40">
+                    {language==='en'?'Next':language==='es'?'Siguiente':'Avançar'}
+                  </button>
+                </div>
+              </footer>
+            </section>
+          </div>}
           {purchaseHistory.length>0&&<section data-testid="member-purchase-history" className="bg-[#171b2d] rounded-2xl p-3 space-y-2">
             <h3 className="font-bold text-sm">{language==='en'?'Purchase history':language==='es'?'Historial de compras':'Histórico de compras'}</h3>
             {purchaseHistory.map(x=><p key={x.id} className="border-b border-[#2b3350] pb-2 text-xs">

@@ -565,6 +565,14 @@ body {
 }
 
 /* Consistent card-title hierarchy across the member workspace. */
+.btc-app-viewport :is(h2, h3, h4) {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .btc-app-viewport section :is(h2, h3, h4) {
   border-inline-start: 3px solid var(--btc-amber);
   color: var(--btc-cyan);
@@ -585,4 +593,17 @@ html[data-project-copy-mode="legitimate"] .btc-app-viewport .single-line-ellipsi
   overflow-wrap: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.payment-feed-row-enter {
+  animation: payment-feed-row-enter 360ms ease-out both;
+}
+
+@keyframes payment-feed-row-enter {
+  from { opacity: 0; transform: translateY(-7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .payment-feed-row-enter { animation: none; }
 }

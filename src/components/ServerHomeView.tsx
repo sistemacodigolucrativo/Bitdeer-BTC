@@ -47,7 +47,7 @@ export const ServerHomeView: React.FC<Props> = ({
   const welcome=greetingCopy[language] ?? greetingCopy.pt;
   const fullName=account?.profile.displayName.trim() || account?.user.login || welcome.member;
   const nameParts=fullName.split(/\s+/).filter(Boolean);
-  const compactName=nameParts.length>2?`${nameParts.slice(0,2).join(' ')} ...`:fullName;
+  const compactName=nameParts.length>2?`${nameParts.slice(0,2).join(' ')}…`:fullName;
   const planId=account?.plan.id ?? 'FREE';
   const planLabel=planId.toUpperCase()==='FREE'?'Free':planId.replace(/_/g,' ').toUpperCase();
   const returning=welcomeVisit.userId===account?.user.id && welcomeVisit.returning;
@@ -87,19 +87,13 @@ export const ServerHomeView: React.FC<Props> = ({
           className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-emerald-600 text-white font-bold ring-2 ring-[#54c8d5]/30">
           {avatarUrl&&!avatarFailed?<img src={avatarUrl} alt="" onError={()=>setAvatarFailed(true)} className="h-full w-full object-cover"/>:fullName.charAt(0).toUpperCase()}
         </button>
-        <span data-testid="home-plan-badge" aria-label={`${welcome.plan}: ${planLabel}`} title={`${welcome.plan}: ${planLabel}`}
-          className={'pointer-events-none absolute bottom-0 right-0 z-10 max-w-[3.5rem] translate-x-1/2 translate-y-1/2 single-line-ellipsis rounded-full border-2 border-[#171b2d] px-1.5 py-0.5 text-[8px] font-black leading-none shadow-md '+
-            (isVip?'bg-amber-300 text-slate-950':'bg-slate-600 text-white')}>
-          {planLabel}
-        </span>
       </div>
       <div className="min-w-0 flex-1">
-        <p data-testid="home-welcome-name" className="flex min-w-0 items-center gap-1 text-[11px] leading-tight text-slate-400">
-          <span className="shrink-0">{welcome.hello}</span>
-          <span className="min-w-0 flex-1 single-line-ellipsis font-semibold text-slate-200" title={fullName}>{compactName}</span>
-          <span className="shrink-0">,</span>
+        <p data-testid="home-welcome-name" className="flex min-w-0 items-center gap-1 text-[11px] font-normal leading-tight text-slate-400">
+          <span className="shrink-0 font-normal">{welcome.hello}</span>
+          <strong className="min-w-0 flex-1 single-line-ellipsis font-bold text-slate-200" title={fullName}>{compactName}</strong>
         </p>
-        <p data-testid="home-welcome-message" className="mt-0.5 single-line-ellipsis text-sm font-extrabold leading-tight text-white">
+        <p data-testid="home-welcome-message" className="mt-0.5 single-line-ellipsis text-xs font-normal leading-tight text-white">
           {returning?welcome.returning:welcome.welcome}
         </p>
       </div>
@@ -110,10 +104,13 @@ export const ServerHomeView: React.FC<Props> = ({
       </div>
     </div>
     <section className="bg-[#191e32] border border-[#262e49] rounded-3xl p-5 overflow-hidden shadow-md">
-      <div className="flex justify-between items-center gap-2 mb-4">
-        <h3 className="text-xs font-black tracking-wider text-slate-300 uppercase">{d.mining}</h3>
-        <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-lg">
-          {account?.plan.id ?? 'FREE'} · US$ {account?.plan.dailyUsd ?? '0.00'}/{language==='en'?'day':language==='es'?'día':'dia'}
+      <div className="mb-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+        <h3 className="single-line-ellipsis min-w-0 text-[clamp(0.625rem,2.8vw,0.75rem)] font-black tracking-wider text-slate-300 uppercase">{d.mining}</h3>
+        <span data-testid="home-plan-daily-card" aria-label={`${planLabel} · US$ ${account?.plan.dailyUsd ?? '0.00'}/${language==='en'?'day':language==='es'?'día':'dia'}`}
+          className="inline-flex min-w-0 max-w-[58%] shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-center font-mono text-[clamp(0.5rem,2.4vw,0.625rem)] font-bold leading-tight text-emerald-400">
+          <span className="single-line-ellipsis text-center">
+            {account?.plan.id ?? 'FREE'} · US$ {account?.plan.dailyUsd ?? '0.00'}/{language==='en'?'day':language==='es'?'día':'dia'}
+          </span>
         </span>
       </div>
       <div className="bg-[#11182b] border border-[#303b59] rounded-2xl px-4 py-3 mb-4">

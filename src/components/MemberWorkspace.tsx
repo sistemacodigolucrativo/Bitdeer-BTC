@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AuthUser, MemberData, Plan, api } from '../services/api';
 import { CustomerSupportView } from './workspace/CustomerSupportView';
 import { WalletRequiredModal } from './workspace/WalletRequiredModal';
@@ -63,6 +63,18 @@ export const MemberWorkspace: React.FC<{
   const [avatarDraft,setAvatarDraft]=useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [savedToast,setSavedToast]=useState('');
+  const [savedToastVisible,setSavedToastVisible]=useState(false);
+  const savedToastTimer=useRef<number|undefined>(undefined);
+  const savedToastClearTimer=useRef<number|undefined>(undefined);
+  const showSavedToast=()=>{
+    if(savedToastTimer.current!==undefined)window.clearTimeout(savedToastTimer.current);
+    if(savedToastClearTimer.current!==undefined)window.clearTimeout(savedToastClearTimer.current);
+    setSavedToast(words.saved);
+    setSavedToastVisible(true);
+    savedToastTimer.current=window.setTimeout(()=>setSavedToastVisible(false),2200);
+    savedToastClearTimer.current=window.setTimeout(()=>setSavedToast(''),2500);
+  };
   const [btcUsd,setBtcUsd]=useState<number|null>(()=>readLastKnownQuote()?.rate??null);
   const [quotePhase,setQuotePhase]=useState<'loading'|'ready'|'unavailable'>('loading');
   const [btcQuote,setBtcQuote]=useState<{source:string;quotedAt:number}|null>(()=>{
@@ -83,6 +95,10 @@ export const MemberWorkspace: React.FC<{
   const [withdrawPage,setWithdrawPage]=useState(1);
   const withdrawPages=Math.max(1,Math.ceil(withdrawHistory.length/10));
   const currentWithdrawPage=Math.min(withdrawPage,withdrawPages);
+  useEffect(()=>()=> {
+    if(savedToastTimer.current!==undefined)window.clearTimeout(savedToastTimer.current);
+    if(savedToastClearTimer.current!==undefined)window.clearTimeout(savedToastClearTimer.current);
+  },[]);
   const checkoutSecondsRemaining=checkout
     ? Math.max(0,checkout.expiresAt-Math.floor(balanceTick/1000))
     : 0;
@@ -320,7 +336,8 @@ export const MemberWorkspace: React.FC<{
         setCheckout(order);
         setProofLink(order.proofUrl??'');
         setNotice('');
-      } else setNotice(words.saved);
+      } else if(action==='mining.start')showSavedToast();
+      else setNotice(words.saved);
       await reload();
       if(action==='orders.create')void refreshPurchaseHistory().catch(()=>{});
       if (action==='rewards.claim' || action==='mining.stop') {api<typeof ledger>('ledger').then(setLedger).catch(()=>{});}
@@ -369,6 +386,12 @@ export const MemberWorkspace: React.FC<{
       className={'flex flex-1 min-w-0 flex-col items-center justify-center text-[10px] sm:text-[11px] gap-1 rounded-xl py-1.5 transition-colors '+(page===p?'text-white bg-indigo-500/15':'text-slate-400 hover:text-white')}>
       <Icon size={20} className="shrink-0"/><span className="w-full truncate text-center">{label}</span></button>;
   return <div className="relative w-full h-full flex flex-col bg-[#121526] text-white">
+    {savedToast&&<div data-testid="saved-toast" role="status" aria-live="polite"
+      style={{top:'calc(env(safe-area-inset-top, 0px) + 0.75rem)'}}
+      className={'pointer-events-none fixed left-1/2 z-[200] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl border border-emerald-300/25 bg-[#16352f]/95 px-4 py-3 text-center text-sm font-semibold text-emerald-100 shadow-xl backdrop-blur transition-all duration-300 '+
+        (savedToastVisible?'translate-y-0 opacity-100':'-translate-y-2 opacity-0')}>
+      {savedToast}
+    </div>}
     {page==='wallet' && account!==null && !account.profile.walletAddress &&
       <WalletRequiredModal language={language} onRegister={registerRequiredWallet}/>}
     {withdrawPopup && <div role="dialog" aria-modal="true" aria-label={language==='en'?'Active VIP plan required':language==='es'?'Se requiere un plan VIP activo':'Plano VIP ativo necessário'}
@@ -566,7 +589,7 @@ export const MemberWorkspace: React.FC<{
             language={language} busy={busy} onPurchase={planId=>void act('orders.create',{planId})}/>
           {checkout && <div role="dialog" aria-modal="true" aria-labelledby="payment-instructions-title"
             className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm">
-            <div className="max-h-[calc(100dvh-2rem)] w-full max-w-3xl overflow-y-auto rounded-2xl shadow-2xl">
+            <div className="max-h-[calc(100dvh-2rem)] w-full max-w-3xl overflow-hidden rounded-2xl shadow-2xl">
               <PaymentInstructionsCard language={language} order={checkout} qrDataUrl={checkoutQr}
                 remainingSeconds={checkoutSecondsRemaining} proofLink={proofLink} proofSaving={proofSaving}
                 copied={checkoutCopied} onProofLinkChange={setProofLink}

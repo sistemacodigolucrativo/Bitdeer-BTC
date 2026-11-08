@@ -1,10 +1,31 @@
-import React,{useEffect,useState} from 'react';
+import React,{useEffect,useRef,useState} from 'react';
 import {api} from '../services/api';
 import {LanguageCode} from '../types';
 import { useProjectCopy } from '../i18n/copyMode';
 
 type Entry={hash:string;name:string;country:string;flag:string;valueUsd:string;btc:string;createdAt:number};
 type LatestPayments={records:Entry[];total:number;simulation:true};
+type ArrivalBatch={at:number;count:number};
+const PAYMENT_FEED_SIZE=10;
+const HOUR_MS=60*60*1000;
+
+function createHourlyArrivalSchedule(startedAt:number):ArrivalBatch[] {
+  let remaining=5+Math.floor(Math.random()*6);
+  const batchSizes:number[]=[];
+  while(remaining>0) {
+    const count=remaining===1||Math.random()<0.5?1:2;
+    batchSizes.push(count);
+    remaining-=count;
+  }
+  const weights=batchSizes.map(()=>0.65+Math.random()*0.7);
+  const weightTotal=weights.reduce((sum,weight)=>sum+weight,0);
+  let elapsed=0;
+  return batchSizes.map((count,index)=>{
+    elapsed+=HOUR_MS*weights[index]/weightTotal;
+    return {at:startedAt+elapsed,count};
+  });
+}
+
 const MAX_PAYMENT_NAME_CHARACTERS=24;
 const displayPaymentName=(name:string)=>{
   const characters=Array.from(name.trim());
@@ -13,15 +34,18 @@ const displayPaymentName=(name:string)=>{
 };
 const displayTransactionId=(id:string)=>{
   const characters=Array.from(id);
-  if(characters.length<=16)return id;
-  return `${characters.slice(0,8).join('')}...${characters.slice(-4).join('')}`;
+  if(characters.length<=12)return id;
+  return `${characters.slice(0,6).join('')}...${characters.slice(-6).join('')}`;
 };
 
 export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
-  const { copy } = useProjectCopy(language);
+  const { copy,mockupMode } = useProjectCopy(language);
   const [rows,setRows]=useState<Entry[]>([]);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
+  const [initialized,setInitialized]=useState(false);
+  const [enteringHashes,setEnteringHashes]=useState<string[]>([]);
+  const rowsRef=useRef<Entry[]>([]);
   const tr=language==='en'
     ?{name:'Name',date:'Date / time',id:'Transaction',value:'Value (USD)',
       amount:'Amount (BTC)',loading:'Loading records…'}
@@ -34,21 +58,25 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
 
   useEffect(()=>{
     let mounted=true;
+    let loaded=false;
     let pending=false;
-    async function load(){
-      if(pending)return;
+    async function loadInitial(){
+      if(loaded||pending)return;
       pending=true;
       try{
         // Backend retains simulation:true; the UI does not modify its source data.
         const timezone=Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
         const data=await api<LatestPayments>('mock.payments.latest',{timezone});
         if(mounted){
-          setRows(data.records.slice(0,10));
+          const initial=data.records.slice(0,PAYMENT_FEED_SIZE);
+          rowsRef.current=initial;
+          setRows(initial);
           setError('');
+          loaded=true;
+          setInitialized(true);
         }
       }catch(e){
         if(mounted){
-          setRows([]);
           setError((e as Error).message);
         }
       }finally{
@@ -56,10 +84,69 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
         if(mounted)setLoading(false);
       }
     }
-    void load();
-    const timer=window.setInterval(()=>{void load();},60000);
-    return ()=>{mounted=false;window.clearInterval(timer)};
+    void loadInitial();
+    const retry=window.setInterval(()=>{if(!loaded)void loadInitial();},60000);
+    return ()=>{mounted=false;window.clearInterval(retry)};
   },[]);
+
+  useEffect(()=>{
+    if(!initialized||!mockupMode)return;
+    let mounted=true;
+    let pending=false;
+    let timer:number|undefined;
+    let entranceTimer:number|undefined;
+    let hourlyEnd=0;
+    let schedule:ArrivalBatch[]=[];
+    let scheduleIndex=0;
+
+    const startHour=(startedAt:number)=>{
+      schedule=createHourlyArrivalSchedule(startedAt);
+      scheduleIndex=0;
+      hourlyEnd=startedAt+HOUR_MS;
+    };
+    const scheduleNext=()=>{
+      if(!mounted)return;
+      if(!schedule.length||Date.now()>=hourlyEnd)startHour(Date.now());
+      const batch=schedule[scheduleIndex++];
+      if(!batch){startHour(Date.now());return scheduleNext();}
+      timer=window.setTimeout(()=>{void addBatch(batch.count);},Math.max(0,batch.at-Date.now()));
+    };
+    const addBatch=async(count:number)=>{
+      if(pending){scheduleNext();return;}
+      pending=true;
+      try{
+        const timezone=Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
+        const data=await api<LatestPayments>('mock.payments.latest',{timezone});
+        if(mounted){
+          const known=new Set(rowsRef.current.map(row=>row.hash));
+          const arrivals=data.records.filter(row=>!known.has(row.hash)).slice(0,count)
+            .map(row=>({...row,createdAt:Math.floor(Date.now()/1000)}));
+          if(arrivals.length){
+            const next=[...arrivals,...rowsRef.current].slice(0,PAYMENT_FEED_SIZE);
+            rowsRef.current=next;
+            setRows(next);
+            setEnteringHashes(arrivals.map(row=>row.hash));
+            if(entranceTimer!==undefined)window.clearTimeout(entranceTimer);
+            entranceTimer=window.setTimeout(()=>setEnteringHashes([]),700);
+          }
+          setError('');
+        }
+      }catch(e){
+        if(mounted)setError((e as Error).message);
+      }finally{
+        pending=false;
+        scheduleNext();
+      }
+    };
+
+    startHour(Date.now());
+    scheduleNext();
+    return ()=>{
+      mounted=false;
+      if(timer!==undefined)window.clearTimeout(timer);
+      if(entranceTimer!==undefined)window.clearTimeout(entranceTimer);
+    };
+  },[initialized,mockupMode]);
 
   const cell='border-y border-[#262e49] bg-[#101629] px-2 py-3 text-center align-middle text-xs';
   return <section data-testid="simulated-payments" data-simulation="true"
@@ -83,7 +170,8 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
           </tr>
         </thead>
         <tbody>
-          {rows.map(row=><tr data-testid="simulated-payment-row" key={row.hash}>
+          {rows.map(row=><tr data-testid="simulated-payment-row" key={row.hash}
+            className={enteringHashes.includes(row.hash)?'payment-feed-row-enter':''}>
             <td className={cell+' border-l rounded-l-lg'}>
               <span className="flex min-w-0 items-center justify-center gap-1 font-semibold" title={row.name}>
                 <span aria-label={row.country} className="shrink-0">{row.flag}</span>

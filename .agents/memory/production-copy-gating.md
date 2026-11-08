@@ -8,3 +8,9 @@ Prepare production-ready wording and layouts in advance, but do not present synt
 **Why:** The user wants to see the finished, populated product before implementing the real backend; the current project includes demonstration data and tests that require some demo disclosures.
 
 **How to apply:** Keep simulation-related notices for flows still backed by fixtures or simulation endpoints. Do not remove the mockup-copy lock before final backend integration and verification. A timed copy preview is for the current browser only; do not persist it as a global server setting or alter data/behavior. Apply the “DEPOIS” copy in `docs/CHECKLIST_TEXTO_ANTES_DEPOIS.md` only when each relevant backend source returns real, verified data. Replicate presentation changes in the workspace root and `ProjetoGIT`.
+
+The rotating payment-feed preview must run only while mockup mode is active. In the time-limited legitimate-copy preview, keep fixture rows static until verified payment records are available.
+
+**Why:** the payment API currently generates fictional `SIM-` examples; animating them as arrivals in legitimate copy could make them look like confirmed transfers.
+
+**How to apply:** Gate any timed insertion or rotation of mock payments on mockup mode. Do not replace this with a real-time claim until the backend supplies verified payment events.
