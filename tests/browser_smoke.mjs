@@ -122,10 +122,13 @@ try {
     throw Error('The welcome greeting must keep a bold single-line name above normal welcome copy');
   const dailyPlanStyles=await page.getByTestId('home-plan-daily-card').evaluate(el=>{
     const text=el.firstElementChild;
-    return {align:getComputedStyle(el).textAlign,wrap:text?getComputedStyle(text).whiteSpace:''};
+    return {text:text?.textContent?.trim()??'',align:getComputedStyle(el).textAlign,
+      wrap:text?getComputedStyle(text).whiteSpace:'',scrollWidth:el.scrollWidth,clientWidth:el.clientWidth};
   });
-  if(dailyPlanStyles.align!=='center'||dailyPlanStyles.wrap!=='nowrap')
-    throw Error('The green plan/daily-value card must keep centered single-line text');
+  if(dailyPlanStyles.align!=='center'||dailyPlanStyles.wrap!=='nowrap'||
+     !dailyPlanStyles.text.includes('US$')||!dailyPlanStyles.text.includes('/dia')||
+     /…|\.{3}/.test(dailyPlanStyles.text)||dailyPlanStyles.scrollWidth>dailyPlanStyles.clientWidth)
+    throw Error('The green plan/daily-value card must show its full centered value without truncation');
   if(await welcomeCard.getByText(/Plano atual:|Current plan:|Plan actual:|Plano Free/i).count())
     throw Error('Welcome card must not display the active plan');
   if(await welcomeCard.getByRole('button',{name:/Atualizar|Refresh|Actualizar/i}).count())
@@ -163,6 +166,9 @@ try {
   const activeButtonBounds=await miningToggle.boundingBox();
   const welcomeBounds=await welcomeCard.boundingBox();
   const menuBounds=await page.getByTestId('member-bottom-nav').boundingBox();
+  const homeFeedback=page.getByTestId('home-feedback-notice');
+  if(await homeFeedback.count()&&await homeFeedback.evaluate(el=>getComputedStyle(el).position)!=='fixed')
+    throw Error('Home feedback must not remain in the scrolling layout');
   const intersects=(a,b)=>!!a&&!!b&&a.x<b.x+b.width&&a.x+a.width>b.x&&a.y<b.y+b.height&&a.y+a.height>b.y;
   if(intersects(toastBounds,activeButtonBounds)||intersects(toastBounds,welcomeBounds)||intersects(toastBounds,menuBounds))
     throw Error('The saved notice must avoid important home content and controls');

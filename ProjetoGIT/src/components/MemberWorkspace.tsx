@@ -71,6 +71,12 @@ export const MemberWorkspace: React.FC<{
     savedToastTimer.current=window.setTimeout(()=>setSavedToastVisible(false),2200);
     savedToastClearTimer.current=window.setTimeout(()=>setSavedToast(''),2500);
   };
+  useEffect(()=>{
+    if(page==='home'&&notice===words.saved){
+      setNotice('');
+      showSavedToast();
+    }
+  },[page,notice,words.saved]);
   const [btcUsd,setBtcUsd]=useState<number|null>(()=>readLastKnownQuote()?.rate??null);
   const [quotePhase,setQuotePhase]=useState<'loading'|'ready'|'unavailable'>('loading');
   const [btcQuote,setBtcQuote]=useState<{source:string;quotedAt:number}|null>(()=>{
@@ -426,7 +432,11 @@ export const MemberWorkspace: React.FC<{
       page==='topMiners' ? <TopMinersView language={language} btcUsd={displayBtcUsd} quoteTime={btcQuote?.quotedAt??null} onBack={()=>setPage('settings')}/> :
       page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y member-vertical-scroll p-4 sm:p-5 space-y-4">
-        {notice && <p role="status" className="p-3 rounded-lg bg-[#20243c] text-sm text-amber-300">{notice}</p>}
+        {notice && <p role="status" data-testid={page==='home'?'home-feedback-notice':undefined}
+          style={page==='home'?{bottom:'calc(env(safe-area-inset-bottom, 0px) + 4.5rem)'}:undefined}
+          className={page==='home'
+            ?'pointer-events-none fixed right-4 z-[201] w-fit max-w-[calc(100vw-2rem)] rounded-xl border border-amber-300/25 bg-[#20243c]/95 px-3 py-2 text-xs text-amber-200 shadow-xl backdrop-blur'
+            :'p-3 rounded-lg bg-[#20243c] text-sm text-amber-300'}>{notice}</p>}
         {page==='home' && <><ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language} busy={busy}
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
           onRewards={()=>setPage('reward')}

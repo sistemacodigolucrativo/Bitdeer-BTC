@@ -107,8 +107,8 @@ export const ServerHomeView: React.FC<Props> = ({
       <div className="mb-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
         <h3 className="single-line-ellipsis min-w-0 text-[clamp(0.625rem,2.8vw,0.75rem)] font-black tracking-wider text-slate-300 uppercase">{d.mining}</h3>
         <span data-testid="home-plan-daily-card" aria-label={`${planLabel} · US$ ${account?.plan.dailyUsd ?? '0.00'}/${language==='en'?'day':language==='es'?'día':'dia'}`}
-          className="inline-flex min-w-0 max-w-[58%] shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-center font-mono text-[clamp(0.5rem,2.4vw,0.625rem)] font-bold leading-tight text-emerald-400">
-          <span className="single-line-ellipsis text-center">
+          className="inline-flex w-fit min-w-max shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-center font-mono text-[10px] font-bold leading-tight text-emerald-400">
+          <span className="whitespace-nowrap text-center">
              {planLabel} · US$ {account?.plan.dailyUsd ?? '0.00'}/{language==='en'?'day':language==='es'?'día':'dia'}
           </span>
         </span>
