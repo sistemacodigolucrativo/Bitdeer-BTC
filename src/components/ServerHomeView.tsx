@@ -109,7 +109,7 @@ export const ServerHomeView: React.FC<Props> = ({
         <span data-testid="home-plan-daily-card" aria-label={`${planLabel} · US$ ${account?.plan.dailyUsd ?? '0.00'}/${language==='en'?'day':language==='es'?'día':'dia'}`}
           className="inline-flex min-w-0 max-w-[58%] shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-center font-mono text-[clamp(0.5rem,2.4vw,0.625rem)] font-bold leading-tight text-emerald-400">
           <span className="single-line-ellipsis text-center">
-            {account?.plan.id ?? 'FREE'} · US$ {account?.plan.dailyUsd ?? '0.00'}/{language==='en'?'day':language==='es'?'día':'dia'}
+             {planLabel} · US$ {account?.plan.dailyUsd ?? '0.00'}/{language==='en'?'day':language==='es'?'día':'dia'}
           </span>
         </span>
       </div>
@@ -143,7 +143,7 @@ export const ServerHomeView: React.FC<Props> = ({
           <circle cx="95" cy="52" r="7" fill="#f59e0b"/><text x="95" y="55" textAnchor="middle" fill="white" fontSize="8">₿</text>
         </svg>
       </div>
-      <button onClick={status?onStop:onStart}
+      <button data-testid="mining-session-toggle" onClick={status?onStop:onStart}
         disabled={busy}
         className={'w-full py-4 px-4 rounded-2xl font-bold text-sm flex justify-center items-center gap-2 disabled:opacity-40 '+
           (status?'bg-emerald-600 hover:bg-emerald-500':'bg-[#f43f5e] hover:bg-[#e11d48]')}>

@@ -150,14 +150,22 @@ try {
   const homeValue=page.getByTestId('mining-live-usd');
   await homeValue.waitFor({timeout:10000});
   const welcomeTopBeforeMining=(await welcomeCard.boundingBox())?.y;
-  await page.getByRole('button',{name:/Iniciar Mineração|Start Mining|Iniciar Minería/}).click();
-  await page.getByRole('button',{name:/Mineração Ativa|Mining Active|Minería Activa/}).waitFor({timeout:10000});
+  const miningToggle=page.getByTestId('mining-session-toggle');
+  await miningToggle.click();
+  await page.getByTestId('session-countdown').waitFor({timeout:10000});
   const savedToast=page.getByTestId('saved-toast');
   await savedToast.waitFor({timeout:5000});
   const toastLayout=await savedToast.evaluate(el=>({position:getComputedStyle(el).position,opacity:getComputedStyle(el).opacity}));
   const welcomeTopAfterMining=(await welcomeCard.boundingBox())?.y;
   if(toastLayout.position!=='fixed'||welcomeTopBeforeMining!==welcomeTopAfterMining)
     throw Error('The saved notice must float without shifting the home cards');
+  const toastBounds=await savedToast.boundingBox();
+  const activeButtonBounds=await miningToggle.boundingBox();
+  const welcomeBounds=await welcomeCard.boundingBox();
+  const menuBounds=await page.getByTestId('member-bottom-nav').boundingBox();
+  const intersects=(a,b)=>!!a&&!!b&&a.x<b.x+b.width&&a.x+a.width>b.x&&a.y<b.y+b.height&&a.y+a.height>b.y;
+  if(intersects(toastBounds,activeButtonBounds)||intersects(toastBounds,welcomeBounds)||intersects(toastBounds,menuBounds))
+    throw Error('The saved notice must avoid important home content and controls');
   const firstUsd=await homeValue.innerText();
   await page.waitForTimeout(2500);
   const secondUsd=await homeValue.innerText();

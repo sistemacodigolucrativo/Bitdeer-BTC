@@ -321,9 +321,9 @@ export const MemberWorkspace: React.FC<{
       <Icon size={20} className="shrink-0"/><span className="w-full truncate text-center">{label}</span></button>;
   return <div className="relative w-full h-full flex flex-col bg-[#121526] text-white">
     {savedToast&&<div data-testid="saved-toast" role="status" aria-live="polite"
-      style={{top:'calc(env(safe-area-inset-top, 0px) + 0.75rem)'}}
-      className={'pointer-events-none fixed left-1/2 z-[200] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl border border-emerald-300/25 bg-[#16352f]/95 px-4 py-3 text-center text-sm font-semibold text-emerald-100 shadow-xl backdrop-blur transition-all duration-300 '+
-        (savedToastVisible?'translate-y-0 opacity-100':'-translate-y-2 opacity-0')}>
+      style={{bottom:'calc(env(safe-area-inset-bottom, 0px) + 4.5rem)'}}
+      className={'pointer-events-none fixed right-4 z-[200] w-fit max-w-[calc(100vw-2rem)] rounded-xl border border-emerald-300/25 bg-[#16352f]/95 px-3 py-2 text-center text-xs font-semibold text-emerald-100 shadow-xl backdrop-blur transition-all duration-300 '+
+        (savedToastVisible?'translate-y-0 opacity-100':'translate-y-2 opacity-0')}>
       {savedToast}
     </div>}
     {page==='wallet' && account!==null && !account.profile.walletAddress &&
@@ -581,6 +581,10 @@ export const MemberWorkspace: React.FC<{
                     :language==='es'
                     ?'Esta copia del proyecto no permite enviar comprobantes. La activación del pago requiere verificación manual.'
                     :'Esta cópia do projeto não permite enviar comprovantes. A ativação do pagamento depende de verificação manual.'}</p>
+                  <button type="button" data-testid="checkout-proof-submit-unavailable" disabled
+                    className="flex min-h-10 w-full items-center justify-center rounded-lg bg-indigo-300 px-4 text-xs font-bold text-[#171b2d] opacity-45">
+                    {language==='en'?'Send for review':language==='es'?'Enviar para revisión':'Enviar para análise'}
+                  </button>
                 </div>}
               </div>
               <footer className="shrink-0 border-t border-white/10 px-3 py-2.5">
