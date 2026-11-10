@@ -1,0 +1,34 @@
+{
+  "originals": [
+    {"name": "James Hudson", "country": "USA", "flag": "🇺🇸", "location": "USA"},
+    {"name": "Adi Satria", "country": "Indonesia", "flag": "🇮🇩", "location": "Indonesia"},
+    {"name": "Chinedu Okafor", "country": "Nigeria", "flag": "🇳🇬", "location": "Nigeria"},
+    {"name": "Ricardo Mendes", "country": "Brazil", "flag": "🇧🇷", "location": "Brazil"},
+    {"name": "Rohan Kapoor", "country": "India", "flag": "🇮🇳", "location": "India"},
+    {"name": "Jahir Uddin", "country": "Bangladesh", "flag": "🇧🇩", "location": "Bangladesh"},
+    {"name": "Sardor Karimov", "country": "Uzbekistan", "flag": "🇺🇿", "location": "Uzbekistan"},
+    {"name": "Jose dela Cruz", "country": "Philippines", "flag": "🇵🇭", "location": "Philippines"},
+    {"name": "Aina Roslan", "country": "Malaysia", "flag": "🇲🇾", "location": "Malaysia"},
+    {"name": "Javier Torres", "country": "Mexico", "flag": "🇲🇽", "location": "Mexico"}
+  ],
+  "brazil": {
+    "firstNames": ["Ana", "Bruno", "Camila", "Daniel", "Eduarda", "Felipe", "Gabriela", "Henrique", "Isabela", "João", "Larissa", "Marcos", "Natália", "Pedro", "Renata"],
+    "lastNames": ["Almeida", "Barbosa", "Carvalho", "Dias", "Ferreira", "Gomes", "Lima", "Martins", "Nascimento", "Oliveira", "Pereira", "Ribeiro", "Rocha", "Rodrigues", "Santos", "Silva", "Souza", "Costa", "Araújo", "Batista", "Cardoso", "Correia", "Duarte", "Farias", "Freitas", "Guimarães", "Leite", "Lopes", "Machado", "Marques", "Monteiro", "Moreira", "Moura", "Nogueira", "Pacheco", "Peixoto", "Pinheiro", "Queiroz", "Ramos", "Reis", "Rezende", "Sampaio", "Santana", "Teixeira", "Vieira", "Azevedo", "Barros", "Borges", "Campos", "Cavalcanti", "Figueiredo", "Fonseca", "Macedo", "Magalhães", "Neves", "Paiva", "Prado", "Tavares", "Viana", "Xavier"],
+    "cities": ["São Paulo", "Rio de Janeiro", "Belo Horizonte", "Curitiba", "Salvador", "Recife", "Fortaleza", "Manaus", "Belém", "Florianópolis", "Vitória", "Goiânia", "Campinas", "Santos", "Natal", "João Pessoa", "Maceió", "Aracaju", "Campo Grande", "Porto Alegre"]
+  },
+  "regions": [
+    {"flag": "🇺🇸", "country": "USA", "capital": "Austin", "firstNames": ["James", "Michael", "David", "Daniel", "Ryan"], "lastNames": ["Parker", "Carter", "Williams", "Collins", "Murphy"], "cities": ["Seattle", "Chicago", "Denver", "Boston", "Atlanta"]},
+    {"flag": "🇮🇩", "country": "Indonesia", "capital": "Jakarta", "firstNames": ["Adi", "Budi", "Dimas", "Rizky", "Fajar"], "lastNames": ["Santoso", "Pratama", "Wijaya", "Putra", "Saputra"], "cities": ["Bandung", "Surabaya", "Medan", "Yogyakarta", "Semarang"]},
+    {"flag": "🇳🇬", "country": "Nigeria", "capital": "Lagos", "firstNames": ["Chinedu", "Tunde", "Emeka", "Kelechi", "Ifeanyi"], "lastNames": ["Okoro", "Adeyemi", "Nwosu", "Balogun", "Ibrahim"], "cities": ["Abuja", "Kano", "Ibadan", "Enugu", "Port Harcourt"]},
+    {"flag": "🇮🇳", "country": "India", "capital": "Mumbai", "firstNames": ["Rohan", "Aarav", "Vihaan", "Arjun", "Ishaan"], "lastNames": ["Sharma", "Patel", "Gupta", "Mehta", "Singh"], "cities": ["Delhi", "Pune", "Chennai", "Jaipur", "Hyderabad"]},
+    {"flag": "🇧🇩", "country": "Bangladesh", "capital": "Dhaka", "firstNames": ["Jahir", "Rafiq", "Imran", "Nayeem", "Sajid"], "lastNames": ["Ahmed", "Rahman", "Hossain", "Islam", "Chowdhury"], "cities": ["Chittagong", "Sylhet", "Khulna", "Rajshahi", "Barisal"]},
+    {"flag": "🇺🇿", "country": "Uzbekistan", "capital": "Tashkent", "firstNames": ["Sanjar", "Aziz", "Bekzod", "Jasur", "Otabek"], "lastNames": ["Karimov", "Ismailov", "Rakhimov", "Yusupov", "Saidov"], "cities": ["Samarkand", "Bukhara", "Andijan", "Fergana", "Namangan"]},
+    {"flag": "🇵🇭", "country": "Philippines", "capital": "Manila", "firstNames": ["Jose", "Miguel", "Paolo", "Carlo", "Rafael"], "lastNames": ["Reyes", "Santos", "Garcia", "Cruz", "Ramos"], "cities": ["Cebu", "Davao", "Baguio", "Iloilo", "Quezon City"]},
+    {"flag": "🇲🇾", "country": "Malaysia", "capital": "Kuala Lumpur", "firstNames": ["Alia", "Amir", "Farah", "Hafiz", "Nadia"], "lastNames": ["Roslan", "Ismail", "Rahman", "Zulkifli", "Hassan"], "cities": ["Penang", "Ipoh", "Johor Bahru", "Malacca", "Kota Kinabalu"]},
+    {"flag": "🇲🇽", "country": "Mexico", "capital": "Mexico City", "firstNames": ["Javier", "Carlos", "Sofia", "Diego", "Lucia"], "lastNames": ["Mendoza", "Ramirez", "Morales", "Hernandez", "Flores"], "cities": ["Guadalajara", "Monterrey", "Puebla", "Cancun", "Merida"]},
+    {"flag": "🇨🇦", "country": "Canada", "capital": "Toronto", "firstNames": ["Oliver", "Ethan", "Emma", "Liam", "Charlotte"], "lastNames": ["Bennett", "Martin", "Thompson", "Wilson", "Clark"], "cities": ["Vancouver", "Montreal", "Ottawa", "Calgary", "Halifax"]},
+    {"flag": "🇬🇧", "country": "United Kingdom", "capital": "London", "firstNames": ["Harry", "George", "Amelia", "Olivia", "Jack"], "lastNames": ["Smith", "Brown", "Taylor", "Evans", "Walker"], "cities": ["Manchester", "Bristol", "Liverpool", "Leeds", "York"]},
+    {"flag": "🇯🇵", "country": "Japan", "capital": "Tokyo", "firstNames": ["Haruto", "Yuto", "Sakura", "Ren", "Hina"], "lastNames": ["Tanaka", "Sato", "Suzuki", "Kobayashi", "Nakamura"], "cities": ["Osaka", "Kyoto", "Nagoya", "Sapporo", "Kobe"]},
+    {"flag": "🇿🇦", "country": "South Africa", "capital": "Cape Town", "firstNames": ["Thabo", "Sipho", "Lerato", "Nomsa", "Kabelo"], "lastNames": ["Mokoena", "Dlamini", "Nkosi", "Khumalo", "Ndlovu"], "cities": ["Johannesburg", "Pretoria", "Durban", "Soweto", "Gqeberha"]}
+  ]
+}

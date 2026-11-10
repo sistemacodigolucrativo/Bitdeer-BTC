@@ -3,7 +3,7 @@ import { LanguageCode } from '../types';
 import { api } from '../services/api';
 import { useProjectCopy } from '../i18n/copyMode';
 
-type DemoInvestor = { flag: string; name: string; city: string; state: string };
+type DemoInvestor = { flag: string; name: string; location: string };
 type ClaimResponse = {
   enabled: boolean;
   simulation: boolean;
@@ -89,7 +89,7 @@ export const NewInvestorToast: React.FC<{language:LanguageCode;userId:number}> =
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/25 bg-cyan-300/10 text-xl" aria-hidden="true">✦</div>
         <div className="min-w-0 flex-1 space-y-1">
           <p className="text-sm font-extrabold tracking-tight">{t.title}</p>
-          <p className="break-words text-xs font-semibold leading-relaxed">{current.flag} {current.name} - {current.city} - {current.state}</p>
+          <p className="break-words text-xs font-semibold leading-relaxed">{current.flag} {current.name} - {current.location}</p>
           <p className="text-xs text-rose-200">❤️ {t.event}</p>
           <p className="text-[10px] text-slate-300">{copy('investorToastDemoLabel')}</p>
         </div>

@@ -190,21 +190,26 @@ assert alice.call("demo.new-investors.settings")=={"enabled":True,"simulation":T
 first_claim=alice.call("demo.new-investors.claim",{})
 assert first_claim["enabled"] is True and first_claim["simulation"] is True
 assert first_claim["profile"] is not None
-seen_first,seen_last=set(),set()
-first,last=first_claim["profile"]["name"].split(" ",1)
-seen_first.add(first);seen_last.add(last)
+seen_profiles={first_claim["profile"]["name"]}
 # A separate login for the same account must continue the saved name history.
 toast_session=Client()
 toast_session.call("login",{"login":"alice","password":"longpassword123"})
-for _ in range(21):
+for _ in range(199):
   response=toast_session.call("demo.new-investors.claim",{})
   assert response["profile"] is not None
-  first,last=response["profile"]["name"].split(" ",1)
-  assert first not in seen_first and last not in seen_last
-  seen_first.add(first);seen_last.add(last)
-assert len(seen_first)==22 and len(seen_last)==22
-exhausted=toast_session.call("demo.new-investors.claim",{})
-assert exhausted=={"enabled":True,"simulation":True,"profile":None,"exhausted":True}
+  name=response["profile"]["name"]
+  assert name not in seen_profiles
+  seen_profiles.add(name)
+assert len(seen_profiles)==200
+next_cycle=toast_session.call("demo.new-investors.claim",{})
+assert next_cycle["profile"] is not None
+db=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
+try:
+  cycles=db.execute("SELECT cycle_index,COUNT(*) FROM demo_new_investor_cycle_impressions WHERE user_id=? GROUP BY cycle_index ORDER BY cycle_index",
+    (alice_user["id"],)).fetchall()
+finally:
+  db.close()
+assert cycles==[(1,200),(2,1)]
 assert admin.call("admin.demo.new-investors.settings")["enabled"] is True
 assert admin.call("admin.demo.new-investors.settings",{"enabled":False})["enabled"] is False
 assert alice.call("demo.new-investors.settings")["enabled"] is False

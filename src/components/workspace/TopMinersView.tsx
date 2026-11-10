@@ -3,6 +3,7 @@ import {ArrowLeft} from 'lucide-react';
 import {LanguageCode} from '../../types';
 import {readLastKnownQuote} from '../../utils/lastKnownQuote';
 import {useProjectCopy} from '../../i18n/copyMode';
+import profileSeed from '../../../server/top_miners_seed.json';
 
 type Miner = {name:string;country:string;flag:string;location:string;message:string;btcSats:number};
 /** Fictional profile showcase, not member data, not a blockchain transaction list. */
@@ -63,36 +64,11 @@ function loadDemoMetrics():DemoMetrics {
     return makeInitialDemoMetrics();
   }
 }
-const originals=[
-{name:'James Hudson',country:'USA',flag:'🇺🇸',message:'Crypto growth unstoppable',btc:'0.99047281',usd:'79,520.6840'},
-{name:'Adi Satria',country:'Indonesia',flag:'🇮🇩',message:'Building the digital future',btc:'0.95812730',usd:'76,919.5377'},
-{name:'Chinedu Okafor',country:'Nigeria',flag:'🇳🇬',message:'Blockchain opportunities ahead',btc:'0.91450380',usd:'73,417.4449'},
-{name:'Ricardo Mendes',country:'Brazil',flag:'🇧🇷',message:'Exploring crypto innovation',btc:'0.87920465',usd:'70,583.1667'},
-{name:'Rohan Kapoor',country:'India',flag:'🇮🇳',message:'New horizons in technology',btc:'0.84116527',usd:'67,529.0493'},
-{name:'Jahir Uddin',country:'Bangladesh',flag:'🇧🇩',message:'Digital progress every day',btc:'0.80234198',usd:'64,411.3549'},
-{name:'Sardor Karimov',country:'Uzbekistan',flag:'🇺🇿',message:'Connected by innovation',btc:'0.76832140',usd:'61,680.0632'},
-{name:'Jose dela Cruz',country:'Philippines',flag:'🇵🇭',message:'A growing crypto community',btc:'0.72150420',usd:'57,920.9798'},
-{name:'Aina Roslan',country:'Malaysia',flag:'🇲🇾',message:'Learning together worldwide',btc:'0.68419035',usd:'54,925.0470'},
-{name:'Javier Torres',country:'Mexico',flag:'🇲🇽',message:'Technology connects us',btc:'0.64289010',usd:'51,609.5112'},
-];
-const brFirst=['Ana','Bruno','Camila','Daniel','Eduarda','Felipe','Gabriela','Henrique','Isabela','João','Larissa','Marcos','Natália','Pedro','Renata'];
-const brLast=["Almeida","Barbosa","Carvalho","Dias","Ferreira","Gomes","Lima","Martins","Nascimento","Oliveira","Pereira","Ribeiro","Rocha","Rodrigues","Santos","Silva","Souza","Costa","Araújo","Batista","Cardoso","Correia","Duarte","Farias","Freitas","Guimarães","Leite","Lopes","Machado","Marques","Monteiro","Moreira","Moura","Nogueira","Pacheco","Peixoto","Pinheiro","Queiroz","Ramos","Reis","Rezende","Sampaio","Santana","Teixeira","Vieira","Azevedo","Barros","Borges","Campos","Cavalcanti","Figueiredo","Fonseca","Macedo","Magalhães","Neves","Paiva","Prado","Tavares","Viana","Xavier"];
-const brCities=['São Paulo','Rio de Janeiro','Belo Horizonte','Curitiba','Salvador','Recife','Fortaleza','Manaus','Belém','Florianópolis','Vitória','Goiânia','Campinas','Santos','Natal','João Pessoa','Maceió','Aracaju','Campo Grande','Porto Alegre'];
-const regions: Array<[string,string,string,string,string,string]>=[
-  ['🇺🇸','USA','Austin','James|Michael|David|Daniel|Ryan','Parker|Carter|Williams|Collins|Murphy','Seattle|Chicago|Denver|Boston|Atlanta'],
-  ['🇮🇩','Indonesia','Jakarta','Adi|Budi|Dimas|Rizky|Fajar','Santoso|Pratama|Wijaya|Putra|Saputra','Bandung|Surabaya|Medan|Yogyakarta|Semarang'],
-  ['🇳🇬','Nigeria','Lagos','Chinedu|Tunde|Emeka|Kelechi|Ifeanyi','Okoro|Adeyemi|Nwosu|Balogun|Ibrahim','Abuja|Kano|Ibadan|Enugu|Port Harcourt'],
-  ['🇮🇳','India','Mumbai','Rohan|Aarav|Vihaan|Arjun|Ishaan','Sharma|Patel|Gupta|Mehta|Singh','Delhi|Pune|Chennai|Jaipur|Hyderabad'],
-  ['🇧🇩','Bangladesh','Dhaka','Jahir|Rafiq|Imran|Nayeem|Sajid','Ahmed|Rahman|Hossain|Islam|Chowdhury','Chittagong|Sylhet|Khulna|Rajshahi|Barisal'],
-  ['🇺🇿','Uzbekistan','Tashkent','Sanjar|Aziz|Bekzod|Jasur|Otabek','Karimov|Ismailov|Rakhimov|Yusupov|Saidov','Samarkand|Bukhara|Andijan|Fergana|Namangan'],
-  ['🇵🇭','Philippines','Manila','Jose|Miguel|Paolo|Carlo|Rafael','Reyes|Santos|Garcia|Cruz|Ramos','Cebu|Davao|Baguio|Iloilo|Quezon City'],
-  ['🇲🇾','Malaysia','Kuala Lumpur','Alia|Amir|Farah|Hafiz|Nadia','Roslan|Ismail|Rahman|Zulkifli|Hassan','Penang|Ipoh|Johor Bahru|Malacca|Kota Kinabalu'],
-  ['🇲🇽','Mexico','Mexico City','Javier|Carlos|Sofia|Diego|Lucia','Mendoza|Ramirez|Morales|Hernandez|Flores','Guadalajara|Monterrey|Puebla|Cancun|Merida'],
-  ['🇨🇦','Canada','Toronto','Oliver|Ethan|Emma|Liam|Charlotte','Bennett|Martin|Thompson|Wilson|Clark','Vancouver|Montreal|Ottawa|Calgary|Halifax'],
-  ['🇬🇧','United Kingdom','London','Harry|George|Amelia|Olivia|Jack','Smith|Brown|Taylor|Evans|Walker','Manchester|Bristol|Liverpool|Leeds|York'],
-  ['🇯🇵','Japan','Tokyo','Haruto|Yuto|Sakura|Ren|Hina','Tanaka|Sato|Suzuki|Kobayashi|Nakamura','Osaka|Kyoto|Nagoya|Sapporo|Kobe'],
-  ['🇿🇦','South Africa','Cape Town','Thabo|Sipho|Lerato|Nomsa|Kabelo','Mokoena|Dlamini|Nkosi|Khumalo|Ndlovu','Johannesburg|Pretoria|Durban|Soweto|Gqeberha']
-];
+const originals=profileSeed.originals;
+const brFirst=profileSeed.brazil.firstNames;
+const brLast=profileSeed.brazil.lastNames;
+const brCities=profileSeed.brazil.cities;
+const regions=profileSeed.regions;
 // 200 unique profile names with 61 Brazilian profiles including original Ricardo.
 const testimonials=['Exploring digital technologies','Building a connected community','Learning about blockchain','Ideas for a digital future',
   'Innovation without borders','Discovering new opportunities','Connected through technology'];
@@ -111,7 +87,7 @@ export const showcase: Miner[] = (()=>{
     const btcSats=reduceShowcaseBtcSats(423000000-rank*1965713);
     result.push({name,country,flag,location,message:testimonials[rank%testimonials.length],btcSats});
   };
-  for(const x of originals) add(x.name,x.country,x.flag,x.country);
+  for(const x of originals) add(x.name,x.country,x.flag,x.location);
   let brazilianIndex=0;
   let internationalIndex=0;
   // Spread the 60 additional Brazilian profiles across all remaining 190 ranks.
@@ -127,11 +103,11 @@ export const showcase: Miner[] = (()=>{
       add(name,'Brazil','🇧🇷',city+', Brasil');
     } else {
       const i=internationalIndex++;
-      const [flag,country,capital,given,surnames,cities]=regions[i%regions.length];
+      const {flag,country,capital,firstNames,lastNames,cities}=regions[i%regions.length];
       const j=Math.floor(i/regions.length);
-      const first=given.split('|')[j%5];
-      const last=surnames.split('|')[(j%5+Math.floor(j/5))%5];
-      const places=[capital,...cities.split('|')];
+      const first=firstNames[j%firstNames.length];
+      const last=lastNames[(j%firstNames.length+Math.floor(j/firstNames.length))%lastNames.length];
+      const places=[capital,...cities];
       add(first+' '+last,country,flag,places[j%places.length]+', '+country);
     }
   }

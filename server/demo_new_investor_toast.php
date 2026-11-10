@@ -1,58 +1,92 @@
 <?php
 declare(strict_types=1);
 
-/** Fictional profiles shown only in the mockup-mode investor toast. */
+/** Same 200 fictional profiles used by the Top Miners showcase. */
 function demo_new_investor_profiles(): array {
-    return [
-      ['firstName'=>'Mariana','lastName'=>'Azevedo','flag'=>'🇧🇷','city'=>'Belford Roxo','state'=>'RJ'],
-      ['firstName'=>'Rafael','lastName'=>'Mendes','flag'=>'🇧🇷','city'=>'Contagem','state'=>'MG'],
-      ['firstName'=>'Juliana','lastName'=>'Ribeiro','flag'=>'🇧🇷','city'=>'Campinas','state'=>'SP'],
-      ['firstName'=>'Carlos','lastName'=>'Oliveira','flag'=>'🇧🇷','city'=>'Feira de Santana','state'=>'BA'],
-      ['firstName'=>'Patrícia','lastName'=>'Nunes','flag'=>'🇧🇷','city'=>'Curitiba','state'=>'PR'],
-      ['firstName'=>'Camila','lastName'=>'Fernández','flag'=>'🇦🇷','city'=>'Córdoba','state'=>'CB'],
-      ['firstName'=>'Diego','lastName'=>'Rojas','flag'=>'🇨🇱','city'=>'Santiago','state'=>'RM'],
-      ['firstName'=>'Valentina','lastName'=>'Gómez','flag'=>'🇨🇴','city'=>'Medellín','state'=>'ANT'],
-      ['firstName'=>'Sofía','lastName'=>'Torres','flag'=>'🇵🇪','city'=>'Lima','state'=>'LMA'],
-      ['firstName'=>'Luis','lastName'=>'Hernández','flag'=>'🇲🇽','city'=>'Guadalajara','state'=>'JAL'],
-      ['firstName'=>'Inês','lastName'=>'Martins','flag'=>'🇵🇹','city'=>'Porto','state'=>'Porto'],
-      ['firstName'=>'Lucía','lastName'=>'García','flag'=>'🇪🇸','city'=>'Sevilla','state'=>'AN'],
-      ['firstName'=>'Olivia','lastName'=>'Parker','flag'=>'🇺🇸','city'=>'Austin','state'=>'TX'],
-      ['firstName'=>'Emma','lastName'=>'Wilson','flag'=>'🇨🇦','city'=>'Toronto','state'=>'ON'],
-      ['firstName'=>'Léa','lastName'=>'Bernard','flag'=>'🇫🇷','city'=>'Lyon','state'=>'ARA'],
-      ['firstName'=>'Lukas','lastName'=>'Weber','flag'=>'🇩🇪','city'=>'München','state'=>'BY'],
-      ['firstName'=>'Giulia','lastName'=>'Rossi','flag'=>'🇮🇹','city'=>'Milano','state'=>'MI'],
-      ['firstName'=>'George','lastName'=>'Harris','flag'=>'🇬🇧','city'=>'Manchester','state'=>'ENG'],
-      ['firstName'=>'Haruka','lastName'=>'Sato','flag'=>'🇯🇵','city'=>'Osaka','state'=>'Osaka'],
-      ['firstName'=>'Mia','lastName'=>'Taylor','flag'=>'🇦🇺','city'=>'Sydney','state'=>'NSW'],
-      ['firstName'=>'Martín','lastName'=>'Silva','flag'=>'🇺🇾','city'=>'Montevideo','state'=>'MO'],
-      ['firstName'=>'Andrés','lastName'=>'Benítez','flag'=>'🇵🇾','city'=>'Asunción','state'=>'ASU'],
-    ];
+    static $profiles = null;
+    if ($profiles !== null) return $profiles;
+    $path = __DIR__ . '/top_miners_seed.json';
+    $json = file_get_contents($path);
+    if ($json === false) throw new RuntimeException('Top Miners profile seed is unavailable');
+    $seed = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+    $profiles = [];
+    $add = static function(string $name, string $country, string $flag, string $location) use (&$profiles): void {
+        $space = strpos($name, ' ');
+        if ($space === false) throw new RuntimeException('Top Miners profile name is invalid');
+        $profiles[] = [
+            'firstName' => substr($name, 0, $space),
+            'lastName' => substr($name, $space + 1),
+            'name' => $name,
+            'country' => $country,
+            'flag' => $flag,
+            'location' => $location,
+        ];
+    };
+    foreach ($seed['originals'] as $profile) {
+        $add($profile['name'], $profile['country'], $profile['flag'], $profile['location']);
+    }
+    $brazilianIndex = 0;
+    $internationalIndex = 0;
+    for ($position = 0; $position < 190; $position++) {
+        $isBrazilian = intdiv(($position + 1) * 60, 190) > intdiv($position * 60, 190);
+        if ($isBrazilian) {
+            $index = $brazilianIndex++;
+            $first = $seed['brazil']['firstNames'][$index % count($seed['brazil']['firstNames'])];
+            $previous = $profiles[count($profiles) - 1]['firstName'];
+            if ($first === $previous) {
+                $first = $seed['brazil']['firstNames'][($index + 1) % count($seed['brazil']['firstNames'])];
+            }
+            $last = $seed['brazil']['lastNames'][$index];
+            $city = $seed['brazil']['cities'][$index % count($seed['brazil']['cities'])];
+            $add($first . ' ' . $last, 'Brazil', '🇧🇷', $city . ', Brasil');
+            continue;
+        }
+        $index = $internationalIndex++;
+        $region = $seed['regions'][$index % count($seed['regions'])];
+        $positionInRegion = intdiv($index, count($seed['regions']));
+        $first = $region['firstNames'][$positionInRegion % count($region['firstNames'])];
+        $lastIndex = ($positionInRegion % count($region['firstNames']) +
+            intdiv($positionInRegion, count($region['firstNames']))) % count($region['lastNames']);
+        $last = $region['lastNames'][$lastIndex];
+        $places = array_merge([$region['capital']], $region['cities']);
+        $location = $places[$positionInRegion % count($places)] . ', ' . $region['country'];
+        $add($first . ' ' . $last, $region['country'], $region['flag'], $location);
+    }
+    if (count($profiles) !== 200 || $brazilianIndex !== 60 || $internationalIndex !== 130 ||
+        count(array_unique(array_column($profiles, 'name'))) !== 200) {
+        throw new RuntimeException('Top Miners must provide exactly 200 unique profiles');
+    }
+    return $profiles;
 }
 
-/** Reserve a never-before-shown first and last name for this member. */
+/** Randomly draw each profile once per cycle for this member. */
 function claim_demo_new_investor(PDO $db, int $userId): ?array {
     if($userId<=0)return null;
     $profiles=demo_new_investor_profiles();
     return atomic($db,static function()use($db,$userId,$profiles):?array {
-        $seen=query_all($db,'SELECT first_name,last_name
-            FROM demo_new_investor_impressions WHERE user_id=?',[$userId]);
-        $usedFirst=[];$usedLast=[];
-        foreach($seen as $row) {
-            $usedFirst[(string)$row['first_name']]=true;
-            $usedLast[(string)$row['last_name']]=true;
+        $latest=query_one($db,'SELECT MAX(cycle_index) AS cycle_index
+            FROM demo_new_investor_cycle_impressions WHERE user_id=?',[$userId]);
+        $cycle=max(1,(int)($latest['cycle_index']??0));
+        $seen=query_all($db,'SELECT profile_index FROM demo_new_investor_cycle_impressions
+            WHERE user_id=? AND cycle_index=?',[$userId,$cycle]);
+        $used=[];
+        foreach($seen as $row) $used[(int)$row['profile_index']]=true;
+        $available=[];
+        foreach($profiles as $index=>$candidate) if(!isset($used[$index])) $available[$index]=$candidate;
+        if(!$available) {
+            $cycle++;
+            $available=$profiles;
         }
-        $available=array_values(array_filter($profiles,static fn(array $profile):bool=>
-            !isset($usedFirst[$profile['firstName']])&&!isset($usedLast[$profile['lastName']])));
-        if(!$available)return null;
-        $profile=$available[random_int(0,count($available)-1)];
-        execute_sql($db,'INSERT INTO demo_new_investor_impressions
-            (user_id,first_name,last_name,shown_at) VALUES (?,?,?,?)',
-            [$userId,$profile['firstName'],$profile['lastName'],now()]);
+        $indices=array_keys($available);
+        $profileIndex=$indices[random_int(0,count($indices)-1)];
+        $profile=$available[$profileIndex];
+        execute_sql($db,'INSERT INTO demo_new_investor_cycle_impressions
+            (user_id,cycle_index,profile_index,first_name,last_name,shown_at) VALUES (?,?,?,?,?,?)',
+            [$userId,$cycle,$profileIndex,$profile['firstName'],$profile['lastName'],now()]);
         return [
           'flag'=>$profile['flag'],
-          'name'=>$profile['firstName'].' '.$profile['lastName'],
-          'city'=>$profile['city'],
-          'state'=>$profile['state'],
+          'name'=>$profile['name'],
+          'location'=>$profile['location'],
         ];
     });
 }

@@ -25,8 +25,8 @@ The rotating payment-feed preview must run only while mockup mode is active. In 
 
 ## New-investor toast history
 
-Fictional investor names must not repeat a first or last name for the same authenticated member, including across logins and devices. Save each appearance per member and stop showing the toast when that member has exhausted all eligible profiles; never reset the history to make old names available again.
+Fictional investor toasts use the same 200 profiles as Top Miners. Randomly select each complete profile once per member within a cycle, persist cycle history across logins and devices, then reshuffle all 200 for the next cycle. First names and surnames may recur in different full profiles or later cycles.
 
-**Why:** The user explicitly requires that first and last names never repeat for the same logged-in user.
+**Why:** The user requested that toast names match Top Miners and chose to reshuffle and repeat the 200-profile pool after each complete cycle.
 
-**How to apply:** Keep name history in durable server storage keyed by member ID. Filter out any profile whose first or last name has already appeared for that member, and keep all fictional investor toasts clearly labeled as simulation and unavailable in legitimate-copy mode.
+**How to apply:** Keep cycle and profile history in durable server storage keyed by member ID. Prevent the same complete profile from appearing twice in one 200-toast cycle, but allow first names, surnames, and complete profiles to recur after reshuffling. Keep fictional investor toasts clearly labeled as simulation and unavailable in legitimate-copy mode.

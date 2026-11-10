@@ -294,6 +294,17 @@ function ensure_member_features(PDO $db): void {
       PRIMARY KEY(user_id,first_name),
       UNIQUE(user_id,last_name)
     )");
+    $db->exec("CREATE TABLE IF NOT EXISTS demo_new_investor_cycle_impressions (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      cycle_index INTEGER NOT NULL CHECK(cycle_index > 0),
+      profile_index INTEGER NOT NULL CHECK(profile_index BETWEEN 0 AND 199),
+      first_name TEXT NOT NULL,
+      last_name TEXT NOT NULL,
+      shown_at INTEGER NOT NULL,
+      PRIMARY KEY(user_id,cycle_index,profile_index)
+    )");
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_demo_new_investor_cycle
+      ON demo_new_investor_cycle_impressions(user_id,cycle_index)');
     $db->exec('INSERT OR IGNORE INTO app_settings(name,value) VALUES ("payment_mode","simulation")');
 
 }
