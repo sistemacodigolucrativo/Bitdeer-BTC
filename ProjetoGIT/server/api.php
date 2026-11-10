@@ -769,20 +769,16 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $requests=history_rows($db,(int)$actor['id'],'withdrawal');
         // Test-only display records: no database write and no balance impact.
         if((string)$actor['login']==='user') {
-            $fixture=query_one($db,'SELECT value FROM app_settings WHERE name="demo_marcelo_seed"');
-            $metadata=json_decode($fixture['value']??'{}',true);
-            $member=query_one($db,'SELECT created_at FROM users WHERE id=?',[(int)$actor['id']]);
-            $base=(int)(($metadata['userId']??null)===(int)$actor['id']
-                ? ($metadata['seededAt']??$member['created_at']) : $member['created_at']);
+            $timelineAnchor=time();
             $requests=array_merge($requests,[
-              ['id'=>'D-104','simulation'=>true,'plan_id'=>'VIP_01','status'=>'failed','reason'=>'Endereço de recebimento inválido.','created_at'=>$base-86400*118,'usd_cents'=>7425,'btc_satoshis'=>112300],
-              ['id'=>'D-105','simulation'=>true,'plan_id'=>'VIP_01','status'=>'approved','created_at'=>$base-86400*116,'usd_cents'=>7425,'btc_satoshis'=>112300],
-              ['id'=>'D-106','simulation'=>true,'plan_id'=>'VIP_02','status'=>'failed','reason'=>'Dados de solicitação inconsistentes.','created_at'=>$base-86400*80,'usd_cents'=>11840,'btc_satoshis'=>179500],
-              ['id'=>'D-107','simulation'=>true,'plan_id'=>'VIP_02','status'=>'approved','created_at'=>$base-86400*78,'usd_cents'=>11840,'btc_satoshis'=>179500],
-              ['id'=>'D-108','simulation'=>true,'plan_id'=>'VIP_03','status'=>'failed','reason'=>'Falha temporária no processamento.','created_at'=>$base-86400*42,'usd_cents'=>15320,'btc_satoshis'=>232400],
-              ['id'=>'D-109','simulation'=>true,'plan_id'=>'VIP_03','status'=>'approved','created_at'=>$base-86400*40,'usd_cents'=>15320,'btc_satoshis'=>232400],
+              ['id'=>'D-104','simulation'=>true,'plan_id'=>'VIP_01','status'=>'failed','reason'=>'Endereço de recebimento inválido.','created_at'=>$timelineAnchor-86400*118,'usd_cents'=>7425,'btc_satoshis'=>112300],
+              ['id'=>'D-105','simulation'=>true,'plan_id'=>'VIP_01','status'=>'approved','created_at'=>$timelineAnchor-86400*116,'usd_cents'=>7425,'btc_satoshis'=>112300],
+              ['id'=>'D-106','simulation'=>true,'plan_id'=>'VIP_02','status'=>'failed','reason'=>'Dados de solicitação inconsistentes.','created_at'=>$timelineAnchor-86400*80,'usd_cents'=>11840,'btc_satoshis'=>179500],
+              ['id'=>'D-107','simulation'=>true,'plan_id'=>'VIP_02','status'=>'approved','created_at'=>$timelineAnchor-86400*78,'usd_cents'=>11840,'btc_satoshis'=>179500],
+              ['id'=>'D-108','simulation'=>true,'plan_id'=>'VIP_03','status'=>'failed','reason'=>'Falha temporária no processamento.','created_at'=>$timelineAnchor-86400*42,'usd_cents'=>15320,'btc_satoshis'=>232400],
+              ['id'=>'D-109','simulation'=>true,'plan_id'=>'VIP_03','status'=>'approved','created_at'=>$timelineAnchor-86400*40,'usd_cents'=>15320,'btc_satoshis'=>232400],
             ]);
-            $requests=demo_withdrawal_timeline($requests,$base);
+            $requests=demo_withdrawal_timeline($requests,$timelineAnchor);
         }
         json_out(['requests'=>$requests,
                   'simulation'=>true]);
