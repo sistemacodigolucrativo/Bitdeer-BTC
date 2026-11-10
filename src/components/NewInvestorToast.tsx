@@ -18,7 +18,8 @@ const labels: Record<LanguageCode, {title:string;event:string}> = {
 const randomDelay=()=>30000+Math.floor(Math.random()*90001);
 
 export const NewInvestorToast: React.FC<{language:LanguageCode;userId:number}> = ({language,userId}) => {
-  const {copy,mockupMode}=useProjectCopy(language);
+  const {copy,mockupMode,legitPreviewActive}=useProjectCopy(language);
+  const canShowToast=mockupMode||legitPreviewActive;
   const [enabled,setEnabled]=useState(false);
   const [current,setCurrent]=useState<DemoInvestor|null>(null);
   const [leaving,setLeaving]=useState(false);
@@ -26,7 +27,7 @@ export const NewInvestorToast: React.FC<{language:LanguageCode;userId:number}> =
   useEffect(()=>{
     let disposed=false;
     const check=()=>{
-      if(!mockupMode){
+      if(!canShowToast){
         setEnabled(false);
         setCurrent(null);
         return;
@@ -40,12 +41,12 @@ export const NewInvestorToast: React.FC<{language:LanguageCode;userId:number}> =
     const onVisible=()=>{if(document.visibilityState==='visible')check();};
     document.addEventListener('visibilitychange',onVisible);
     return ()=>{disposed=true;window.clearInterval(polling);document.removeEventListener('visibilitychange',onVisible);};
-  },[mockupMode,userId]);
+  },[canShowToast,userId]);
 
   useEffect(()=>{
     setCurrent(null);
     setLeaving(false);
-    if(!enabled||!mockupMode)return;
+    if(!enabled||!canShowToast)return;
     let stopped=false;
     let nextTimer:number|undefined;
     let leaveTimer:number|undefined;
@@ -70,16 +71,16 @@ export const NewInvestorToast: React.FC<{language:LanguageCode;userId:number}> =
         if(!stopped)nextTimer=window.setTimeout(()=>void show(),15000);
       }
     };
-    nextTimer=window.setTimeout(()=>void show(),randomDelay());
+    nextTimer=window.setTimeout(()=>void show(),legitPreviewActive?1000:randomDelay());
     return ()=>{
       stopped=true;
       if(nextTimer!==undefined)window.clearTimeout(nextTimer);
       if(leaveTimer!==undefined)window.clearTimeout(leaveTimer);
       if(clearTimer!==undefined)window.clearTimeout(clearTimer);
     };
-  },[enabled,mockupMode,userId]);
+  },[enabled,canShowToast,legitPreviewActive,userId]);
 
-  if(!mockupMode||!enabled||!current)return null;
+  if(!canShowToast||!enabled||!current)return null;
   const t=labels[language]??labels.pt;
   return <div data-testid="demo-new-investor-toast" role="status" aria-live="polite"
     className="pointer-events-none absolute inset-x-0 z-40 px-3 sm:px-5"
@@ -91,7 +92,7 @@ export const NewInvestorToast: React.FC<{language:LanguageCode;userId:number}> =
           <p className="text-sm font-extrabold tracking-tight">{t.title}</p>
           <p className="break-words text-xs font-semibold leading-relaxed">{current.flag} {current.name} - {current.location}</p>
           <p className="text-xs text-rose-200">❤️ {t.event}</p>
-          <p className="text-[10px] text-slate-300">{copy('investorToastDemoLabel')}</p>
+          {mockupMode&&<p className="text-[10px] text-slate-300">{copy('investorToastDemoLabel')}</p>}
         </div>
       </div>
     </div>

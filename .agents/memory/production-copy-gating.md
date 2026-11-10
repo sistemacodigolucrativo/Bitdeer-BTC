@@ -25,8 +25,8 @@ The rotating payment-feed preview must run only while mockup mode is active. In 
 
 ## New-investor toast history
 
-Fictional investor toasts use the same 200 profiles as Top Miners. Randomly select each complete profile once per member within a cycle, persist cycle history across logins and devices, then reshuffle all 200 for the next cycle. First names and surnames may recur in different full profiles or later cycles.
+Fictional investor toasts use the same 200 profiles as Top Miners. Randomly select each complete profile once per member within a cycle, persist cycle history across logins and devices, then reshuffle all 200 for the next cycle. First names and surnames may recur in different full profiles or later cycles. Show the toast in the time-limited, browser-local legitimate-copy preview without the simulation label; keep the simulation label in Mockup and do not show fictional signup claims in public production mode.
 
-**Why:** The user requested that toast names match Top Miners and chose to reshuffle and repeat the 200-profile pool after each complete cycle.
+**Why:** The user requested the toast preview in legitimate copy without a simulation label, while production still lacks verified signup events.
 
-**How to apply:** Keep cycle and profile history in durable server storage keyed by member ID. Prevent the same complete profile from appearing twice in one 200-toast cycle, but allow first names, surnames, and complete profiles to recur after reshuffling. Keep fictional investor toasts clearly labeled as simulation and unavailable in legitimate-copy mode.
+**How to apply:** Keep cycle and profile history in durable server storage keyed by member ID. Prevent the same complete profile from appearing twice in one 200-toast cycle, but allow first names, surnames, and complete profiles to recur after reshuffling. Render without the demo label only while the local timed legitimate-copy preview is active; require verified signup data before showing these as real events in production.
