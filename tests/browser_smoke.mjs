@@ -18,6 +18,27 @@ try {
   await firstPage.getByTestId('stay-connected-dialog')
     .getByRole('button',{name:'Sim, permanecer conectado'}).click();
   await firstPage.getByText('Visão geral').first().waitFor({timeout:15000});
+  await firstPage.getByRole('button',{name:/Menu/}).click();
+  await firstPage.getByRole('navigation',{name:'Navegação administrativa'})
+    .getByRole('button',{name:'Configurações'}).click();
+  const previewForm=firstPage.getByTestId('admin-legit-copy-preview-form');
+  const previewDays=firstPage.getByTestId('admin-legit-copy-preview-days');
+  await previewDays.fill('5');
+  await firstPage.getByTestId('admin-legit-copy-preview-start').click();
+  await firstPage.getByTestId('admin-legit-copy-countdown').waitFor({timeout:5000});
+  if(await previewForm.count()!==1)
+    throw Error('The preview duration form must remain available while the preview is active');
+  await previewDays.fill('9');
+  await firstPage.getByRole('button',{name:'Aplicar nova duração'}).click();
+  const updatedPreviewUntil=Number(await firstPage.evaluate(
+    ()=>localStorage.getItem('bitdeer-legit-copy-preview-until')));
+  if(updatedPreviewUntil<Date.now()+8*86400000)
+    throw Error('The active preview duration was not updated');
+  await previewDays.fill('0');
+  await firstPage.getByRole('button',{name:'Aplicar nova duração'}).click();
+  if(await firstPage.evaluate(()=>document.documentElement.dataset.projectCopyMode)!=='mockup' ||
+     await firstPage.evaluate(()=>localStorage.getItem('bitdeer-legit-copy-preview-until'))!==null)
+    throw Error('Entering 0 must end the legitimate-copy preview and restore Mockup');
   await first.close();
   const ctx=await browser.newContext({viewport:{width:390,height:844},baseURL:base});
   const registration=await ctx.request.post('/api/index.php?action=register',{
@@ -58,19 +79,50 @@ try {
   await screen.locator('input[autocomplete="username"]').fill('browsermember');
   await screen.locator('input[autocomplete="current-password"]').fill('BrowserMemberPassword2026');
   await screen.locator('button[type="submit"]').click();
+  await enter.waitFor({timeout:15000});
+  await enter.click({timeout:15000});
+  await screen.getByTestId('member-bottom-nav').waitFor({timeout:15000});
+  if(await screen.getByTestId('stay-connected-dialog').count())
+    throw Error('The saved choice for the same account must be reused without asking again');
+  const savedMemberPreference=JSON.parse(await screen.evaluate(
+    ()=>localStorage.getItem('bitdeer:stay-connected')));
+  if(savedMemberPreference.login!=='browsermember'||savedMemberPreference.stayConnected!==false)
+    throw Error('The session preference must be saved locally for the selected account');
+  await screen.getByTestId('member-bottom-nav').locator('button').nth(4).click();
+  await screen.getByTestId('settings-exit').click();
+  await screen.locator('input[autocomplete="username"]').fill('browseradmin');
+  await screen.locator('input[autocomplete="current-password"]').fill('BrowserAdminPassword2026');
+  await screen.locator('button[type="submit"]').click();
   await screen.getByTestId('stay-connected-dialog').waitFor({timeout:10000});
-  if(!(await screen.getByTestId('stay-connected-dialog').innerText()).includes('Última escolha neste dispositivo: Apenas nesta sessão'))
-    throw Error('The selected session preference must be saved on this device');
   await screen.getByTestId('stay-connected-dialog')
     .getByRole('button',{name:'Sim, permanecer conectado'}).click();
-  await enter.waitFor({timeout:15000});
-  if(await screen.evaluate(()=>localStorage.getItem('bitdeer:stay-connected'))!=='true')
-    throw Error('The persistent session preference was not saved locally');
+  await screen.getByText('Visão geral').first().waitFor({timeout:15000});
+  const savedAdminPreference=JSON.parse(await screen.evaluate(
+    ()=>localStorage.getItem('bitdeer:stay-connected')));
+  if(savedAdminPreference.login!=='browseradmin'||savedAdminPreference.stayConnected!==true)
+    throw Error('Switching accounts must ask again and save the new account choice');
   const persistentCookie=(await device.cookies(base)).find(cookie=>cookie.name==='bitdeer_session');
   if(!persistentCookie||!persistentCookie.httpOnly||persistentCookie.expires<Date.now()/1000+29*86400)
     throw Error('Opting in must create a secure persistent session cookie');
-  if(await screen.getByRole('button',{name:'Português'}).count())
-    throw Error('Language picker was repeated after previously saving the language');
+  await screen.getByRole('button',{name:/Menu/}).click();
+  await screen.getByRole('navigation',{name:'Navegação administrativa'}).getByRole('button',{name:'Sair'}).click();
+  await screen.locator('input[autocomplete="username"]').fill('browsermember');
+  await screen.locator('input[autocomplete="current-password"]').fill('BrowserMemberPassword2026');
+  await screen.locator('button[type="submit"]').click();
+  await screen.getByTestId('stay-connected-dialog').waitFor({timeout:10000});
+  await screen.getByTestId('stay-connected-dialog')
+    .getByRole('button',{name:'Não, apenas nesta sessão'}).click();
+  await enter.waitFor({timeout:15000});
+  await enter.click({timeout:15000});
+  await screen.getByTestId('member-bottom-nav').waitFor({timeout:15000});
+  await screen.getByTestId('member-bottom-nav').locator('button').nth(4).click();
+  await screen.getByTestId('settings-exit').click();
+  await screen.locator('input[autocomplete="username"]').fill('browsermember');
+  await screen.locator('input[autocomplete="current-password"]').fill('BrowserMemberPassword2026');
+  await screen.locator('button[type="submit"]').click();
+  if(await screen.getByTestId('stay-connected-dialog').count())
+    throw Error('The latest choice must be reused after the other account choice was replaced');
+  await enter.waitFor({timeout:15000});
   await enter.click({timeout:15000});
   await screen.getByTestId('member-bottom-nav').waitFor({timeout:15000});
   await device.close();

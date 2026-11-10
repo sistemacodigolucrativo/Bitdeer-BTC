@@ -7,10 +7,20 @@ import { AuthUser, login as backendLogin, register as backendRegister } from '..
 
 const SESSION_PREFERENCE_KEY = 'bitdeer:stay-connected';
 
-function getSavedSessionPreference(): boolean | null {
+type SavedSessionPreference = { login: string; stayConnected: boolean };
+
+function normalizeLogin(login: string): string {
+  return login.trim().toLowerCase();
+}
+
+function getSavedSessionPreference(): SavedSessionPreference | null {
   try {
     const saved = window.localStorage.getItem(SESSION_PREFERENCE_KEY);
-    return saved === 'true' ? true : saved === 'false' ? false : null;
+    if (!saved) return null;
+    const parsed = JSON.parse(saved) as Partial<SavedSessionPreference>;
+    if (typeof parsed.login !== 'string' || typeof parsed.stayConnected !== 'boolean') return null;
+    const login = normalizeLogin(parsed.login);
+    return login ? { login, stayConnected: parsed.stayConnected } : null;
   } catch {
     return null;
   }
@@ -32,27 +42,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     description: 'Choose whether this device keeps your session. If you agree, it lasts up to 30 days. Otherwise, it ends when you close the browser or after 12 hours.',
     stay: 'Yes, stay signed in',
     temporary: 'No, only this session',
-    previous: 'Last choice on this device:',
-    yes: 'Stay signed in',
-    no: 'Only this session',
     back: 'Go back',
   } : language === 'es' ? {
     title: '¿Mantener la sesión iniciada?',
     description: 'Elija si este dispositivo conserva su sesión. Si acepta, dura hasta 30 días. Si no, termina al cerrar el navegador o después de 12 horas.',
     stay: 'Sí, mantener la sesión',
     temporary: 'No, solo esta sesión',
-    previous: 'Última opción en este dispositivo:',
-    yes: 'Mantener la sesión',
-    no: 'Solo esta sesión',
     back: 'Volver',
   } : {
     title: 'Permanecer conectado?',
     description: 'Escolha se este dispositivo deve manter sua sessão. Se aceitar, ela dura até 30 dias. Se recusar, termina ao fechar o navegador ou após 12 horas.',
     stay: 'Sim, permanecer conectado',
     temporary: 'Não, apenas nesta sessão',
-    previous: 'Última escolha neste dispositivo:',
-    yes: 'Permanecer conectado',
-    no: 'Apenas nesta sessão',
     back: 'Voltar',
   };
   const [loginInput, setLoginInput] = useState('');
@@ -66,19 +67,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionPromptOpen, setSessionPromptOpen] = useState(false);
-  const [lastSessionPreference, setLastSessionPreference] = useState(getSavedSessionPreference);
+  const [savedSessionPreference, setSavedSessionPreference] = useState(getSavedSessionPreference);
 
   const completeLogin = async (stayConnected: boolean) => {
     setErrorMessage('');
     setIsLoading(true);
     try {
-      window.localStorage.setItem(SESSION_PREFERENCE_KEY, String(stayConnected));
-      setLastSessionPreference(stayConnected);
-    } catch {
-      // The secure server session still works when local storage is unavailable.
-    }
-    try {
       const user = await backendLogin(loginInput.trim(), passwordInput, stayConnected);
+      const preference = { login: normalizeLogin(user.login), stayConnected };
+      setSavedSessionPreference(preference);
+      try {
+        window.localStorage.setItem(SESSION_PREFERENCE_KEY, JSON.stringify(preference));
+      } catch {
+        // The secure server session still works when local storage is unavailable.
+      }
       setSessionPromptOpen(false);
       onLoginSuccess(user);
     } catch (e) {
@@ -93,6 +95,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     e.preventDefault();
     setErrorMessage('');
     if (!registerMode) {
+      const savedPreference = getSavedSessionPreference() ?? savedSessionPreference;
+      if (savedPreference?.login === normalizeLogin(loginInput)) {
+        void completeLogin(savedPreference.stayConnected);
+        return;
+      }
       setSessionPromptOpen(true);
       return;
     }
@@ -264,9 +271,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           <section className="w-full max-w-sm rounded-2xl border border-indigo-400/30 bg-[#171b2d] p-5 shadow-2xl">
             <h3 id="stay-connected-title" className="text-base font-extrabold text-white">{sessionCopy.title}</h3>
             <p className="mt-2 text-xs leading-relaxed text-slate-300">{sessionCopy.description}</p>
-            {lastSessionPreference !== null && <p className="mt-3 text-[11px] text-slate-400">
-              {sessionCopy.previous} {lastSessionPreference ? sessionCopy.yes : sessionCopy.no}
-            </p>}
             <div className="mt-4 grid gap-2">
               <button type="button" disabled={isLoading} onClick={()=>void completeLogin(true)}
                 className="min-h-11 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-60">

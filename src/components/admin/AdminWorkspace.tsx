@@ -497,34 +497,37 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
             <h2 className="font-semibold">{copy('adminPreviewTitle')}</h2>
             <p className="text-xs text-slate-300">{copy('adminPreviewDescription')}</p>
           </div>
-          {legitPreviewActive
-            ? <p className="text-sm text-amber-200" role="timer">
-                {copy('adminPreviewCountdownLabel')}{' '}
-                <strong data-testid="admin-legit-copy-countdown">{previewCountdown}</strong>
-              </p>
-            : <form data-testid="admin-legit-copy-preview-form" className="space-y-3"
-                onSubmit={e=>{
-                  e.preventDefault();
-                  const days=Number(previewDays);
-                  if(!Number.isInteger(days)||days<MOCKUP_PREVIEW_MIN_DAYS||days>MOCKUP_PREVIEW_MAX_DAYS){
-                    setNotice(copy('adminPreviewDurationError'));
-                    return;
-                  }
-                  if(!startLegitPreview(days))setNotice(copy('adminPreviewStorageError'));
-                }}>
-                <label htmlFor="admin-legit-copy-preview-days" className="block text-sm">
-                  {copy('adminPreviewDurationLabel')}
-                  <input id="admin-legit-copy-preview-days" data-testid="admin-legit-copy-preview-days"
-                    type="number" min={MOCKUP_PREVIEW_MIN_DAYS} max={MOCKUP_PREVIEW_MAX_DAYS}
-                    step={1} required value={previewDays}
-                    onChange={e=>setPreviewDays(e.target.value)}
-                    className="mt-2 block w-full rounded-xl border border-[#333a57] bg-[#101629] p-3"/>
-                </label>
-                <p className="text-xs text-slate-400">{copy('adminPreviewDurationHint')}</p>
-                <button type="submit" className={btn} data-testid="admin-legit-copy-preview-start">
-                  {copy('adminPreviewStart')}
-                </button>
-              </form>}
+          {legitPreviewActive && <p className="text-sm text-amber-200" role="timer">
+            {copy('adminPreviewCountdownLabel')}{' '}
+            <strong data-testid="admin-legit-copy-countdown">{previewCountdown}</strong>
+          </p>}
+          <form data-testid="admin-legit-copy-preview-form" className="space-y-3"
+            onSubmit={e=>{
+              e.preventDefault();
+              const days=Number(previewDays);
+              if(!Number.isInteger(days)||days<MOCKUP_PREVIEW_MIN_DAYS||days>MOCKUP_PREVIEW_MAX_DAYS){
+                setNotice(copy('adminPreviewDurationError'));
+                return;
+              }
+              if(!startLegitPreview(days)){
+                setNotice(copy('adminPreviewStorageError'));
+                return;
+              }
+              setNotice('');
+            }}>
+            <label htmlFor="admin-legit-copy-preview-days" className="block text-sm">
+              {copy('adminPreviewDurationLabel')}
+              <input id="admin-legit-copy-preview-days" data-testid="admin-legit-copy-preview-days"
+                type="number" min={MOCKUP_PREVIEW_MIN_DAYS} max={MOCKUP_PREVIEW_MAX_DAYS}
+                step={1} required value={previewDays}
+                onChange={e=>setPreviewDays(e.target.value)}
+                className="mt-2 block w-full rounded-xl border border-[#333a57] bg-[#101629] p-3"/>
+            </label>
+            <p className="text-xs text-slate-400">{copy('adminPreviewDurationHint')}</p>
+            <button type="submit" className={btn} data-testid="admin-legit-copy-preview-start">
+              {copy(legitPreviewActive?'adminPreviewUpdate':'adminPreviewStart')}
+            </button>
+          </form>
         </section>}
         <section data-testid="admin-demo-investors-settings"
           className="rounded-xl border border-[#374461] bg-[#1b2137] p-4 space-y-3">

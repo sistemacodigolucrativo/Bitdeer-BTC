@@ -158,9 +158,9 @@ export const legitimoCopy = {
     es: 'Vista previa temporal de textos legítimos'
   },
   adminPreviewDescription: {
-    pt: 'Só troca os textos neste navegador pelo período escolhido (de 1 a 365 dias). Depois, volta ao Mockup; os demais usuários não são afetados.',
-    en: 'Changes copy only in this browser for the chosen period (1–365 days). It then returns to Mockup; other users are unaffected.',
-    es: 'Solo cambia los textos en este navegador durante el período elegido (de 1 a 365 días). Luego vuelve a Mockup; los demás usuarios no se ven afectados.'
+    pt: 'Só troca os textos neste navegador pelo período escolhido (de 1 a 365 dias). Você pode redefinir a duração ou informar 0 para voltar ao Mockup.',
+    en: 'Changes copy only in this browser for the chosen period (1–365 days). Update the duration or enter 0 to return to Mockup.',
+    es: 'Solo cambia los textos en este navegador durante el período elegido (de 1 a 365 días). Cambia la duración o indica 0 para volver a Mockup.'
   },
   adminPreviewDurationLabel: {
     pt: 'Duração da prévia (dias)',
@@ -168,19 +168,24 @@ export const legitimoCopy = {
     es: 'Duración de la vista previa (días)'
   },
   adminPreviewDurationHint: {
-    pt: 'Escolha um número inteiro entre 1 e 365.',
-    en: 'Choose a whole number from 1 to 365.',
-    es: 'Elige un número entero entre 1 y 365.'
+    pt: 'Informe de 1 a 365 para ativar ou redefinir a prévia; 0 volta ao Mockup.',
+    en: 'Enter 1–365 to start or update the preview; 0 returns to Mockup.',
+    es: 'Indica de 1 a 365 para iniciar o actualizar la vista previa; 0 vuelve a Mockup.'
   },
   adminPreviewDurationError: {
-    pt: 'Informe um número inteiro de dias entre 1 e 365.',
-    en: 'Enter a whole number of days from 1 to 365.',
-    es: 'Introduce un número entero de días entre 1 y 365.'
+    pt: 'Informe um número inteiro de dias entre 0 e 365.',
+    en: 'Enter a whole number of days from 0 to 365.',
+    es: 'Introduce un número entero de días entre 0 y 365.'
   },
   adminPreviewStart: {
     pt: 'Ativar prévia temporária',
     en: 'Start temporary preview',
     es: 'Iniciar vista previa temporal'
+  },
+  adminPreviewUpdate: {
+    pt: 'Aplicar nova duração',
+    en: 'Apply new duration',
+    es: 'Aplicar nueva duración'
   },
   adminPreviewDaySingular: {
     pt: 'dia',
@@ -198,9 +203,9 @@ export const legitimoCopy = {
     es: 'Los textos legítimos están activos en este navegador. Vuelven a Mockup en:'
   },
   adminPreviewStorageError: {
-    pt: 'Não foi possível iniciar a prévia: o armazenamento deste navegador está indisponível.',
-    en: 'Could not start the preview: this browser’s storage is unavailable.',
-    es: 'No se pudo iniciar la vista previa: el almacenamiento de este navegador no está disponible.'
+    pt: 'Não foi possível atualizar a prévia: o armazenamento deste navegador está indisponível.',
+    en: 'Could not update the preview: this browser’s storage is unavailable.',
+    es: 'No se pudo actualizar la vista previa: el almacenamiento de este navegador no está disponible.'
   },
   adminMarceloTitle: {
     pt: 'Conta de produção · Marcelo',
