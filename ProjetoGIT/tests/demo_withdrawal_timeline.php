@@ -64,5 +64,9 @@ $december=(new DateTimeImmutable('2026-12-10',$zone))->getTimestamp();
 $novemberLatest=max(array_map(fn($row)=>(int)$row['created_at'],demo_withdrawal_timeline($input,$november)));
 $decemberLatest=max(array_map(fn($row)=>(int)$row['created_at'],demo_withdrawal_timeline($input,$december)));
 check($decemberLatest>$novemberLatest,'Timeline did not advance with the calendar month');
+check((new DateTimeImmutable('@'.$novemberLatest))->setTimezone($zone)->format('Y-m')==='2026-09',
+    'November should place the latest demo withdrawal in September');
+check((new DateTimeImmutable('@'.$decemberLatest))->setTimezone($zone)->format('Y-m')==='2026-10',
+    'December should place the latest demo withdrawal in October');
 check(demo_withdrawal_timeline([],time())===[],'Empty history');
 echo "PASS: 68 demo requests, 20 months, seven pages, cutoff enforced, values preserved, dates advance automatically\n";

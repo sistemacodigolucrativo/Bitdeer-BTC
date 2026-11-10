@@ -214,8 +214,28 @@ export const MemberWorkspace: React.FC<{
     };
   },[]);
   useEffect(()=>{
-    if(page==='wallet')void api<{requests:WithdrawRequest[]}>('withdraw.mine')
-      .then(x=>setWithdrawHistory(x.requests)).catch(()=>{});
+    if(page==='wallet') {
+      let stopped=false;
+      let pending=false;
+      const load=async()=>{
+        if(stopped||pending||document.visibilityState==='hidden')return;
+        pending=true;
+        try{
+          const result=await api<{requests:WithdrawRequest[]}>('withdraw.mine');
+          if(!stopped)setWithdrawHistory(result.requests);
+        }catch{}
+        finally{pending=false;}
+      };
+      void load();
+      const timer=window.setInterval(()=>void load(),60_000);
+      const onVisibility=()=>{if(document.visibilityState==='visible')void load();};
+      document.addEventListener('visibilitychange',onVisibility);
+      return ()=>{
+        stopped=true;
+        window.clearInterval(timer);
+        document.removeEventListener('visibilitychange',onVisibility);
+      };
+    }
     if(page==='store')void api<{orders:typeof purchaseHistory}>('orders.mine')
       .then(x=>setPurchaseHistory(x.orders)).catch(()=>{});
   },[page]);

@@ -53,7 +53,7 @@ export default defineConfig(() => {
       // Replit's .local/ contains transient agent files, not application sources.
       watch: process.env.DISABLE_HMR === 'true'
         ? null
-        : { ignored: ['**/.local/**'] },
+        : { ignored: ['**/.local/**', '**/.cache/**'] },
     },
   };
 });

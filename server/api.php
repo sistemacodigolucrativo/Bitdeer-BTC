@@ -899,7 +899,11 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         if($actor['role']!=='member')fail(403,'Acesso restrito ao membro');
         $requests=history_rows($db,(int)$actor['id'],'withdrawal');
         // Test-only display records: no database write and no balance impact.
-        if((string)$actor['login']==='user') {
+        $demoFixture=query_one($db,'SELECT value FROM app_settings WHERE name="demo_marcelo_seed"');
+        $demoMetadata=json_decode($demoFixture['value']??'{}',true);
+        $isDemoMember=(string)$actor['login']==='user' ||
+            (int)($demoMetadata['userId']??0)===(int)$actor['id'];
+        if($isDemoMember) {
             $timelineAnchor=time();
             $requests=array_merge($requests,[
               ['id'=>'D-104','simulation'=>true,'plan_id'=>'VIP_01','status'=>'failed','reason'=>'Endereço de recebimento inválido.','created_at'=>$timelineAnchor-86400*118,'usd_cents'=>7425,'btc_satoshis'=>112300],
