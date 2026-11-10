@@ -454,6 +454,29 @@ try {
   const scrolledBox=await bottomMenu.boundingBox();
   if(!navBox||!scrolledBox||Math.abs(navBox.y-scrolledBox.y)>2)
     throw Error('Fixed bottom navigation moved during vertical scroll');
+  await page.evaluate(()=>localStorage.setItem(
+    'bitdeer-legit-copy-preview-until',String(Date.now()+2*60*60*1000)));
+  await page.reload();
+  await page.getByTestId('member-bottom-nav').waitFor({timeout:15000});
+  await page.getByTestId('member-bottom-nav').locator('button').nth(4).click();
+  await page.getByTestId('settings-top-miners').click();
+  await page.getByText('James Hudson').waitFor({timeout:10000});
+  const legitimatePreviewCount=page.getByTestId('top-miners-demo-count');
+  await legitimatePreviewCount.waitFor({timeout:10000});
+  const legitimatePreviewText=await legitimatePreviewCount.innerText();
+  if(/simulad|simulated/i.test(legitimatePreviewText))
+    throw Error('Legitimate-copy preview must hide the mockup label');
+  if(await page.getByTestId('top-miners-demo-status').count())
+    throw Error('Legitimate-copy preview must hide the mockup status notice');
+  const legitimateOnlineCount=await page.getByTestId('miner-online-indicator').count();
+  if(legitimateOnlineCount<50||legitimateOnlineCount>142)
+    throw Error('Legitimate-copy preview must show the simulated online indicators');
+  const legitimateMinerCount=Number(legitimatePreviewText.replace(/\D/g,''));
+  if(legitimateMinerCount!==demoMinerCount)
+    throw Error('Miner counts should remain stable within the same browser session');
+  await page.evaluate(()=>localStorage.removeItem('bitdeer-legit-copy-preview-until'));
+  await page.reload();
+  await page.getByTestId('member-bottom-nav').waitFor({timeout:15000});
   await page.getByTestId('member-bottom-nav').locator('button').nth(4).click();
   await page.getByRole('button',{name:/Histórico VIP|Subscriptions|Suscripciones/}).click();
   await page.getByText(/Histórico de assinaturas|Subscription history|Historial de suscripciones/).first()

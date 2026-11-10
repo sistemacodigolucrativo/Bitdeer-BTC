@@ -161,12 +161,13 @@ const descriptions = {
 } as const;
 type Props={language:LanguageCode;onBack:()=>void;btcUsd?:number|null;quoteTime?:number|null};
 export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd,quoteTime})=>{
-  const {copy,mockupMode}=useProjectCopy(language);
+  const {copy,mockupMode,legitPreviewActive}=useProjectCopy(language);
+  const showDemoMetrics=mockupMode||legitPreviewActive;
   const [demoMetrics,setDemoMetrics]=useState<DemoMetrics|null>(null);
   useEffect(()=>{
-    if(!mockupMode){setDemoMetrics(null);return;}
+    if(!showDemoMetrics){setDemoMetrics(null);return;}
     setDemoMetrics(loadDemoMetrics());
-  },[mockupMode]);
+  },[showDemoMetrics]);
   // The ranking is informational. A previously verified public quote is safe
   // for DISPLAY, even while the background refresh endpoint is unavailable.
   // Never use this fallback to authorize or calculate a withdrawal request.
@@ -182,11 +183,11 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd,quoteTime})=
         className="w-10 h-10 rounded-xl bg-[#1b2137] flex items-center justify-center"><ArrowLeft size={24}/></button>
       <div className="min-w-0 text-center">
         <h2 className="font-extrabold text-lg text-center">{language==='en'?'Top Miners':language==='es'?'Mejores mineros':'Top Mineradores'}</h2>
-        {mockupMode&&demoMetrics&&<p data-testid="top-miners-demo-count" className="mt-0.5 flex flex-wrap items-center justify-center gap-x-1 text-[9px] leading-tight text-slate-300">
+        {showDemoMetrics&&demoMetrics&&<p data-testid="top-miners-demo-count" className="mt-0.5 flex flex-wrap items-center justify-center gap-x-1 text-[9px] leading-tight text-slate-300">
           <span>{language==='en'?'Mining now:':language==='es'?'Minerando ahora:':'Minerando agora:'}</span>
           <span aria-hidden="true" className="text-emerald-400">●</span>
           <strong className="font-mono tabular-nums">{new Intl.NumberFormat(locale).format(demoMetrics.activeMiners)}</strong>
-          <span className="text-amber-300">({language==='en'?'simulated':language==='es'?'simulado':'simulado'})</span>
+          {mockupMode&&<span className="text-amber-300">({language==='en'?'simulated':language==='es'?'simulado':'simulado'})</span>}
         </p>}
       </div><span aria-hidden="true"/>
     </header>
@@ -201,7 +202,7 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd,quoteTime})=
         </p>}
       <div className="space-y-3" aria-label={copy('topMinersListLabel')}>
         {showcase.map((miner,index)=>{
-          const isOnline=mockupMode&&!!demoMetrics?.onlineIndices.includes(index);
+          const isOnline=showDemoMetrics&&!!demoMetrics?.onlineIndices.includes(index);
           return <article key={miner.name} data-testid="miner-card"
           className="miner-card bg-[#1c2238] border border-[#2a314d] rounded-2xl px-3.5 py-4 shadow-sm flex gap-2.5 items-center">
           <div className="min-w-0 flex-1">
