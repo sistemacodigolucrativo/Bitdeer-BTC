@@ -147,9 +147,9 @@ export const mockupCopy = {
     es: 'Modo Mockup'
   },
   adminModeLockedNote: {
-    pt: 'Alternador bloqueado; use a prévia temporária de 2 horas neste navegador.',
-    en: 'Toggle locked; use the temporary 2-hour preview in this browser.',
-    es: 'Alternador bloqueado; usa la vista previa temporal de 2 horas en este navegador.'
+    pt: 'Alternador bloqueado; escolha a duração da prévia temporária neste navegador.',
+    en: 'Toggle locked; choose how long the temporary preview runs in this browser.',
+    es: 'Alternador bloqueado; elige cuánto dura la vista previa temporal en este navegador.'
   },
   adminPreviewTitle: {
     pt: 'Prévia temporária dos textos legítimos',
@@ -157,14 +157,39 @@ export const mockupCopy = {
     es: 'Vista previa temporal de textos legítimos'
   },
   adminPreviewDescription: {
-    pt: 'Só troca os textos neste navegador por 2 horas. Depois, volta ao Mockup; os demais usuários não são afetados.',
-    en: 'Changes copy only in this browser for 2 hours. It then returns to Mockup; other users are unaffected.',
-    es: 'Solo cambia los textos en este navegador por 2 horas. Luego vuelve a Mockup; los demás usuarios no se ven afectados.'
+    pt: 'Só troca os textos neste navegador pelo período escolhido (de 1 a 365 dias). Depois, volta ao Mockup; os demais usuários não são afetados.',
+    en: 'Changes copy only in this browser for the chosen period (1–365 days). It then returns to Mockup; other users are unaffected.',
+    es: 'Solo cambia los textos en este navegador durante el período elegido (de 1 a 365 días). Luego vuelve a Mockup; los demás usuarios no se ven afectados.'
+  },
+  adminPreviewDurationLabel: {
+    pt: 'Duração da prévia (dias)',
+    en: 'Preview duration (days)',
+    es: 'Duración de la vista previa (días)'
+  },
+  adminPreviewDurationHint: {
+    pt: 'Escolha um número inteiro entre 1 e 365.',
+    en: 'Choose a whole number from 1 to 365.',
+    es: 'Elige un número entero entre 1 y 365.'
+  },
+  adminPreviewDurationError: {
+    pt: 'Informe um número inteiro de dias entre 1 e 365.',
+    en: 'Enter a whole number of days from 1 to 365.',
+    es: 'Introduce un número entero de días entre 1 y 365.'
   },
   adminPreviewStart: {
-    pt: 'Ver modo legítimo por 2 horas',
-    en: 'Preview legitimate copy for 2 hours',
-    es: 'Ver modo legítimo durante 2 horas'
+    pt: 'Ativar prévia temporária',
+    en: 'Start temporary preview',
+    es: 'Iniciar vista previa temporal'
+  },
+  adminPreviewDaySingular: {
+    pt: 'dia',
+    en: 'day',
+    es: 'día'
+  },
+  adminPreviewDayPlural: {
+    pt: 'dias',
+    en: 'days',
+    es: 'días'
   },
   adminPreviewCountdownLabel: {
     pt: 'Modo legítimo ativo neste navegador. Volta ao Mockup em:',

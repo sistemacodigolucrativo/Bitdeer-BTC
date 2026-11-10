@@ -4,7 +4,13 @@ import { AdminMemberRecords } from './AdminMemberRecords';
 import { copyToClipboard } from '../../utils/clipboard';
 import { LanguageCode } from '../../types';
 import { adminText, adminDateLocale, adminStatus } from '../../i18n/adminTexts';
-import { MOCKUP_LOCK, useLegitPreviewCountdown, useProjectCopy } from '../../i18n/copyMode';
+import {
+  MOCKUP_LOCK,
+  MOCKUP_PREVIEW_MAX_DAYS,
+  MOCKUP_PREVIEW_MIN_DAYS,
+  useLegitPreviewCountdown,
+  useProjectCopy,
+} from '../../i18n/copyMode';
 import { LogOut, RefreshCw, Users, CreditCard, Settings, LayoutDashboard, Headphones, Menu, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { AdminNotificationsBell } from './AdminNotificationsBell';
 import type { AdminOrderNotification } from './AdminNotificationsBell';
@@ -47,6 +53,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
   const [email,setEmail]=useState('');
   const [demoInvestorToastsEnabled,setDemoInvestorToastsEnabled]=useState(false);
   const [demoInvestorToastsReady,setDemoInvestorToastsReady]=useState(false);
+  const [previewDays,setPreviewDays]=useState('1');
   const [btcAddress,setBtcAddress]=useState('');
   const [btcConfirmed,setBtcConfirmed]=useState(false);
   const [paymentPassword,setPaymentPassword]=useState('');
@@ -209,11 +216,16 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
   </form>;
   const btn='rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 px-3 py-2 text-xs font-bold';
   const previewCountdown=(()=>{
-    const seconds=Math.ceil(previewRemainingMs/1000);
-    const hours=Math.floor(seconds/3600);
-    const minutes=Math.floor((seconds%3600)/60);
-    const remainingSeconds=seconds%60;
-    return [hours,minutes,remainingSeconds].map(value=>String(value).padStart(2,'0')).join(':');
+    const totalSeconds=Math.ceil(previewRemainingMs/1000);
+    const days=Math.floor(totalSeconds/86400);
+    const secondsInDay=totalSeconds%86400;
+    const hours=Math.floor(secondsInDay/3600);
+    const minutes=Math.floor((secondsInDay%3600)/60);
+    const remainingSeconds=secondsInDay%60;
+    const clock=[hours,minutes,remainingSeconds].map(value=>String(value).padStart(2,'0')).join(':');
+    if(days===0)return clock;
+    const dayUnit=copy(days===1?'adminPreviewDaySingular':'adminPreviewDayPlural');
+    return `${days} ${dayUnit} ${clock}`;
   })();
   return <div className="relative h-full w-full bg-[#121526] text-white flex flex-col overflow-hidden">
     {toast.message&&<SlimToast message={toast.message} language={language} onDismiss={toast.dismiss}/>}
@@ -490,12 +502,29 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
                 {copy('adminPreviewCountdownLabel')}{' '}
                 <strong data-testid="admin-legit-copy-countdown">{previewCountdown}</strong>
               </p>
-            : <button type="button" className={btn} data-testid="admin-legit-copy-preview-start"
-                onClick={()=>{
-                  if(!startLegitPreview())setNotice(copy('adminPreviewStorageError'));
+            : <form data-testid="admin-legit-copy-preview-form" className="space-y-3"
+                onSubmit={e=>{
+                  e.preventDefault();
+                  const days=Number(previewDays);
+                  if(!Number.isInteger(days)||days<MOCKUP_PREVIEW_MIN_DAYS||days>MOCKUP_PREVIEW_MAX_DAYS){
+                    setNotice(copy('adminPreviewDurationError'));
+                    return;
+                  }
+                  if(!startLegitPreview(days))setNotice(copy('adminPreviewStorageError'));
                 }}>
-                {copy('adminPreviewStart')}
-              </button>}
+                <label htmlFor="admin-legit-copy-preview-days" className="block text-sm">
+                  {copy('adminPreviewDurationLabel')}
+                  <input id="admin-legit-copy-preview-days" data-testid="admin-legit-copy-preview-days"
+                    type="number" min={MOCKUP_PREVIEW_MIN_DAYS} max={MOCKUP_PREVIEW_MAX_DAYS}
+                    step={1} required value={previewDays}
+                    onChange={e=>setPreviewDays(e.target.value)}
+                    className="mt-2 block w-full rounded-xl border border-[#333a57] bg-[#101629] p-3"/>
+                </label>
+                <p className="text-xs text-slate-400">{copy('adminPreviewDurationHint')}</p>
+                <button type="submit" className={btn} data-testid="admin-legit-copy-preview-start">
+                  {copy('adminPreviewStart')}
+                </button>
+              </form>}
         </section>}
         <section data-testid="admin-demo-investors-settings"
           className="rounded-xl border border-[#374461] bg-[#1b2137] p-4 space-y-3">

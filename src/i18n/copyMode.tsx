@@ -5,14 +5,16 @@ import { mockupCopy, ProjectCopyKey } from './mockup';
 
 // Keep the default lock until real backend data is verified; only the browser-local timer may preview legitimate copy.
 export const MOCKUP_LOCK = true;
-export const MOCKUP_PREVIEW_DURATION_MS = 2 * 60 * 60 * 1000;
+export const MOCKUP_PREVIEW_MIN_DAYS = 1;
+export const MOCKUP_PREVIEW_MAX_DAYS = 365;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const PREVIEW_STORAGE_KEY = 'bitdeer-legit-copy-preview-until';
 
 type CopyModeContextValue = {
   mockupMode: boolean;
   setMockupMode: (enabled: boolean) => void;
   legitPreviewActive: boolean;
-  startLegitPreview: () => boolean;
+  startLegitPreview: (days: number) => boolean;
 };
 
 const CopyModeContext = createContext<CopyModeContextValue | null>(null);
@@ -41,9 +43,12 @@ export const CopyModeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!MOCKUP_LOCK) setUnlockedMockupMode(enabled);
   }, []);
 
-  const startLegitPreview = useCallback(() => {
+  const startLegitPreview = useCallback((days: number) => {
     if (typeof window === 'undefined') return false;
-    const until = Date.now() + MOCKUP_PREVIEW_DURATION_MS;
+    if (!Number.isInteger(days) || days < MOCKUP_PREVIEW_MIN_DAYS || days > MOCKUP_PREVIEW_MAX_DAYS) {
+      return false;
+    }
+    const until = Date.now() + days * DAY_IN_MS;
     try {
       window.localStorage.setItem(PREVIEW_STORAGE_KEY, String(until));
     } catch {
