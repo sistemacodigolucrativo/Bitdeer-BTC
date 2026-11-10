@@ -316,6 +316,14 @@ CREATE TABLE IF NOT EXISTS mock_payment_cursor (
   user_id INTEGER PRIMARY KEY REFERENCES users(id),
   next_ordinal INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS demo_new_investor_impressions (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  shown_at INTEGER NOT NULL,
+  PRIMARY KEY(user_id,first_name),
+  UNIQUE(user_id,last_name)
+);
 CREATE TABLE IF NOT EXISTS identity_checks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   member_id INTEGER NOT NULL REFERENCES users(id),

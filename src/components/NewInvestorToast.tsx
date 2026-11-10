@@ -4,51 +4,21 @@ import { api } from '../services/api';
 import { useProjectCopy } from '../i18n/copyMode';
 
 type DemoInvestor = { flag: string; name: string; city: string; state: string };
-// Fictional, display-only profiles. The toast never reads the real members table.
-const profiles: DemoInvestor[] = [
-  {flag:'🇧🇷',name:'Mariana Azevedo',city:'Belford Roxo',state:'RJ'},
-  {flag:'🇧🇷',name:'Rafael Mendes',city:'Contagem',state:'MG'},
-  {flag:'🇧🇷',name:'Juliana Ribeiro',city:'Campinas',state:'SP'},
-  {flag:'🇧🇷',name:'Carlos Oliveira',city:'Feira de Santana',state:'BA'},
-  {flag:'🇧🇷',name:'Patrícia Nunes',city:'Curitiba',state:'PR'},
-  {flag:'🇦🇷',name:'Camila Fernández',city:'Córdoba',state:'CB'},
-  {flag:'🇨🇱',name:'Diego Rojas',city:'Santiago',state:'RM'},
-  {flag:'🇨🇴',name:'Valentina Gómez',city:'Medellín',state:'ANT'},
-  {flag:'🇵🇪',name:'Sofía Torres',city:'Lima',state:'LMA'},
-  {flag:'🇲🇽',name:'Luis Hernández',city:'Guadalajara',state:'JAL'},
-  {flag:'🇵🇹',name:'Inês Martins',city:'Porto',state:'Porto'},
-  {flag:'🇪🇸',name:'Lucía García',city:'Sevilla',state:'AN'},
-  {flag:'🇺🇸',name:'Olivia Parker',city:'Austin',state:'TX'},
-  {flag:'🇨🇦',name:'Emma Wilson',city:'Toronto',state:'ON'},
-  {flag:'🇫🇷',name:'Léa Bernard',city:'Lyon',state:'ARA'},
-  {flag:'🇩🇪',name:'Lukas Weber',city:'München',state:'BY'},
-  {flag:'🇮🇹',name:'Giulia Rossi',city:'Milano',state:'MI'},
-  {flag:'🇬🇧',name:'George Harris',city:'Manchester',state:'ENG'},
-  {flag:'🇯🇵',name:'Haruka Sato',city:'Osaka',state:'Osaka'},
-  {flag:'🇦🇺',name:'Mia Taylor',city:'Sydney',state:'NSW'},
-  {flag:'🇺🇾',name:'Martín Silva',city:'Montevideo',state:'MO'},
-  {flag:'🇵🇾',name:'Andrés Benítez',city:'Asunción',state:'ASU'},
-];
+type ClaimResponse = {
+  enabled: boolean;
+  simulation: boolean;
+  profile: DemoInvestor | null;
+  exhausted: boolean;
+};
 const labels: Record<LanguageCode, {title:string;event:string}> = {
   pt: {title:'Novos investidores',event:'Acabou de se cadastrar'},
   en: {title:'New investors',event:'Just signed up'},
   es: {title:'Nuevos inversores',event:'Acaba de registrarse'},
 };
-function shuffled(avoid?:DemoInvestor):DemoInvestor[] {
-  const list=[...profiles];
-  for(let i=list.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));
-    [list[i],list[j]]=[list[j],list[i]];
-  }
-  if(avoid && list[list.length-1]===avoid && list.length>1){
-    [list[0],list[list.length-1]]=[list[list.length-1],list[0]];
-  }
-  return list;
-}
 const randomDelay=()=>30000+Math.floor(Math.random()*90001);
 
-export const NewInvestorToast: React.FC<{language:LanguageCode}> = ({language}) => {
-  const {copy}=useProjectCopy(language);
+export const NewInvestorToast: React.FC<{language:LanguageCode;userId:number}> = ({language,userId}) => {
+  const {copy,mockupMode}=useProjectCopy(language);
   const [enabled,setEnabled]=useState(false);
   const [current,setCurrent]=useState<DemoInvestor|null>(null);
   const [leaving,setLeaving]=useState(false);
@@ -56,6 +26,11 @@ export const NewInvestorToast: React.FC<{language:LanguageCode}> = ({language}) 
   useEffect(()=>{
     let disposed=false;
     const check=()=>{
+      if(!mockupMode){
+        setEnabled(false);
+        setCurrent(null);
+        return;
+      }
       void api<{enabled:boolean;simulation:boolean}>('demo.new-investors.settings')
         .then(x=>{if(!disposed)setEnabled(x.enabled===true && x.simulation===true);})
         .catch(()=>{if(!disposed)setEnabled(false);});
@@ -65,44 +40,46 @@ export const NewInvestorToast: React.FC<{language:LanguageCode}> = ({language}) 
     const onVisible=()=>{if(document.visibilityState==='visible')check();};
     document.addEventListener('visibilitychange',onVisible);
     return ()=>{disposed=true;window.clearInterval(polling);document.removeEventListener('visibilitychange',onVisible);};
-  },[]);
+  },[mockupMode,userId]);
 
   useEffect(()=>{
     setCurrent(null);
     setLeaving(false);
-    if(!enabled)return;
+    if(!enabled||!mockupMode)return;
     let stopped=false;
     let nextTimer:number|undefined;
     let leaveTimer:number|undefined;
     let clearTimer:number|undefined;
-    let previous:DemoInvestor|undefined;
-    let remaining=shuffled();
-    const show=()=>{
+    const show=async()=>{
       if(stopped)return;
       if(document.visibilityState==='hidden'){
-        nextTimer=window.setTimeout(show,randomDelay());
+        nextTimer=window.setTimeout(()=>void show(),randomDelay());
         return;
       }
-      if(!remaining.length)remaining=shuffled(previous);
-      const profile=remaining.pop();
-      if(!profile)return;
-      previous=profile;
-      setCurrent(profile);
-      setLeaving(false);
-      leaveTimer=window.setTimeout(()=>setLeaving(true),5000);
-      clearTimer=window.setTimeout(()=>setCurrent(null),5700);
-      nextTimer=window.setTimeout(show,randomDelay());
+      try{
+        const result=await api<ClaimResponse>('demo.new-investors.claim',{});
+        if(stopped)return;
+        if(!result.enabled||!result.simulation)return;
+        if(!result.profile)return;
+        setCurrent(result.profile);
+        setLeaving(false);
+        leaveTimer=window.setTimeout(()=>setLeaving(true),5000);
+        clearTimer=window.setTimeout(()=>setCurrent(null),5700);
+        nextTimer=window.setTimeout(()=>void show(),randomDelay());
+      }catch{
+        if(!stopped)nextTimer=window.setTimeout(()=>void show(),15000);
+      }
     };
-    nextTimer=window.setTimeout(show,randomDelay());
+    nextTimer=window.setTimeout(()=>void show(),randomDelay());
     return ()=>{
       stopped=true;
       if(nextTimer!==undefined)window.clearTimeout(nextTimer);
       if(leaveTimer!==undefined)window.clearTimeout(leaveTimer);
       if(clearTimer!==undefined)window.clearTimeout(clearTimer);
     };
-  },[enabled]);
+  },[enabled,mockupMode,userId]);
 
-  if(!enabled || !current)return null;
+  if(!mockupMode||!enabled||!current)return null;
   const t=labels[language]??labels.pt;
   return <div data-testid="demo-new-investor-toast" role="status" aria-live="polite"
     className="pointer-events-none absolute inset-x-0 z-40 px-3 sm:px-5"

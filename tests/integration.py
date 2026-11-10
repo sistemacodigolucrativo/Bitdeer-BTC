@@ -181,10 +181,30 @@ assert alice.call("admin.demo.new-investors.settings",expected=403)["error"]
 assert alice.call("admin.demo.new-investors.settings",{"enabled":True},403)["error"]
 assert admin.call("admin.demo.new-investors.settings")=={"enabled":False,"simulation":True}
 assert alice.call("demo.new-investors.settings")=={"enabled":False,"simulation":True}
+assert alice.call("demo.new-investors.claim",{})=={
+  "enabled":False,"simulation":True,"profile":None,"exhausted":False}
 assert admin.call("admin.demo.new-investors.settings",{"enabled":"yes"},422)["error"]
 assert admin.call("admin.demo.new-investors.settings",{},422)["error"]
 assert admin.call("admin.demo.new-investors.settings",{"enabled":True})["enabled"] is True
 assert alice.call("demo.new-investors.settings")=={"enabled":True,"simulation":True}
+first_claim=alice.call("demo.new-investors.claim",{})
+assert first_claim["enabled"] is True and first_claim["simulation"] is True
+assert first_claim["profile"] is not None
+seen_first,seen_last=set(),set()
+first,last=first_claim["profile"]["name"].split(" ",1)
+seen_first.add(first);seen_last.add(last)
+# A separate login for the same account must continue the saved name history.
+toast_session=Client()
+toast_session.call("login",{"login":"alice","password":"longpassword123"})
+for _ in range(21):
+  response=toast_session.call("demo.new-investors.claim",{})
+  assert response["profile"] is not None
+  first,last=response["profile"]["name"].split(" ",1)
+  assert first not in seen_first and last not in seen_last
+  seen_first.add(first);seen_last.add(last)
+assert len(seen_first)==22 and len(seen_last)==22
+exhausted=toast_session.call("demo.new-investors.claim",{})
+assert exhausted=={"enabled":True,"simulation":True,"profile":None,"exhausted":True}
 assert admin.call("admin.demo.new-investors.settings")["enabled"] is True
 assert admin.call("admin.demo.new-investors.settings",{"enabled":False})["enabled"] is False
 assert alice.call("demo.new-investors.settings")["enabled"] is False

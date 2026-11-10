@@ -123,9 +123,9 @@ export const legitimoCopy = {
     es: 'Clasificación verificada de mineros'
   },
   investorToastDemoLabel: {
-    pt: 'Cadastro verificado em produção',
-    en: 'Production signup verified',
-    es: 'Registro verificado en producción'
+    pt: 'Simulação · dados fictícios',
+    en: 'Simulation · fictional data',
+    es: 'Simulación · datos ficticios'
   },
   settingsProjectLabel: {
     pt: 'Bitcoin Cloud Mining — mineração real',

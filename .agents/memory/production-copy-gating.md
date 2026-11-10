@@ -22,3 +22,11 @@ The rotating payment-feed preview must run only while mockup mode is active. In 
 **Why:** the payment API currently generates fictional `SIM-` examples; animating them as arrivals in legitimate copy could make them look like confirmed transfers.
 
 **How to apply:** Gate any timed insertion or rotation of mock payments on mockup mode. Do not replace this with a real-time claim until the backend supplies verified payment events.
+
+## New-investor toast history
+
+Fictional investor names must not repeat a first or last name for the same authenticated member, including across logins and devices. Save each appearance per member and stop showing the toast when that member has exhausted all eligible profiles; never reset the history to make old names available again.
+
+**Why:** The user explicitly requires that first and last names never repeat for the same logged-in user.
+
+**How to apply:** Keep name history in durable server storage keyed by member ID. Filter out any profile whose first or last name has already appeared for that member, and keep all fictional investor toasts clearly labeled as simulation and unavailable in legitimate-copy mode.

@@ -721,7 +721,7 @@ export const MemberWorkspace: React.FC<{
         </form>}
       </div>}
 
-    <NewInvestorToast language={language}/>
+    <NewInvestorToast language={language} userId={user.id}/>
     <nav data-testid="member-bottom-nav"
       className="w-full min-h-16 shrink-0 bg-[#101322] border-t border-[#1f253d] flex items-stretch justify-around gap-0.5 px-2 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] z-30 select-none"
       aria-label={language==='en'?'Primary navigation':language==='es'?'Navegación principal':'Navegação principal'}>

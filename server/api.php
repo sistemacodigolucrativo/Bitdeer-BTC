@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__.'/demo_identities.php';
 require_once __DIR__ . '/core.php';
+require_once __DIR__ . '/demo_new_investor_toast.php';
 require_once __DIR__ . '/quote.php';
 require_once __DIR__ . '/bitcoin.php';
 require_once __DIR__ . '/member_history.php';
@@ -285,6 +286,14 @@ function ensure_member_features(PDO $db): void {
       user_id INTEGER PRIMARY KEY REFERENCES users(id),
       next_ordinal INTEGER NOT NULL DEFAULT 0
     )");
+    $db->exec("CREATE TABLE IF NOT EXISTS demo_new_investor_impressions (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      first_name TEXT NOT NULL,
+      last_name TEXT NOT NULL,
+      shown_at INTEGER NOT NULL,
+      PRIMARY KEY(user_id,first_name),
+      UNIQUE(user_id,last_name)
+    )");
     $db->exec('INSERT OR IGNORE INTO app_settings(name,value) VALUES ("payment_mode","simulation")');
 
 }
@@ -322,6 +331,15 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         if ($actor['role'] !== 'member') fail(403,'Apenas membros');
         $row=query_one($db,'SELECT value FROM app_settings WHERE name=?',['demo_new_investors_enabled']);
         json_out(['enabled'=>($row['value']??'0')==='1','simulation'=>true]);
+    }
+    if ($action === 'demo.new-investors.claim' && $method === 'POST') {
+        $actor=require_post_csrf($db);
+        if ($actor['role'] !== 'member') fail(403,'Apenas membros');
+        $row=query_one($db,'SELECT value FROM app_settings WHERE name=?',['demo_new_investors_enabled']);
+        if(($row['value']??'0')!=='1')
+            json_out(['enabled'=>false,'simulation'=>true,'profile'=>null,'exhausted'=>false]);
+        $profile=claim_demo_new_investor($db,(int)$actor['id']);
+        json_out(['enabled'=>true,'simulation'=>true,'profile'=>$profile,'exhausted'=>$profile===null]);
     }
     if ($action === 'admin.demo.new-investors.settings' && $method === 'GET') {
         auth_user($db,true);
