@@ -28,20 +28,22 @@ function demo_withdrawal_timeline(array $requests, int $anchor): array {
         for($i=0;$i<$count-$months*3;$i++)$sizes[$i]++;
     }
     $zone=new DateTimeZone('America/Sao_Paulo');
-    // Complete months only; stable anchor is the fixture creation timestamp.
-    $month=(new DateTimeImmutable('@'.$anchor))->setTimezone($zone)
-        ->modify('first day of this month')->setTime(0,0)->modify('-'.$months.' months');
+    // Normalize to the current month so dates stay stable within each month.
+    $anchorMonth=(new DateTimeImmutable('@'.$anchor))->setTimezone($zone)
+        ->modify('first day of this month')->setTime(0,0);
+    // The newest demo month is exactly two full calendar months before the anchor.
+    $month=$anchorMonth->modify('-'.($months+1).' months');
     $usedTimes=[];$usedMinuteSeconds=[];$cursor=0;
     foreach($sizes as $size) {
         $monthKey=$month->format('Y-m');
         // Pseudorandom but stable: no new dates/times on refresh or pagination.
-        $hash=hash('sha256',$anchor.':'.$monthKey);
+        $hash=hash('sha256',$anchorMonth->getTimestamp().':'.$monthKey);
         $jitter=static fn(int $i):int=>(int)(hexdec(substr($hash,$i*2,2))%3);
         $days=$size===4?[2+$jitter(0),9+$jitter(1),17+$jitter(2),24+$jitter(3)]:
             [3+$jitter(0),14+$jitter(1),24+$jitter(2)];
         foreach(array_slice($days,0,$size) as $day) {
             $index=$fictional[$cursor++];
-            $seed=hash('sha256',$anchor.':'.(string)$requests[$index]['id'].':'.$monthKey);
+            $seed=hash('sha256',$anchorMonth->getTimestamp().':'.(string)$requests[$index]['id'].':'.$monthKey);
             $time=(int)(hexdec(substr($seed,0,8))%86400);
             while(isset($usedTimes[$time])||isset($usedMinuteSeconds[$time%3600]))$time=($time+1)%86400;
             $usedTimes[$time]=true;$usedMinuteSeconds[$time%3600]=true;

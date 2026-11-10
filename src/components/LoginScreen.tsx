@@ -37,6 +37,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 }) => {
   const t = translations[language].login;
   const { copy } = useProjectCopy(language);
+  const loginDisclaimer = copy('loginDisclaimer');
   const sessionCopy = language === 'en' ? {
     title: 'Stay signed in?',
     description: 'Choose whether this device keeps your session. If you agree, it lasts up to 30 days. Otherwise, it ends when you close the browser or after 12 hours.',
@@ -301,9 +302,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           <span className="hover:underline cursor-pointer">{t.privacy}</span>
         </div>
 
-        <p className="text-[10px] text-slate-500 leading-tight">
-          {copy('loginDisclaimer')}
-        </p>
+        {loginDisclaimer && <p className="text-[10px] text-slate-500 leading-tight">{loginDisclaimer}</p>}
       </footer>
     </div>
   );

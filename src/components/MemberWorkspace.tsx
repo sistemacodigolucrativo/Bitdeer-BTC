@@ -31,6 +31,30 @@ type PurchaseHistoryOrder = {
   expires_at?:number;can_pay?:boolean;native_order?:boolean;
   proof_url?:string|null;proof_submitted_at?:number|null;
 };
+const memberWalletStorageKey=(userId:number)=>`bitdeer:member-wallet:${userId}`;
+function readMemberWalletAddress(userId:number):string {
+  try {
+    return window.localStorage.getItem(memberWalletStorageKey(userId))?.trim()??'';
+  } catch {
+    return '';
+  }
+}
+function cacheMemberWalletAddress(userId:number,address:string):void {
+  try {
+    const key=memberWalletStorageKey(userId);
+    const value=address.trim();
+    if(value)window.localStorage.setItem(key,value);
+  } catch {
+    // The server profile remains authoritative if local storage is unavailable.
+  }
+}
+function removeMemberWalletAddress(userId:number):void {
+  try {
+    window.localStorage.removeItem(memberWalletStorageKey(userId));
+  } catch {
+    // The server profile remains authoritative if local storage is unavailable.
+  }
+}
 export const MemberWorkspace: React.FC<{
   user: AuthUser; language: LanguageCode; onLogout: () => void;
   onChangeLanguage: (lang:LanguageCode)=>void;
@@ -45,6 +69,7 @@ export const MemberWorkspace: React.FC<{
   const [balanceTick,setBalanceTick] = useState(Date.now());
   const [lastSnapshotReceivedAt,setLastSnapshotReceivedAt] = useState(Date.now());
   const acceptSnapshot=(data:MemberData)=>{
+    cacheMemberWalletAddress(data.user.id,data.profile.walletAddress);
     setLastSnapshotReceivedAt(Date.now());
     setAccount(data);
   };
@@ -89,6 +114,14 @@ export const MemberWorkspace: React.FC<{
   });
   const [walletStep,setWalletStep]=useState<'none'|'register'|'amount'>('none');
   const [walletPromptDismissed,setWalletPromptDismissed]=useState(false);
+  const walletOriginPage=useRef<Page>('home');
+  const navigateToPage=(target:Page)=>{
+    if(target==='wallet'&&page!=='wallet'){
+      walletOriginPage.current=page;
+      setWalletPromptDismissed(false);
+    }
+    setPage(target);
+  };
   const [walletDraft,setWalletDraft]=useState('');
   const [walletConfirmation,setWalletConfirmation]=useState(false);
   const [withdrawMode,setWithdrawMode]=useState<'BTC'|'USD'>('USD');
@@ -323,7 +356,7 @@ export const MemberWorkspace: React.FC<{
       if (document.visibilityState !== 'visible' || outstanding) return;
       outstanding=true;
       void api<MemberData>('profile')
-        .then(data=>{setAccount(data);setLastSnapshotReceivedAt(Date.now());})
+        .then(acceptSnapshot)
         .catch(()=>{})
         .finally(()=>{outstanding=false;});
     };
@@ -338,6 +371,10 @@ export const MemberWorkspace: React.FC<{
         throw new Error(tr.phone);
       }
       const result = await api<PurchaseOrder | {ok:boolean}>(action,body);
+      if(action==='profile.update'&&typeof body.walletAddress==='string'){
+        if(body.walletAddress.trim())cacheMemberWalletAddress(user.id,body.walletAddress);
+        else removeMemberWalletAddress(user.id);
+      }
       if (action==='orders.create') {
         const order=result as PurchaseOrder;
         setCheckout(order);
@@ -388,7 +425,7 @@ export const MemberWorkspace: React.FC<{
     finally{setBusy(false);}
   }
   const tab = (p:Page, label:string, Icon:typeof Home) =>
-    <button type="button" onClick={()=>{setPage(p);setNotice('');}}
+    <button type="button" onClick={()=>{navigateToPage(p);setNotice('');}}
       aria-current={page===p?'page':undefined}
       className={'flex flex-1 min-w-0 flex-col items-center justify-center text-[10px] sm:text-[11px] gap-1 rounded-xl py-1.5 transition-colors '+(page===p?'text-white bg-indigo-500/15':'text-slate-400 hover:text-white')}>
       <Icon size={20} className="shrink-0"/><span className="w-full truncate text-center">{label}</span></button>;
@@ -400,8 +437,10 @@ export const MemberWorkspace: React.FC<{
       {savedToast}
     </div>}
     {page==='wallet' && account!==null && !account.profile.walletAddress && !walletPromptDismissed &&
-      <WalletRequiredModal language={language} onRegister={registerRequiredWallet}
-        onClose={()=>setWalletPromptDismissed(true)}/>}
+      <WalletRequiredModal language={language}
+        initialAddress={account.profile.walletAddress||readMemberWalletAddress(account.user.id)}
+        onRegister={registerRequiredWallet}
+        onClose={()=>{setWalletPromptDismissed(true);setPage(walletOriginPage.current);}}/>}
     {withdrawPopup && <div role="dialog" aria-modal="true" aria-label={language==='en'?'Active VIP plan required':language==='es'?'Se requiere un plan VIP activo':'Plano VIP ativo necessário'}
       data-testid="withdraw-awaiting-vip-modal" className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-amber-300/40 bg-gradient-to-b from-[#26203b] via-[#171b2d] to-[#101423] p-6 shadow-2xl shadow-amber-950/40 space-y-5">

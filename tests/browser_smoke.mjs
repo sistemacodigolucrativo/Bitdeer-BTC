@@ -6,9 +6,13 @@ const problems=[];
 try {
   // First sign-in must lead to language, mining now, system ready, then workspace.
   const first=await browser.newContext({viewport:{width:390,height:844},baseURL:base,locale:'pt-BR'});
+  await first.addInitScript(()=>localStorage.setItem(
+    'bitdeer-legit-copy-preview-until',String(Date.now()+60*60*1000)));
   const firstPage=await first.newPage();
   firstPage.on('pageerror',error=>problems.push(error.message));
   await firstPage.goto('/');
+  if(await firstPage.getByText('Seu painel apresenta mineração e pagamentos Bitcoin confirmados.').count())
+    throw Error('The legitimate-copy login disclaimer must be removed');
   await firstPage.locator('input[autocomplete="username"]').waitFor({timeout:15000});
   await firstPage.locator('input[autocomplete="username"]').fill('browseradmin');
   await firstPage.locator('input[autocomplete="current-password"]').fill('BrowserAdminPassword2026');
@@ -60,6 +64,8 @@ try {
     throw Error('Unchosen language silently bypassed during session restore');
   await restoredWithoutChoice.close();
   const device=await browser.newContext({viewport:{width:390,height:844},baseURL:base,locale:'pt-BR'});
+  await device.addInitScript(()=>localStorage.setItem(
+    'bitdeer-legit-copy-preview-until',String(Date.now()+60*60*1000)));
   const screen=await device.newPage();
   await screen.goto('/');
   await screen.locator('input[autocomplete="username"]').fill('browsermember');
@@ -70,6 +76,10 @@ try {
   await screen.getByRole('button',{name:'Português'}).waitFor({timeout:15000});
   await screen.getByRole('button',{name:'Português'}).click();
   await screen.getByRole('button',{name:'Continuar'}).click();
+  const terminalNotice=screen.getByRole('note');
+  await terminalNotice.waitFor({timeout:10000});
+  if((await terminalNotice.innerText()).trim()!=='Connection to node and mining confirmed by the service.')
+    throw Error('The legitimate initialization message must stay in English');
   const enter=screen.getByRole('button',{name:'ENTRAR NO PAINEL'});
   await enter.waitFor({timeout:15000});
   await enter.click({timeout:15000});
@@ -265,34 +275,61 @@ try {
       JSON.stringify({btc:initialBtc,usd:syncedUsd,expected:syncedUsd/quoteRate}));
   // Missing BTC address can be dismissed without saving; registration remains available.
   const registeredWallet='bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z';
-  await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
+  const memberProfileResponse=await ctx.request.get('/api/index.php?action=profile');
+  if(!memberProfileResponse.ok())throw Error('Member profile unavailable for wallet isolation test');
+  const memberProfile=await memberProfileResponse.json();
+  const memberWalletKey=`bitdeer:member-wallet:${memberProfile.user.id}`;
+  const foreignWalletKey='bitdeer:member-wallet:999999';
+  await page.evaluate(({key,address})=>localStorage.setItem(key,address),
+    {key:foreignWalletKey,address:registeredWallet});
+  const memberTabs=page.getByTestId('member-bottom-nav').locator('button');
+  await memberTabs.nth(3).click();
   const requiredWallet=page.getByTestId('wallet-required-modal');
   await requiredWallet.waitFor({timeout:10000});
   await requiredWallet.getByTestId('wallet-required-close').click();
   await requiredWallet.waitFor({state:'detached',timeout:10000});
-  await page.getByTestId('wallet-live-btc').waitFor({timeout:10000});
-  await page.getByTestId('member-bottom-nav').locator('button').first().click();
-  await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
-  if(await requiredWallet.count())
-    throw Error('Dismissed wallet dialog should not block later navigation in this session');
-  await page.reload();
-  await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
+  if(await memberTabs.nth(0).getAttribute('aria-current')!=='page' ||
+     await page.getByTestId('wallet-live-btc').count())
+    throw Error('Closing wallet registration must return to the previous page');
+  await memberTabs.nth(2).click();
+  await memberTabs.nth(3).click();
   await requiredWallet.waitFor({timeout:10000});
   await requiredWallet.getByTestId('wallet-required-start').click();
   const requiredAddress=requiredWallet.getByTestId('wallet-required-address');
-  await requiredAddress.fill('not-a-bitcoin-address');
+  if(await requiredAddress.inputValue()!=='')
+    throw Error('A different member’s saved wallet address must not appear');
+  await requiredWallet.getByTestId('wallet-required-close').click();
+  await requiredWallet.waitFor({state:'detached',timeout:10000});
+  if(await memberTabs.nth(2).getAttribute('aria-current')!=='page' ||
+     await page.getByTestId('wallet-live-btc').count())
+    throw Error('Closing wallet registration from Rewards must return to Rewards');
+  await page.evaluate(({key,address})=>localStorage.setItem(key,address),
+    {key:memberWalletKey,address:registeredWallet});
+  await page.reload();
+  await memberTabs.nth(3).click();
+  await requiredWallet.waitFor({timeout:10000});
+  await requiredWallet.getByTestId('wallet-required-start').click();
+  const restoredWalletAddress=requiredWallet.getByTestId('wallet-required-address');
+  if(await restoredWalletAddress.inputValue()!==registeredWallet)
+    throw Error('The member’s local wallet address must be restored in the form');
+  await restoredWalletAddress.fill('not-a-bitcoin-address');
   await requiredWallet.getByTestId('wallet-required-save').click();
   await requiredWallet.getByRole('alert').waitFor({timeout:10000});
   if(await requiredWallet.count()!==1)
     throw Error('Invalid BTC address incorrectly dismissed required dialog');
-  await requiredAddress.fill(registeredWallet);
+  await restoredWalletAddress.fill(registeredWallet);
   await requiredWallet.getByTestId('wallet-required-save').click();
   await requiredWallet.getByText(/Confirme o endereço Bitcoin|Confirm the Bitcoin address|Confirme la dirección Bitcoin/).waitFor({timeout:10000});
   await requiredWallet.getByTestId('wallet-required-save').click();
   await requiredWallet.waitFor({state:'detached',timeout:15000});
   const savedWalletResponse=await ctx.request.get('/api/index.php?action=profile');
-  if(!savedWalletResponse.ok()||(await savedWalletResponse.json()).profile.walletAddress!==registeredWallet)
+  const savedWalletProfile=await savedWalletResponse.json();
+  if(!savedWalletResponse.ok()||savedWalletProfile.profile.walletAddress!==registeredWallet)
     throw Error('Required BTC address was not persisted in PHP/SQLite');
+  if(await page.evaluate(key=>localStorage.getItem(key),memberWalletKey)!==registeredWallet ||
+     await page.evaluate(key=>localStorage.getItem(key),foreignWalletKey)!==registeredWallet)
+    throw Error('The BTC address must be saved locally only for its member');
+  await page.evaluate(key=>localStorage.removeItem(key),foreignWalletKey);
   await page.reload();
   await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
   const btcValueBox=await page.getByTestId('wallet-live-btc').boundingBox();
@@ -526,6 +563,15 @@ try {
   const legitimateMinerCount=Number(legitimatePreviewText.replace(/\D/g,''));
   if(legitimateMinerCount!==demoMinerCount)
     throw Error('Miner counts should remain stable within the same browser session');
+  await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
+  await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
+  const legitimateWithdrawalCard=page.getByTestId('withdraw-available-card');
+  await legitimateWithdrawalCard.waitFor({timeout:10000});
+  const legitimateWithdrawalCopy=await legitimateWithdrawalCard.innerText();
+  if(!legitimateWithdrawalCopy.includes('Saldo disponível para saque') ||
+     legitimateWithdrawalCopy.includes('saque real'))
+    throw Error('The legitimate withdrawal label must omit “real”');
+  await page.getByTestId('member-bottom-nav').locator('button').first().click();
   await page.evaluate(()=>localStorage.removeItem('bitdeer-legit-copy-preview-until'));
   await page.reload();
   await page.getByTestId('member-bottom-nav').waitFor({timeout:15000});

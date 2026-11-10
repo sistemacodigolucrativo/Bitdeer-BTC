@@ -13,9 +13,9 @@ export const legitimoCopy = {
     es: 'Consulta tu actividad de minería, recompensas e historial de pagos.'
   },
   terminalNotice: {
-    pt: 'Conexão com o nó e mineração confirmadas pelo serviço.',
-    en: 'Node connection and mining are confirmed by the service.',
-    es: 'La conexión con el nodo y la minería están confirmadas por el servicio.'
+    pt: 'Connection to node and mining confirmed by the service.',
+    en: 'Connection to node and mining confirmed by the service.',
+    es: 'Connection to node and mining confirmed by the service.'
   },
   loginSubtitle: {
     pt: 'Acesse sua conta para acompanhar sua mineração e pagamentos.',
@@ -23,9 +23,9 @@ export const legitimoCopy = {
     es: 'Accede a tu cuenta para consultar tu minería y tus pagos.'
   },
   loginDisclaimer: {
-    pt: 'Seu painel apresenta mineração e pagamentos Bitcoin confirmados.',
-    en: 'Your dashboard shows confirmed Bitcoin mining and payments.',
-    es: 'Tu panel muestra minería y pagos Bitcoin confirmados.'
+    pt: '',
+    en: '',
+    es: ''
   },
   homeBalanceLabel: {
     pt: '',
@@ -63,9 +63,9 @@ export const legitimoCopy = {
     es: 'Retiro BTC enviado a la billetera'
   },
   withdrawalAvailableCredits: {
-    pt: 'Saldo disponível para saque real.',
-    en: 'Balance available for a real withdrawal.',
-    es: 'Saldo disponible para un retiro real.'
+    pt: 'Saldo disponível para saque',
+    en: 'Balance available for withdrawal',
+    es: 'Saldo disponible para retiro'
   },
   withdrawalEquivalent: {
     pt: 'valor BTC confirmado',

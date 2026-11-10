@@ -4,6 +4,7 @@ import {LanguageCode} from '../../types';
 
 type Props={
   language:LanguageCode;
+  initialAddress?:string;
   onRegister:(address:string)=>Promise<void>;
   onClose:()=>void;
 };
@@ -58,10 +59,10 @@ function plausibleBitcoinAddress(address:string):boolean {
   return /^(?:[13][a-km-zA-HJ-NP-Z1-9]{25,34}|(?:bc1|BC1)[a-zA-Z0-9]{11,87})$/.test(address);
 }
 
-export const WalletRequiredModal:React.FC<Props>=({language,onRegister,onClose})=>{
+export const WalletRequiredModal:React.FC<Props>=({language,initialAddress='',onRegister,onClose})=>{
   const t=copy[language];
   const [editing,setEditing]=useState(false);
-  const [address,setAddress]=useState('');
+  const [address,setAddress]=useState(initialAddress);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [confirming,setConfirming]=useState(false);

@@ -17,6 +17,7 @@ foreach(['2026-11-04','2024-03-01','2025-01-01'] as $date) {
     $input=array_merge($rows,[$real,$override]);
     $out=demo_withdrawal_timeline($input,$anchor);
     check($out===demo_withdrawal_timeline($input,$anchor),'Unstable on reload');
+    check($out===demo_withdrawal_timeline($input,$anchor+5*86400),'Dates changed within the same month');
     check(count($out)===68 && (int)ceil(count($out)/10)===7,'Pagination/records changed');
     check(in_array($real,$out,true)&&in_array($override,$out,true),'Real receipt changed');
     $fictional=array_values(array_filter($out,fn($r)=>!str_starts_with((string)($r['historyId']??''),'real:')));
@@ -32,6 +33,11 @@ foreach(['2026-11-04','2024-03-01','2025-01-01'] as $date) {
         check($row===$original,'Changed amount, status or identity');
     }
     check(count($months)===19,'Expected 19 months for 66 records');
+    $expectedLatestMonth=(new DateTimeImmutable('@'.$anchor))->setTimezone($zone)
+        ->modify('first day of this month')->modify('-2 months')->format('Y-m');
+    $latestFictional=max(array_map(fn($row)=>(int)$row['created_at'],$fictional));
+    check((new DateTimeImmutable('@'.$latestFictional))->setTimezone($zone)->format('Y-m')===$expectedLatestMonth,
+        'Latest demo month must be two months before the current month');
     foreach($months as $n)check($n===3||$n===4,'Monthly quota');
     check(count(array_unique($times))===66,'Repeated time');
     check(count(array_unique($minuteSeconds))===66,'Repeated minutes/seconds');
@@ -39,6 +45,15 @@ foreach(['2026-11-04','2024-03-01','2025-01-01'] as $date) {
     for($i=1;$i<count($days);$i++){$gap=($days[$i]-$days[$i-1])/86400;$gaps[]=$gap;check($gap>=4,'Days too close');}
     check(count(array_unique($gaps))>=4,'Uniform intervals');
     for($i=1;$i<count($out);$i++)check($out[$i-1]['created_at']>=$out[$i]['created_at'],'Timeline order');
+    $nextMonthAnchor=(new DateTimeImmutable('@'.$anchor))->setTimezone($zone)
+        ->modify('first day of next month')->getTimestamp();
+    $nextMonthRows=demo_withdrawal_timeline($input,$nextMonthAnchor);
+    $nextLatest=max(array_map(fn($row)=>(int)$row['created_at'],
+        array_values(array_filter($nextMonthRows,fn($r)=>!str_starts_with((string)($r['historyId']??''),'real:')))));
+    $expectedNextLatest=(new DateTimeImmutable('@'.$nextMonthAnchor))->setTimezone($zone)
+        ->modify('first day of this month')->modify('-2 months')->format('Y-m');
+    check((new DateTimeImmutable('@'.$nextLatest))->setTimezone($zone)->format('Y-m')===$expectedNextLatest,
+        'Timeline did not advance when the current month changed');
 }
 check(demo_withdrawal_timeline([],time())===[],'Empty history');
 echo "PASS: 3/4 per month, 19 months, seven pages, varied unique times, stable dates, real receipts unchanged\n";
