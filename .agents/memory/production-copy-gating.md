@@ -11,11 +11,11 @@ Prepare production-ready wording and layouts in advance, but do not present synt
 
 ## Demo member withdrawal history
 
-The user clarified that every withdrawal row shown for the demo member is demonstrative, including rows backed by its sample account history. The simulation badge should appear in Mockup mode and be hidden in the legitimate-copy preview.
+The user clarified that every withdrawal row shown for demo members is demonstrative, including rows backed by sample account history and randomly generated member accounts. The simulation badge should appear in Mockup mode and be hidden in the legitimate-copy preview. Generated demo accounts may use random logins and must be recognized by their seed/audit record rather than by login alone.
 
-**Why:** the user stated this product behavior explicitly; it distinguishes the demo member’s history from real members’ financial records.
+**Why:** on November 10, 2026, the user showed October dates in a generated demo account and clarified that the display cutoff must advance with the calendar (November → September; December → October). This distinguishes demo history from real members’ financial records.
 
-**How to apply:** Apply the two-calendar-month display-date cutoff to every row in the demo member’s withdrawal history, preserving its other fields. Change dates only in the response used for presentation; never edit stored request timestamps or other members’ actual withdrawals.
+**How to apply:** Apply the dynamic two-calendar-month display-date cutoff to every generated demo account’s withdrawal history, preserving its other fields. Change dates only in the response used for presentation; never edit stored request timestamps or other members’ actual withdrawals.
 
 The rotating payment-feed preview must run only while mockup mode is active. In the time-limited legitimate-copy preview, keep fixture rows static until verified payment records are available.
 

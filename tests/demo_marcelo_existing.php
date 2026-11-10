@@ -2,6 +2,7 @@
 declare(strict_types=1);
 /** Isolated legacy-DB migration regression; never touches a deployed database. */
 require_once dirname(__DIR__).'/server/schema.php';
+require_once dirname(__DIR__).'/server/demo_withdrawal_timeline.php';
 $tmp=sys_get_temp_dir().'/bitdeer-marcelo-'.bin2hex(random_bytes(8)).'.sqlite';
 putenv('BITDEER_DB_PATH='.$tmp);
 try {
@@ -34,12 +35,15 @@ try {
         execute_sql($db,'INSERT INTO mining_state(user_id,balance_units,updated_at) VALUES (?,?,?)',
             [$legacyId,123456789,now()]);
     });
+    $legacyMember=query_one($db,'SELECT id,login FROM users WHERE login="network"');
+    assert(!demo_withdrawal_history_is_demo_member($db,$legacyMember));
     $preserved=query_one($db,'SELECT u.id,u.login,m.balance_units FROM users u JOIN mining_state m ON m.user_id=u.id WHERE u.login="network"');
     $legacyAccount=query_one($db,'SELECT password_hash FROM users WHERE login="network"');
     assert(password_verify('user',$legacyAccount['password_hash']));
     assert(validate_password('user')===false); // New passwords are stricter, old logins remain valid.
     $seed=atomic($db,static fn():array=>seed_marcelo_demo($db,$admin));
     assert($seed['login']==='user' && $seed['displayName']==='Marcelo');
+    assert(demo_withdrawal_history_is_demo_member($db,['id'=>$seed['userId'],'login'=>$seed['login']]));
     $newUser=query_one($db,'SELECT * FROM users WHERE id=?',[$seed['userId']]);
     assert($seed['initialPassword']==='123456789123');
     assert(password_verify($seed['initialPassword'],$newUser['password_hash']));
@@ -47,6 +51,7 @@ try {
         [$seed['userId']])['n']>300);
     $random=atomic($db,static fn():array=>seed_random_member_demo($db,$admin));
     assert((bool)preg_match('/^[a-z0-9]{5,40}$/',$random['login']));
+    assert(demo_withdrawal_history_is_demo_member($db,['id'=>$random['userId'],'login'=>$random['login']]));
     assert($random['displayName']!=='' && strlen($random['initialPassword'])>=12);
     assert($random['initialPassword']!==$seed['initialPassword']);
     assert((bool)preg_match('/^[a-z0-9]+@(example\\.(com|org|net)|mail\\.test|demo\\.invalid)$/',$random['email']));

@@ -1,6 +1,18 @@
 <?php
 declare(strict_types=1);
 
+/** Identify only accounts explicitly created as demo members. */
+function demo_withdrawal_history_is_demo_member(PDO $db, array $actor): bool {
+    $userId=(int)($actor['id']??0);
+    if($userId<=0)return false;
+    if(strtolower((string)($actor['login']??''))==='user')return true;
+    $fixture=query_one($db,'SELECT value FROM app_settings WHERE name="demo_marcelo_seed"');
+    $metadata=json_decode($fixture['value']??'{}',true);
+    if(is_array($metadata)&&(int)($metadata['userId']??0)===$userId)return true;
+    return query_one($db,'SELECT id FROM admin_audit WHERE target_user_id=?
+        AND action IN ("demo.member.seed","demo.member.random.seed") LIMIT 1',[$userId])!==null;
+}
+
 /** Presentation-only schedule. Call only for the member account whose history is demonstrative. */
 function demo_withdrawal_timeline(array $requests, int $anchor): array {
     $indices=array_keys($requests);
