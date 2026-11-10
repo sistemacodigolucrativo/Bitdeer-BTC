@@ -1,19 +1,13 @@
 <?php
 declare(strict_types=1);
 
-/** Presentation-only schedule. Never reschedule real receipts, even overridden ones. */
+/** Presentation-only schedule. Call only for the member account whose history is demonstrative. */
 function demo_withdrawal_timeline(array $requests, int $anchor): array {
-    $fictional=[];
-    foreach($requests as $index=>$row) {
-        $historyId=(string)($row['historyId']??'');
-        if(str_starts_with($historyId,'manual:') ||
-           (($row['simulation']??false)===true && str_starts_with((string)$row['id'],'D-')))
-            $fictional[]=$index;
-    }
-    usort($fictional,static fn($a,$b)=>
+    $indices=array_keys($requests);
+    usort($indices,static fn($a,$b)=>
         [(int)$requests[$a]['created_at'],(string)$requests[$a]['id']] <=>
         [(int)$requests[$b]['created_at'],(string)$requests[$b]['id']]);
-    $count=count($fictional);
+    $count=count($indices);
     if(!$count)return $requests;
     // Preserve every fixture and the existing ten-record pagination. A 66-row
     // history therefore spans 19 months, rather than crowding six months.
@@ -28,21 +22,37 @@ function demo_withdrawal_timeline(array $requests, int $anchor): array {
         for($i=0;$i<$count-$months*3;$i++)$sizes[$i]++;
     }
     $zone=new DateTimeZone('America/Sao_Paulo');
-    // Normalize to the current month so dates stay stable within each month.
-    $anchorMonth=(new DateTimeImmutable('@'.$anchor))->setTimezone($zone)
-        ->modify('first day of this month')->setTime(0,0);
-    // The newest demo month is exactly two full calendar months before the anchor.
-    $month=$anchorMonth->modify('-'.($months+1).' months');
+    $current=(new DateTimeImmutable('@'.$anchor))->setTimezone($zone);
+    $anchorMonth=$current->modify('first day of this month')->setTime(0,0);
+    $cutoffMonth=$anchorMonth->modify('-2 months');
+    $cutoffDay=min((int)$current->format('j'),(int)$cutoffMonth->format('t'));
+    $cutoff=$cutoffMonth
+        ->setDate((int)$cutoffMonth->format('Y'),(int)$cutoffMonth->format('m'),$cutoffDay)
+        ->setTime((int)$current->format('H'),(int)$current->format('i'),(int)$current->format('s'));
+    // Keep the final group before the exact two-month cutoff. If the cutoff
+    // falls too early in its month, move that group into the previous month.
+    $latestMonth=$cutoffMonth;
+    $latestDay=$cutoffDay-1;
+    $latestSize=$sizes[count($sizes)-1];
+    if($latestDay < 1+4*($latestSize-1))$latestMonth=$latestMonth->modify('-1 month');
+    $month=$latestMonth->modify('-'.($months-1).' months');
     $usedTimes=[];$usedMinuteSeconds=[];$cursor=0;
     foreach($sizes as $size) {
         $monthKey=$month->format('Y-m');
         // Pseudorandom but stable: no new dates/times on refresh or pagination.
         $hash=hash('sha256',$anchorMonth->getTimestamp().':'.$monthKey);
         $jitter=static fn(int $i):int=>(int)(hexdec(substr($hash,$i*2,2))%3);
-        $days=$size===4?[2+$jitter(0),9+$jitter(1),17+$jitter(2),24+$jitter(3)]:
-            [3+$jitter(0),14+$jitter(1),24+$jitter(2)];
+        if($month->format('Y-m')===$latestMonth->format('Y-m') && $latestMonth==$cutoffMonth) {
+            $days=[];
+            if($size===1)$days[]=$latestDay;
+            else for($i=0;$i<$size;$i++)
+                $days[]=1+(int)floor($i*($latestDay-1)/($size-1));
+        } else {
+            $days=$size===4?[2+$jitter(0),9+$jitter(1),17+$jitter(2),24+$jitter(3)]:
+                [3+$jitter(0),14+$jitter(1),24+$jitter(2)];
+        }
         foreach(array_slice($days,0,$size) as $day) {
-            $index=$fictional[$cursor++];
+            $index=$indices[$cursor++];
             $seed=hash('sha256',$anchorMonth->getTimestamp().':'.(string)$requests[$index]['id'].':'.$monthKey);
             $time=(int)(hexdec(substr($seed,0,8))%86400);
             while(isset($usedTimes[$time])||isset($usedMinuteSeconds[$time%3600]))$time=($time+1)%86400;

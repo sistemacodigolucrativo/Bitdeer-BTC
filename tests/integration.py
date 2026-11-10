@@ -2,6 +2,7 @@
 """Integration test for the isolated SQLite-backed PHP API."""
 import json
 import time
+import calendar
 import urllib.error
 import urllib.request
 import http.cookiejar
@@ -725,5 +726,35 @@ realOrder=realvip.call("orders.create",{"planId":"VIP_01"},201)
 admin.call("admin.order.approve",{"orderId":realOrder["orderId"],
   "paymentConfirmed":True,"simulationConfirmed":True},403)
 assert realvip.call("profile")["plan"]["id"]=="FREE"
+
+# Every withdrawal shown for the demo member is illustrative. Dates are
+# rescheduled only in the response; the saved manual-history payload is intact.
+guest.call("register",{"login":"user","password":"DemoHistoryPassword2026"},201)
+demo=Client()
+demo_user=demo.call("login",{"login":"user","password":"DemoHistoryPassword2026"})["user"]
+demo_created_at=int(time.time())-3600
+demo_withdrawal={"plan_id":"VIP_01","status":"approved","created_at":demo_created_at,
+                 "usd_cents":100,"btc_satoshis":1234}
+admin.call("admin.member.history.save",{"userId":demo_user["id"],"kind":"withdrawal",
+  "operation":"create","historyId":"","fields":demo_withdrawal})
+demo_history=demo.call("withdraw.mine")["requests"]
+assert len(demo_history)==7 and all(row["simulation"] for row in demo_history)
+local_now=datetime.now(ZoneInfo("America/Sao_Paulo"))
+target_month=local_now.year*12+local_now.month-1-2
+target_year,target_month_zero=divmod(target_month,12)
+target_month_number=target_month_zero+1
+target_day=min(local_now.day,calendar.monthrange(target_year,target_month_number)[1])
+demo_cutoff=local_now.replace(year=target_year,month=target_month_number,day=target_day)
+assert max(row["created_at"] for row in demo_history)<=int(demo_cutoff.timestamp())
+assert all(demo_history[i]["created_at"]>=demo_history[i+1]["created_at"]
+  for i in range(len(demo_history)-1))
+db=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
+try:
+    stored_demo_history=db.execute(
+      "SELECT payload_json FROM member_history_edits WHERE user_id=? AND kind='withdrawal' "
+      "AND source_id IS NULL AND deleted=0 ORDER BY id DESC LIMIT 1",(demo_user["id"],)
+    ).fetchone()
+    assert stored_demo_history and json.loads(stored_demo_history[0])["created_at"]==demo_created_at
+finally: db.close()
 
 print("PASS: registration, RBAC, checkout quote, admin reset, session revocation, FREE immediate restart and VIP expiry, ticket replies, synthetic wallet feed and mock approval")

@@ -63,7 +63,7 @@ export const MemberWorkspace: React.FC<{
   const tabNames = translations[language].tabs;
   const words = memberTexts[language] || memberTexts.pt;
   const tr = memberViewCopy[language];
-  const { copy: copyText } = useProjectCopy(language);
+  const { copy: copyText, mockupMode } = useProjectCopy(language);
   const dateLocale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const [account, setAccount] = useState<MemberData | null>(null);
   const [balanceTick,setBalanceTick] = useState(Date.now());
@@ -576,7 +576,7 @@ export const MemberWorkspace: React.FC<{
                     className={x.status==='approved'?'text-emerald-400 font-semibold':x.status==='failed'||x.status==='rejected'?'text-rose-300 font-semibold':'text-slate-300'}>
                     {x.status==='awaiting_vip'?tr.awaiting:x.status==='pending'?tr.pending:x.status==='approved'?tr.approved:x.status==='failed'?tr.failed:tr.rejected}
                   </span>
-                  {x.simulation&&<span data-testid="withdraw-simulation-notice" className="whitespace-nowrap rounded-md border border-amber-400/25 bg-amber-400/5 px-2 py-1 text-[10px] text-amber-200">{copyText('withdrawalDemoBadge')}</span>}
+                  {mockupMode&&x.simulation&&<span data-testid="withdraw-simulation-notice" className="whitespace-nowrap rounded-md border border-amber-400/25 bg-amber-400/5 px-2 py-1 text-[10px] text-amber-200">{copyText('withdrawalDemoBadge')}</span>}
                   <span className="whitespace-nowrap text-[11px] text-slate-400">{new Date(x.created_at*1000).toLocaleString(dateLocale)}</span>
                   {x.reason&&<span className="max-w-[220px] whitespace-normal text-[11px] text-rose-200">{x.reason}</span>}
                 </div>)}

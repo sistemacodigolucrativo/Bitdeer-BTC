@@ -343,7 +343,7 @@ try {
   // Fake only the response for this browser to verify real UI pagination.
   const withdrawFixture=Array.from({length:25},(_,i)=>({
     id:1000+i,usd_cents:1000+i,btc_satoshis:5000+i,
-    status:i%3===0?'approved':'pending',created_at:1800000000-i*60
+    status:i%3===0?'approved':'pending',created_at:1800000000-i*60,simulation:true
   }));
   const withdrawalRoute='**/api/index.php?action=withdraw.mine';
   await page.route(withdrawalRoute,route=>route.fulfill({
@@ -352,6 +352,8 @@ try {
   }));
   await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
   await page.getByTestId('withdraw-history-row').first().waitFor({timeout:10000});
+  if(await page.getByTestId('withdraw-simulation-notice').count()!==10)
+    throw Error('Mockup mode must label every displayed demo withdrawal');
   if(await page.getByTestId('withdraw-history-row').count()!==10)
     throw Error('Withdrawals must show ten rows on the first page');
   if((await page.getByTestId('withdraw-page-indicator').innerText()).trim()!=='1 / 3')
@@ -563,7 +565,17 @@ try {
   const legitimateMinerCount=Number(legitimatePreviewText.replace(/\D/g,''));
   if(legitimateMinerCount!==demoMinerCount)
     throw Error('Miner counts should remain stable within the same browser session');
+  await page.route(withdrawalRoute,route=>route.fulfill({
+    status:200,contentType:'application/json',
+    body:JSON.stringify({requests:withdrawFixture,simulation:true})
+  }));
+  const legitimateHistoryResponse=page.waitForResponse(response=>
+    response.url().includes('action=withdraw.mine'),{timeout:15000});
   await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
+  await legitimateHistoryResponse;
+  await page.getByTestId('withdraw-history-row').first().waitFor({timeout:10000});
+  if(await page.getByTestId('withdraw-simulation-notice').count())
+    throw Error('Legitimate-copy preview must hide the mockup withdrawal notice');
   await page.getByRole('button',{name:/Sacar|Withdraw|Retirar/}).click();
   const legitimateWithdrawalCard=page.getByTestId('withdraw-available-card');
   await legitimateWithdrawalCard.waitFor({timeout:10000});
@@ -571,6 +583,7 @@ try {
   if(!legitimateWithdrawalCopy.includes('Saldo disponível para saque') ||
      legitimateWithdrawalCopy.includes('saque real'))
     throw Error('The legitimate withdrawal label must omit “real”');
+  await page.unroute(withdrawalRoute);
   await page.getByTestId('member-bottom-nav').locator('button').first().click();
   await page.evaluate(()=>localStorage.removeItem('bitdeer-legit-copy-preview-until'));
   await page.reload();
