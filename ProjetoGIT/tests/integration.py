@@ -14,7 +14,8 @@ BASE = "http://127.0.0.1:8765/api/index.php?action="
 
 class Client:
     def __init__(self):
-        self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+        self.cookies = http.cookiejar.CookieJar()
+        self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.cookies))
         self.csrf = ""
 
     def call(self, action, body=None, expected=200):
@@ -55,6 +56,23 @@ bob_id=bob_signup["id"]
 alice=Client()
 alice_user=alice.call("login",{"login":"alice","password":"longpassword123"})["user"]
 assert alice_user["role"]=="member"
+session_cookie=next(cookie for cookie in alice.cookies if cookie.name=="bitdeer_session")
+assert session_cookie.expires is None, "non-persistent login must use a browser-session cookie"
+with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as db:
+    session_expiry=db.execute("SELECT expires_at FROM sessions WHERE user_id=? AND revoked_at IS NULL ORDER BY id DESC LIMIT 1",
+      (alice_user["id"],)).fetchone()[0]
+assert 43100 <= session_expiry-int(time.time()) <= 43200, "non-persistent sessions must expire within 12 hours"
+remembering=Client()
+remembering.call("login",{"login":"alice","password":"longpassword123","rememberSession":True})
+persistent_cookie=next(cookie for cookie in remembering.cookies if cookie.name=="bitdeer_session")
+assert persistent_cookie.expires is not None and persistent_cookie.expires-int(time.time())>29*86400
+with sqlite3.connect(os.environ["BITDEER_DB_PATH"]) as db:
+    persistent_expiry=db.execute("SELECT expires_at FROM sessions WHERE user_id=? AND revoked_at IS NULL ORDER BY id DESC LIMIT 1",
+      (alice_user["id"],)).fetchone()[0]
+assert persistent_expiry-int(time.time())>29*86400, "opted-in sessions must persist for 30 days"
+remembering.call("logout",{})
+remembering.call("profile",expected=401)
+guest.call("login",{"login":"alice","password":"longpassword123","rememberSession":"true"},422)
 assert alice.call("profile")["plan"]["id"]=="FREE"
 ticket=alice.call("support.ticket.create",{"subject":"Problema no saldo",
   "message":"Preciso de ajuda com meu saldo interno."},201)["ticket"]

@@ -498,7 +498,9 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $login = string_field($body,'login',40);
         $password = $body['password'] ?? '';
         if (!is_string($password) || strlen($password) > 256) fail(401,'Credenciais inválidas');
-        $result = atomic($db, static function () use ($db,$login,$password): ?array {
+        $rememberSession = $body['rememberSession'] ?? false;
+        if (!is_bool($rememberSession)) fail(422,'Preferência de sessão inválida');
+        $result = atomic($db, static function () use ($db,$login,$password,$rememberSession): ?array {
             $recent = query_one($db,'SELECT COUNT(*) AS n FROM auth_attempts WHERE login=? AND attempted_at>?',
               [$login,now()-900]);
             if ((int)($recent['n'] ?? 0) >= 10) fail(429,'Muitas tentativas. Tente mais tarde.');
@@ -508,13 +510,15 @@ function api_dispatch(PDO $db, string $action, string $method): never {
                 return null;
             }
             execute_sql($db,'DELETE FROM auth_attempts WHERE login=?',[$login]);
-            $token=bin2hex(random_bytes(32));$csrf=bin2hex(random_bytes(32));$expires=now()+604800;
+            $token=bin2hex(random_bytes(32));$csrf=bin2hex(random_bytes(32));
+            $expires=now()+($rememberSession?2592000:43200);
             execute_sql($db,'INSERT INTO sessions(user_id,token_hash,csrf_token,issued_at,expires_at) VALUES (?,?,?,?,?)',
               [$user['id'],hash('sha256',$token),$csrf,now(),$expires]);
-            return ['user'=>public_user($user),'token'=>$token,'csrf'=>$csrf,'expires'=>$expires];
+            return ['user'=>public_user($user),'token'=>$token,'csrf'=>$csrf,'expires'=>$expires,
+              'persistent'=>$rememberSession];
         });
         if ($result === null) fail(401,'Credenciais inválidas');
-        cookie_session($result['token'],$result['expires']);
+        cookie_session($result['token'],$result['persistent']?$result['expires']:null);
         json_out(['user'=>$result['user'],'csrfToken'=>$result['csrf']]);
     }
     if ($action === 'session' && $method === 'GET') {

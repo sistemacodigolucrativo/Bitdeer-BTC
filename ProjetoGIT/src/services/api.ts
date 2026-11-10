@@ -50,8 +50,12 @@ export async function session(): Promise<AuthUser> {
   csrfToken = data.csrfToken;
   return data.user;
 }
-export async function login(loginValue: string, password: string): Promise<AuthUser> {
-  const data = await api<{user: AuthUser; csrfToken: string}>('login', {login: loginValue, password});
+export async function login(loginValue: string, password: string, rememberSession = false): Promise<AuthUser> {
+  const data = await api<{user: AuthUser; csrfToken: string}>('login', {
+    login: loginValue,
+    password,
+    rememberSession,
+  });
   csrfToken = data.csrfToken;
   return data.user;
 }
