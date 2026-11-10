@@ -88,6 +88,7 @@ export const MemberWorkspace: React.FC<{
     return quote?{source:quote.source,quotedAt:quote.quotedAt}:null;
   });
   const [walletStep,setWalletStep]=useState<'none'|'register'|'amount'>('none');
+  const [walletPromptDismissed,setWalletPromptDismissed]=useState(false);
   const [walletDraft,setWalletDraft]=useState('');
   const [walletConfirmation,setWalletConfirmation]=useState(false);
   const [withdrawMode,setWithdrawMode]=useState<'BTC'|'USD'>('USD');
@@ -398,8 +399,9 @@ export const MemberWorkspace: React.FC<{
         (savedToastVisible?'translate-y-0 opacity-100':'translate-y-2 opacity-0')}>
       {savedToast}
     </div>}
-    {page==='wallet' && account!==null && !account.profile.walletAddress &&
-      <WalletRequiredModal language={language} onRegister={registerRequiredWallet}/>}
+    {page==='wallet' && account!==null && !account.profile.walletAddress && !walletPromptDismissed &&
+      <WalletRequiredModal language={language} onRegister={registerRequiredWallet}
+        onClose={()=>setWalletPromptDismissed(true)}/>}
     {withdrawPopup && <div role="dialog" aria-modal="true" aria-label={language==='en'?'Active VIP plan required':language==='es'?'Se requiere un plan VIP activo':'Plano VIP ativo necessário'}
       data-testid="withdraw-awaiting-vip-modal" className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-amber-300/40 bg-gradient-to-b from-[#26203b] via-[#171b2d] to-[#101423] p-6 shadow-2xl shadow-amber-950/40 space-y-5">

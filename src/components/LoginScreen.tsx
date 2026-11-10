@@ -5,13 +5,14 @@ import { translations } from '../i18n/translations';
 import { useProjectCopy } from '../i18n/copyMode';
 import { AuthUser, login as backendLogin, register as backendRegister } from '../services/api';
 
-const SAVED_USERNAME_KEY = 'bitdeer:saved-username';
+const SESSION_PREFERENCE_KEY = 'bitdeer:stay-connected';
 
-function getSavedUsername() {
+function getSavedSessionPreference(): boolean | null {
   try {
-    return window.localStorage.getItem(SAVED_USERNAME_KEY) ?? '';
+    const saved = window.localStorage.getItem(SESSION_PREFERENCE_KEY);
+    return saved === 'true' ? true : saved === 'false' ? false : null;
   } catch {
-    return '';
+    return null;
   }
 }
 
@@ -26,8 +27,35 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 }) => {
   const t = translations[language].login;
   const { copy } = useProjectCopy(language);
-  const [loginInput, setLoginInput] = useState(getSavedUsername);
-  const [rememberUsername, setRememberUsername] = useState(() => Boolean(getSavedUsername()));
+  const sessionCopy = language === 'en' ? {
+    title: 'Stay signed in?',
+    description: 'Choose whether this device keeps your session. If you agree, it lasts up to 30 days. Otherwise, it ends when you close the browser or after 12 hours.',
+    stay: 'Yes, stay signed in',
+    temporary: 'No, only this session',
+    previous: 'Last choice on this device:',
+    yes: 'Stay signed in',
+    no: 'Only this session',
+    back: 'Go back',
+  } : language === 'es' ? {
+    title: '¿Mantener la sesión iniciada?',
+    description: 'Elija si este dispositivo conserva su sesión. Si acepta, dura hasta 30 días. Si no, termina al cerrar el navegador o después de 12 horas.',
+    stay: 'Sí, mantener la sesión',
+    temporary: 'No, solo esta sesión',
+    previous: 'Última opción en este dispositivo:',
+    yes: 'Mantener la sesión',
+    no: 'Solo esta sesión',
+    back: 'Volver',
+  } : {
+    title: 'Permanecer conectado?',
+    description: 'Escolha se este dispositivo deve manter sua sessão. Se aceitar, ela dura até 30 dias. Se recusar, termina ao fechar o navegador ou após 12 horas.',
+    stay: 'Sim, permanecer conectado',
+    temporary: 'Não, apenas nesta sessão',
+    previous: 'Última escolha neste dispositivo:',
+    yes: 'Permanecer conectado',
+    no: 'Apenas nesta sessão',
+    back: 'Voltar',
+  };
+  const [loginInput, setLoginInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [registerMode, setRegisterMode] = useState(false);
   const [fullNameInput, setFullNameInput] = useState('');
@@ -37,21 +65,42 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionPromptOpen, setSessionPromptOpen] = useState(false);
+  const [lastSessionPreference, setLastSessionPreference] = useState(getSavedSessionPreference);
+
+  const completeLogin = async (stayConnected: boolean) => {
+    setErrorMessage('');
+    setIsLoading(true);
+    try {
+      window.localStorage.setItem(SESSION_PREFERENCE_KEY, String(stayConnected));
+      setLastSessionPreference(stayConnected);
+    } catch {
+      // The secure server session still works when local storage is unavailable.
+    }
+    try {
+      const user = await backendLogin(loginInput.trim(), passwordInput, stayConnected);
+      setSessionPromptOpen(false);
+      onLoginSuccess(user);
+    } catch (e) {
+      setSessionPromptOpen(false);
+      setErrorMessage((e as Error).message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setErrorMessage(''); setIsLoading(true);
+    e.preventDefault();
+    setErrorMessage('');
+    if (!registerMode) {
+      setSessionPromptOpen(true);
+      return;
+    }
+    setIsLoading(true);
     try {
       const userLogin = loginInput.trim();
-      if (registerMode) {
-        await backendRegister(userLogin, passwordInput, fullNameInput.trim(),inviteCode.trim());
-      }
-      const user = await backendLogin(userLogin, passwordInput);
-      try {
-        if (rememberUsername) window.localStorage.setItem(SAVED_USERNAME_KEY, userLogin);
-        else window.localStorage.removeItem(SAVED_USERNAME_KEY);
-      } catch {
-        // Local storage may be unavailable; authentication must still work.
-      }
+      await backendRegister(userLogin, passwordInput, fullNameInput.trim(),inviteCode.trim());
+      const user = await backendLogin(userLogin, passwordInput, false);
       onLoginSuccess(user);
     } catch (e) {
       setErrorMessage((e as Error).message);
@@ -149,27 +198,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               />
             </div>
           </div>
-          <label htmlFor="remember-username" className="flex min-h-8 cursor-pointer items-center gap-2 text-xs text-slate-300">
-            <input
-              id="remember-username"
-              type="checkbox"
-              checked={rememberUsername}
-              onChange={(event) => {
-                const checked = event.target.checked;
-                setRememberUsername(checked);
-                if (!checked) {
-                  try {
-                    window.localStorage.removeItem(SAVED_USERNAME_KEY);
-                  } catch {
-                    // Ignore unavailable local storage; no password is persisted.
-                  }
-                }
-              }}
-              className="h-4 w-4 accent-indigo-400"
-            />
-            <span>{language === 'en' ? 'Save username' : language === 'es' ? 'Guardar usuario' : 'Salvar usuário'}</span>
-          </label>
-
           {/* Campo Senha com Visualização de Senha (ícone de olho) */}
           <div className="space-y-1.5 text-left">
             <label className="text-xs font-semibold text-slate-300 block">
@@ -230,6 +258,31 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </button>
           </div>
         </form>
+        {sessionPromptOpen && <div role="dialog" aria-modal="true" aria-labelledby="stay-connected-title"
+          data-testid="stay-connected-dialog"
+          className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm">
+          <section className="w-full max-w-sm rounded-2xl border border-indigo-400/30 bg-[#171b2d] p-5 shadow-2xl">
+            <h3 id="stay-connected-title" className="text-base font-extrabold text-white">{sessionCopy.title}</h3>
+            <p className="mt-2 text-xs leading-relaxed text-slate-300">{sessionCopy.description}</p>
+            {lastSessionPreference !== null && <p className="mt-3 text-[11px] text-slate-400">
+              {sessionCopy.previous} {lastSessionPreference ? sessionCopy.yes : sessionCopy.no}
+            </p>}
+            <div className="mt-4 grid gap-2">
+              <button type="button" disabled={isLoading} onClick={()=>void completeLogin(true)}
+                className="min-h-11 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-60">
+                {isLoading ? '…' : sessionCopy.stay}
+              </button>
+              <button type="button" disabled={isLoading} onClick={()=>void completeLogin(false)}
+                className="min-h-11 rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-100 disabled:opacity-60">
+                {sessionCopy.temporary}
+              </button>
+              <button type="button" disabled={isLoading} onClick={()=>setSessionPromptOpen(false)}
+                className="min-h-10 text-xs font-semibold text-slate-400 underline underline-offset-4 disabled:opacity-60">
+                {sessionCopy.back}
+              </button>
+            </div>
+          </section>
+        </div>}
         <button type="button" onClick={() => {setRegisterMode(v=>!v);setErrorMessage('');}}
           className="mt-4 text-indigo-300 text-xs underline">
           {registerMode ? language==='en'?'Already have an account? Sign in':language==='es'?'¿Ya tienes cuenta? Iniciar sesión':'Já tenho conta — Entrar' : language==='en'?'New here? Sign up':language==='es'?'¿Eres nuevo? Crear cuenta':'Novo por aqui? Criar conta'}

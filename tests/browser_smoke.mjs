@@ -12,7 +12,11 @@ try {
   await firstPage.locator('input[autocomplete="username"]').waitFor({timeout:15000});
   await firstPage.locator('input[autocomplete="username"]').fill('browseradmin');
   await firstPage.locator('input[autocomplete="current-password"]').fill('BrowserAdminPassword2026');
+  if(await firstPage.getByLabel(/Salvar usuário|Save username|Guardar usuario/).count())
+    throw Error('The login form must not show a save-username checkbox');
   await firstPage.locator('button[type="submit"]').click();
+  await firstPage.getByTestId('stay-connected-dialog')
+    .getByRole('button',{name:'Sim, permanecer conectado'}).click();
   await firstPage.getByText('Visão geral').first().waitFor({timeout:15000});
   await first.close();
   const ctx=await browser.newContext({viewport:{width:390,height:844},baseURL:base});
@@ -20,8 +24,11 @@ try {
     data:{login:'browsermember',password:'BrowserMemberPassword2026',displayName:'Browser Test'}});
   if(registration.status()!==201)throw Error('Member registration: '+registration.status());
   const login=await ctx.request.post('/api/index.php?action=login',{
-    data:{login:'browsermember',password:'BrowserMemberPassword2026'}});
+    data:{login:'browsermember',password:'BrowserMemberPassword2026',rememberSession:false}});
   if(login.status()!==200)throw Error('Member login: '+login.status());
+  const sessionCookie=login.headers()['set-cookie']||'';
+  if(/expires=|max-age=/i.test(sessionCookie))
+    throw Error('A refused persistent session must use a browser-session cookie');
   // Existing authenticated sessions without a saved choice must not silently
   // assume Portuguese just because local defaults are set.
   const restoredWithoutChoice=await ctx.newPage();
@@ -37,6 +44,8 @@ try {
   await screen.locator('input[autocomplete="username"]').fill('browsermember');
   await screen.locator('input[autocomplete="current-password"]').fill('BrowserMemberPassword2026');
   await screen.locator('button[type="submit"]').click();
+  await screen.getByTestId('stay-connected-dialog')
+    .getByRole('button',{name:'Não, apenas nesta sessão'}).click();
   await screen.getByRole('button',{name:'Português'}).waitFor({timeout:15000});
   await screen.getByRole('button',{name:'Português'}).click();
   await screen.getByRole('button',{name:'Continuar'}).click();
@@ -49,7 +58,17 @@ try {
   await screen.locator('input[autocomplete="username"]').fill('browsermember');
   await screen.locator('input[autocomplete="current-password"]').fill('BrowserMemberPassword2026');
   await screen.locator('button[type="submit"]').click();
+  await screen.getByTestId('stay-connected-dialog').waitFor({timeout:10000});
+  if(!(await screen.getByTestId('stay-connected-dialog').innerText()).includes('Última escolha neste dispositivo: Apenas nesta sessão'))
+    throw Error('The selected session preference must be saved on this device');
+  await screen.getByTestId('stay-connected-dialog')
+    .getByRole('button',{name:'Sim, permanecer conectado'}).click();
   await enter.waitFor({timeout:15000});
+  if(await screen.evaluate(()=>localStorage.getItem('bitdeer:stay-connected'))!=='true')
+    throw Error('The persistent session preference was not saved locally');
+  const persistentCookie=(await device.cookies(base)).find(cookie=>cookie.name==='bitdeer_session');
+  if(!persistentCookie||!persistentCookie.httpOnly||persistentCookie.expires<Date.now()/1000+29*86400)
+    throw Error('Opting in must create a secure persistent session cookie');
   if(await screen.getByRole('button',{name:'Português'}).count())
     throw Error('Language picker was repeated after previously saving the language');
   await enter.click({timeout:15000});
@@ -192,17 +211,18 @@ try {
     Math.abs(initialBtc-syncedUsd/quoteRate)>0.000000011)
     throw Error('Mining BTC/USD equivalents not synchronized at quoted rate: '+
       JSON.stringify({btc:initialBtc,usd:syncedUsd,expected:syncedUsd/quoteRate}));
-  // Missing BTC address blocks Wallet with a persistent dialog. It remains
-  // across reloads, validates input, and closes only after PHP saves the address.
+  // Missing BTC address can be dismissed without saving; registration remains available.
   const registeredWallet='bc1qzcvwxv8vl4c0ryel3m6efed9zrcyyu0sk8fm4z';
   await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
   const requiredWallet=page.getByTestId('wallet-required-modal');
   await requiredWallet.waitFor({timeout:10000});
-  if(await requiredWallet.getByRole('button',{name:/Fechar|Close|Cerrar/}).count())
-    throw Error('Mandatory wallet dialog must not have a dismiss button');
-  await page.keyboard.press('Escape');
-  if(await requiredWallet.count()!==1)
-    throw Error('Wallet dialog was dismissed without registration');
+  await requiredWallet.getByTestId('wallet-required-close').click();
+  await requiredWallet.waitFor({state:'detached',timeout:10000});
+  await page.getByTestId('wallet-live-btc').waitFor({timeout:10000});
+  await page.getByTestId('member-bottom-nav').locator('button').first().click();
+  await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
+  if(await requiredWallet.count())
+    throw Error('Dismissed wallet dialog should not block later navigation in this session');
   await page.reload();
   await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
   await requiredWallet.waitFor({timeout:10000});
@@ -223,6 +243,10 @@ try {
     throw Error('Required BTC address was not persisted in PHP/SQLite');
   await page.reload();
   await page.getByTestId('member-bottom-nav').locator('button').nth(3).click();
+  const btcValueBox=await page.getByTestId('wallet-live-btc').boundingBox();
+  const usdValueBox=await page.getByTestId('wallet-live-usd').boundingBox();
+  if(!btcValueBox||!usdValueBox||btcValueBox.y>=usdValueBox.y)
+    throw Error('Bitcoin amount must appear above its USD equivalent');
   await page.getByTestId('wallet-live-usd').waitFor({timeout:10000});
   if(await requiredWallet.count())
     throw Error('Required wallet dialog appeared again after successful registration');
@@ -352,6 +376,8 @@ try {
   if(await page.getByText('USD é crédito interno, não BTC.').count())
     throw Error('Redundant USD/BTC referral note remains visible');
   const rewardToggle=page.getByTestId('reward-history-toggle');
+  if(await page.getByText('A cada 24 horas',{exact:true}).count())
+    throw Error('The 24-hour phrase must not appear on Rewards');
   if(await rewardToggle.getAttribute('aria-expanded')!=='false')throw Error('Reward history should start collapsed');
   await rewardToggle.click();
   const inlineHistory=page.getByTestId('reward-history-panel');
@@ -379,8 +405,16 @@ try {
   if(!gold.includes('gradient'))throw Error('Top Miners gold styling missing');
   await goldButton.click();
   await page.getByText('James Hudson').waitFor({timeout:10000});
+  await page.getByTestId('top-miners-demo-count').waitFor({timeout:10000});
+  await page.getByTestId('top-miners-demo-status').waitFor({timeout:10000});
+  const demoMinerCount=Number((await page.getByTestId('top-miners-demo-count').innerText()).replace(/\D/g,''));
+  if(demoMinerCount<2349||demoMinerCount>2631)
+    throw Error('The simulated live miner count is outside the requested range');
   const minerCards=page.locator('[data-testid="miner-card"]');
   if(await minerCards.count()!==200)throw Error('Top Miners must show exactly 200 demonstration profiles');
+  const onlineCount=await page.getByTestId('miner-online-indicator').count();
+  if(onlineCount<50||onlineCount>142)
+    throw Error('The simulated online list must contain 50 to 142 indicators');
   const minerNames=await minerCards.locator('h3').allTextContents();
   if(new Set(minerNames).size!==200)throw Error('Duplicated Top Miners profile name');
   const brazilCount=await minerCards.filter({hasText:/Brasil|Brazil/}).count();

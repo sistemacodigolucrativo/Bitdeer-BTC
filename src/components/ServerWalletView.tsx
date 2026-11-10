@@ -40,10 +40,8 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
     <div className="relative bg-[#191e32] border border-[#262e49] rounded-3xl p-5 shadow-md overflow-hidden">
       <div className="absolute right-0 top-0 h-28 w-28 bg-indigo-600/10 blur-2xl rounded-full"/>
       <p className="text-xs text-slate-400">{copy('walletBalanceLabel')}</p>
-      <p data-testid="wallet-live-usd" className="block whitespace-nowrap text-[clamp(0.85rem,4.1vw,1.875rem)] tracking-tight leading-tight font-extrabold font-mono tabular-nums mt-3">US$ {account?liveBalanceUsd.toFixed(8):'0.00000000'}</p>
-      <p className="text-xs text-slate-300 mt-3">{copy('walletBtcLabel')}:
-        <strong data-testid="wallet-live-btc" className="font-mono ml-2">{liveBtc??'—'} BTC</strong>
-      </p>
+      <p data-testid="wallet-live-btc" className="block whitespace-nowrap text-[clamp(0.85rem,4.1vw,1.875rem)] tracking-tight leading-tight font-extrabold font-mono tabular-nums mt-3">{liveBtc??'—'} BTC</p>
+      <p data-testid="wallet-live-usd" className="mt-2 text-sm font-semibold font-mono tabular-nums text-slate-300">≈ US$ {account?liveBalanceUsd.toFixed(8):'0.00000000'}</p>
 
       <button onClick={onWithdraw} className="mt-4 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold w-full">{t.withdraw}</button>
       <p className="flex gap-2 items-center text-xs text-slate-300 mt-4">

@@ -1,10 +1,11 @@
 import React,{useState} from 'react';
-import {Wallet,ShieldCheck,LockKeyhole,ArrowRight} from 'lucide-react';
+import {Wallet,ShieldCheck,LockKeyhole,ArrowRight,X} from 'lucide-react';
 import {LanguageCode} from '../../types';
 
 type Props={
   language:LanguageCode;
   onRegister:(address:string)=>Promise<void>;
+  onClose:()=>void;
 };
 
 const copy={
@@ -57,7 +58,7 @@ function plausibleBitcoinAddress(address:string):boolean {
   return /^(?:[13][a-km-zA-HJ-NP-Z1-9]{25,34}|(?:bc1|BC1)[a-zA-Z0-9]{11,87})$/.test(address);
 }
 
-export const WalletRequiredModal:React.FC<Props>=({language,onRegister})=>{
+export const WalletRequiredModal:React.FC<Props>=({language,onRegister,onClose})=>{
   const t=copy[language];
   const [editing,setEditing]=useState(false);
   const [address,setAddress]=useState('');
@@ -91,6 +92,13 @@ export const WalletRequiredModal:React.FC<Props>=({language,onRegister})=>{
     className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-sm">
     <div className="relative w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-indigo-400/40 bg-gradient-to-b from-[#232a48] via-[#171b2e] to-[#101423] p-5 sm:p-6 shadow-2xl shadow-indigo-950/40 space-y-4">
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-400 via-cyan-400 to-indigo-400"/>
+      <button type="button" data-testid="wallet-required-close"
+        aria-label={language==='en'?'Close':language==='es'?'Cerrar':'Fechar'}
+        title={language==='en'?'Close':language==='es'?'Cerrar':'Fechar'}
+        onClick={onClose}
+        className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-slate-900/60 text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
+        <X size={18}/>
+      </button>
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-400/40 bg-indigo-500/15 text-indigo-200">
         <Wallet size={28}/>
       </div>

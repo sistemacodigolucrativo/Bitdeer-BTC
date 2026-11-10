@@ -24,21 +24,20 @@ export const ServerRewardView:React.FC<Props>=({account,language,busy,ledger,onC
   const locale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const t=language==='en'?{
     title:'Rewards',usd:'USD bonus',sats:'Satoshi bonus',claim:'Claim both daily bonuses',
-    waiting:'Next claim in',frequency:'Once every 24 hours',ledger:'Reward history',
+    waiting:'Next claim in',ledger:'Reward history',
     notice:copy('rewardNotice')
   }:language==='es'?{
     title:'Recompensas',usd:'Bono USD',sats:'Bono en satoshis',claim:'Reclamar ambos bonos diarios',
-    waiting:'Próximo reclamo en',frequency:'Cada 24 horas',ledger:'Historial de recompensas',
+    waiting:'Próximo reclamo en',ledger:'Historial de recompensas',
     notice:copy('rewardNotice')
   }:{
     title:'Recompensas',usd:'Bônus em USD',sats:'Bônus em satoshis',claim:'Resgatar ambos os bônus diários',
-    waiting:'Próximo resgate em',frequency:'A cada 24 horas',ledger:'Histórico de recompensas',
+    waiting:'Próximo resgate em',ledger:'Histórico de recompensas',
     notice:copy('rewardNotice')
   };
   return <section data-testid="rewards-premium" className="space-y-3 pb-4">
     <header className="flex items-center justify-between gap-3">
-      <div><h2 className="text-lg font-extrabold">{t.title}</h2>
-        <p className="text-[11px] text-slate-400">{t.frequency}</p></div>
+      <h2 className="text-lg font-extrabold">{t.title}</h2>
       <span className="flex shrink-0 items-center justify-center rounded-lg border border-[#4f46e5]/60 bg-indigo-500/15 p-2 text-indigo-400"><Gift size={24}/></span>
     </header>
     <div className="space-y-2" data-testid="rewards-compact-claim">

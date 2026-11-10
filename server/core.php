@@ -201,13 +201,15 @@ function public_user(array $row): array {
         'displayName' => $row['display_name'],
     ];
 }
-function cookie_session(string $token, int $expires): void {
+function cookie_session(string $token, ?int $expires): void {
     $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
-    setcookie('bitdeer_session', $token, [
-        'expires' => $expires, 'path' => '/', 'secure' => $secure,
+    $options = [
+        'path' => '/', 'secure' => $secure,
         'httponly' => true, 'samesite' => 'Lax',
-    ]);
+    ];
+    if ($expires !== null) $options['expires'] = $expires;
+    setcookie('bitdeer_session', $token, $options);
 }
 function units_usd(int $units): string {
     return number_format($units / 864000000, 8, '.', '');
