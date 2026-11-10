@@ -3,6 +3,7 @@
 import json
 import os
 import pathlib
+import sqlite3
 import subprocess
 import tempfile
 import time
@@ -17,10 +18,14 @@ with tempfile.TemporaryDirectory(prefix="bitdeer-package-") as temporary:
     docroot=root/"public_html"
     private=root/"private"
     env={k:v for k,v in os.environ.items() if not k.startswith("BITDEER_")}
-    php='require $argv[1]; provision("zipadmin","IntegrationZipPassword2026!","support@example.org");'
+    php='require $argv[1]; initialize_default_seed(); provision("zipadmin","IntegrationZipPassword2026!","support@example.org");'
     subprocess.run(["php","-r",php,str(private/"server"/"schema.php")],
         env=env,check=True,capture_output=True,text=True)
     assert (private/"data"/"bitdeer.sqlite").is_file()
+    with sqlite3.connect(private/"data"/"bitdeer.sqlite") as db:
+        assert db.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 2
+        assert db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM app_settings WHERE name='install_seed_state'").fetchone()[0] == 0
     server=subprocess.Popen(["php","-S","127.0.0.1:8776","-t",str(docroot)],
        env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     try:

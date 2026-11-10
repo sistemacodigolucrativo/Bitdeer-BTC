@@ -43,11 +43,17 @@ with tempfile.TemporaryDirectory(prefix="bitdeer-local-installer-") as temp:
         assert not os.path.exists(path), "CSRF failure created SQLite"
         with submit(fields) as response:
             assert response.status==200
-            assert "Instalação concluída" in response.read().decode("utf-8")
+            result=response.read().decode("utf-8")
+            assert "Instalação concluída" in result
+            assert "Conta padrão" in result
         with sqlite3.connect(path) as db:
             assert db.execute("SELECT COUNT(*) FROM users WHERE role='admin'").fetchone()[0]==1
             assert db.execute("SELECT COUNT(*) FROM users WHERE role='member'").fetchone()[0]==1
+            assert db.execute("SELECT COUNT(*) FROM users").fetchone()[0]==2
+            assert db.execute("SELECT COUNT(*) FROM users WHERE login='user'").fetchone()[0]==1
+            assert db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]==0
             assert db.execute("SELECT value FROM app_settings WHERE name='site_url'").fetchone()[0]=='http://127.0.0.1:8773'
+            assert db.execute("SELECT COUNT(*) FROM app_settings WHERE name='install_seed_state'").fetchone()[0]==0
             assert db.execute("SELECT COUNT(*) FROM referral_events").fetchone()[0]==0
         try:
             opener.open(address,timeout=5)

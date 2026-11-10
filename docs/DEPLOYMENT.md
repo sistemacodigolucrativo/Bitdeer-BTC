@@ -4,7 +4,9 @@
 
 O pacote ZIP tem public_html com os arquivos do frontend React, api/index.php,
 install/index.php e .htaccess, e private/server com os arquivos PHP do backend.
-private/data é a pasta destinada ao banco SQLite e NÃO deve ser pública.
+private/seed/bitdeer.sqlite é o modelo sanitizado derivado do banco usado no
+workspace. O instalador o copia para private/data/bitdeer.sqlite, que é o banco
+isolado daquela instalação. Nenhum dos dois arquivos pode ficar público.
 
 ## Instalação compatível com VPS ou hospedagem PHP
 
@@ -32,25 +34,31 @@ private/data é a pasta destinada ao banco SQLite e NÃO deve ser pública.
    conexão local protegida (por exemplo, encaminhamento SSH), com
    `BITDEER_INSTALL_ALLOW_LOCAL=1` e Host e IP de loopback. Nunca
    exponha esse modo local a um proxy público. Não é necessário domínio.
-6. Informe login/senha do administrador e e-mail de suporte. O instalador
-   sugere **admin / 123456789123** (campos editáveis para configuração).
-   A instalação cria automaticamente o SQLite, catálogo de cinco planos e **um novo
-   membro fundador Marcelo**, login **user**, senha demonstrativa **123456789123**
-   e código de indicação individual.
-   O primeiro membro recebe aproximadamente 5,5 meses de históricos fictícios
-   (recompensas, bônus, planos VIP 01/02/03 e saques demonstrativos), saldo
-   interno de US$ 2.000 e plano atual FREE. As credenciais são mostradas uma
-   após a prova de controle. Nenhum histórico real ou comprovante de
-   pagamento é importado.
-   **Segurança:** esses dados padrão são públicos e NÃO são seguros para um
-   sistema exposto na internet. Altere a senha administrativa no instalador e
-   evite publicar a conta de demonstração. Atualizar o código não redefine
-   credenciais já armazenadas em bancos SQLite existentes.
+6. Informe login e senha exclusivos do administrador e o e-mail de suporte.
+    O SQLite inicial é copiado do modelo sanitizado do workspace: mantém os
+    registros do admin e do membro `user`, incluindo o histórico desse membro,
+    e exclui as demais contas. Sessões, hashes de senha e campos pessoais não
+    são distribuídos. A instalação define a senha administrativa informada e
+    gera uma senha aleatória nova para `user`; a senha e o código de indicação
+    são mostrados uma única vez após a instalação.
+    Na inicialização automática do Replit, essas credenciais ficam em
+    `default-user-credentials.txt` dentro da pasta privada do SQLite; não são
+    exibidas nos logs nem incluídas no Git.
+    Os históricos herdados podem conter dados demonstrativos do workspace.
+    Não os apresente como pagamentos, saques ou mineração reais sem verificar
+    a origem. Referências de pagamento, comprovantes, endereços e carteiras
+    são removidos do modelo.
 7. O recebimento BTC começa **sem endereço configurado**: o administrador
    cadastra/alterará a carteira no painel após a instalação, reautenticando
    com sua senha. Até confirmação, o backend bloqueia pedidos novos.
-8. A instalação é recusada após a criação do banco SQLite. Preserve backup
-   de `private/data` e nunca publique os arquivos da pasta privada.
+8. A instalação é recusada após a conclusão. Preserve backup de
+    `private/data`; mantenha `private` fora da raiz pública. O ZIP inclui
+    somente o modelo sanitizado em `private/seed`, nunca o banco ativo local.
+
+Para atualizar o modelo com o banco ativo do workspace, execute
+`php scripts/build-default-seed.php`. O comando cria uma cópia sanitizada em
+`seed/bitdeer.sqlite`, mantém apenas admin e `user` com seus históricos e não
+altera o SQLite ativo. Depois gere novamente o ZIP de instalação.
 
 **Limites:** a configuração da URL informa o endereço usado pelo aplicativo,
 mas não cria domínio DNS, certificado TLS, regra de proxy, vhost ou
@@ -85,14 +93,12 @@ Suspensão de membro VIP: o vencimento continua correndo (opção A).
 Não há crédito durante o período de suspensão ou crédito retroativo.
 A paridade visual completa com o frontend legado requer revisão.
 
-## Conta demonstrativa Marcelo
+## Conta padrão e dados de demonstração
 
-Novas instalações criam Marcelo automaticamente como primeiro membro,
-com login `marcelo` e senha **aleatória, mostrada uma vez** ao final da
-instalação (ou `marcelo-demo` se o administrador usar o login `marcelo`).
-Para instalações SQLite existentes, o administrador pode abrir **Membros**
-e usar **Criar conta padrão Marcelo**. Não sobrescreve contas com o mesmo login;
-se a conta demonstrativa já existir, a ação fica indisponível.
+Novas instalações recebem a conta padrão `user` e o histórico que foi mantido
+no modelo sanitizado. Sua senha é gerada de novo para cada instalação e mostrada
+uma única vez. A conta demonstrativa Marcelo continua disponível para criação
+pelo painel administrativo quando não existir.
 
 Os históricos são salvos em `member_history_edits` como **apresentações
 demonstrativas**, sem criar pagamentos reais, contratos ativos, TXIDs ou saques

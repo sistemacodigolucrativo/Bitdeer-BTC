@@ -39,7 +39,7 @@ function installer_page(string $title, string $message, int $status): never {
 
 try {
     $path=data_file();
-    if (is_file($path)) {
+    if (is_file($path) && !default_seed_pending()) {
         installer_page('Instalador encerrado','Existe uma base de dados neste servidor. A reinstalação e a substituição de dados são bloqueadas.',410);
     }
 } catch (Throwable $e) {
@@ -124,15 +124,19 @@ if (($_SERVER['REQUEST_METHOD']??'GET')==='POST') {
         $error='Prova de controle do domínio/IP ausente, incorreta ou expirada. Confira as instruções abaixo.';
     } else {
         try {
+            initialize_default_seed();
             $created=provision($login,$pass,$email,$siteUrl,$envType);
             unset($_SESSION['csrf'],$_SESSION['attempts']);
             session_destroy();
+            $memberLabel=!empty($created['fromDefaultSeed'])
+                ? 'Conta padrão (credenciais exibidas somente agora): '
+                : 'Membro fundador da rede (credenciais exibidas somente agora): ';
             installer_page('Instalação concluída',
                 'SQLite e administrador criados. O instalador está bloqueado. '.
-                'Membro fundador da rede (credenciais exibidas somente agora): '.
+                $memberLabel.
                 'usuário '.$created['founderLogin'].' / senha '.$created['founderPassword'].
                 ' / código de indicação '.$created['founderCode'].
-                '. Guarde a senha do fundador em local seguro. Entre pelo aplicativo.',200);
+                '. Guarde essa senha em local seguro. Entre pelo aplicativo.',200);
         } catch (InvalidArgumentException $e) {
             $error=$e->getMessage();
         } catch (Throwable $e) {
@@ -182,8 +186,8 @@ small{color:#94a3b8}
 <label>Usuário administrador
 <input name="admin_login" value="admin" required minlength="3" maxlength="40" autocomplete="off" pattern="[a-zA-Z0-9_.-]+"></label>
 <label>Senha inicial do administrador
-<input type="password" name="admin_password" value="123456789123" required minlength="12" maxlength="256" autocomplete="new-password"></label>
-<p><small>Atenção: a senha preenchida é apenas um padrão de demonstração. Altere-a antes de expor o sistema à internet.</small></p>
+<input type="password" name="admin_password" required minlength="12" maxlength="256" autocomplete="new-password"></label>
+<p><small>Escolha uma senha única para esta instalação. O membro padrão receberá uma senha aleatória, exibida uma única vez após a instalação.</small></p>
 <label>E-mail de suporte
 <input type="email" name="support_email" maxlength="254" required></label>
 <label>Endereço público do sistema — detectado automaticamente

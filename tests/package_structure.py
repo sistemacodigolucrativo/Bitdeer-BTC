@@ -17,11 +17,15 @@ with zipfile.ZipFile(archive) as z:
       'bitdeer/private/server/api.php',
       'bitdeer/private/server/schema.php',
       'bitdeer/private/server/core.php',
+      'bitdeer/private/seed/bitdeer.sqlite',
       'bitdeer/public_html/.htaccess',
       'bitdeer/INSTRUCOES_DE_INSTALACAO.md'
     }
     assert required.issubset(names), sorted(required-names)
-    assert not any(n.endswith('.sqlite') for n in names), 'ZIP must never contain a database'
+    assert not any(n.startswith('bitdeer/public_html/') and n.endswith('.sqlite') for n in names), \
+      'SQLite files must remain outside the public web root'
+    assert 'bitdeer/private/data/bitdeer.sqlite' not in names, \
+      'The active per-install database must not be packaged'
     with tempfile.TemporaryDirectory() as tmp:
         z.extractall(tmp)
         root=pathlib.Path(tmp)/'bitdeer'

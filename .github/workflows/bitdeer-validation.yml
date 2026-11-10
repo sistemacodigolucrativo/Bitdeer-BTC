@@ -30,6 +30,7 @@ jobs:
         env:
           BITDEER_DB_PATH: /tmp/bitdeer-ci-private/bitdeer.sqlite
           BITDEER_ALLOW_CLI_PROVISION: '1'
+          BITDEER_SKIP_DEFAULT_SEED: '1'
         run: php bin/provision.php adminci 'StrongCIpassword123!' support@example.org
       - name: Verify initial plan baseline
         env:
@@ -54,6 +55,8 @@ jobs:
         run: python3 tests/installer_smoke.py
       - name: Local first-install browser smoke
         run: python3 tests/local_installer_smoke.py
+      - name: Replit first-startup sanitized seed
+        run: python3 tests/provision_replit_seed_smoke.py
       - name: IP ownership proof and VPS installer smoke
         run: python3 tests/ip_installer_smoke.py
       - name: Create deployable ZIP (no publishing)

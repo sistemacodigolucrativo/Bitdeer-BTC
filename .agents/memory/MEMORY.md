@@ -1,2 +1,3 @@
 - [ProjetoGIT: limites de edição](projetogit-scope.md) — replique mudanças visuais na raiz e no clone; no clone, altere apenas layout e template.
 - [Copy de produção antes do backend](production-copy-gating.md) — preparar a aparência final no preview, mas só afirmar pagamentos e mineração reais com dados confirmados.
+- [Banco SQLite padrão](sqlite-default-seed.md) — use o SQLite ativo do workspace como origem sanitizada das novas instalações, mantendo admin e usuário `user`.
