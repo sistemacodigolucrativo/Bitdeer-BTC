@@ -119,51 +119,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     <div className="w-full h-full flex flex-col justify-between bg-[#121526] text-white p-5 sm:p-6 select-none overflow-y-auto">
       {/* Top and Center Content */}
       <div className="flex-1 flex flex-col items-center justify-center pt-4 pb-4 w-full max-w-sm mx-auto">
-        {/* Gold CPU Chip Icon with Bitcoin */}
-        <div className="w-20 h-20 sm:w-24 sm:h-24 mb-4 sm:mb-5 relative flex items-center justify-center flex-shrink-0">
-          <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl">
-            {/* Outer Chip Pins */}
-            <rect x="15" y="10" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="27" y="10" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="39" y="10" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="51" y="10" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="63" y="10" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="75" y="10" width="6" height="6" fill="#f59e0b" rx="1" />
-
-            <rect x="15" y="84" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="27" y="84" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="39" y="84" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="51" y="84" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="63" y="84" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="75" y="84" width="6" height="6" fill="#f59e0b" rx="1" />
-
-            <rect x="10" y="27" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="10" y="39" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="10" y="51" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="10" y="63" width="6" height="6" fill="#f59e0b" rx="1" />
-
-            <rect x="84" y="27" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="84" y="39" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="84" y="51" width="6" height="6" fill="#f59e0b" rx="1" />
-            <rect x="84" y="63" width="6" height="6" fill="#f59e0b" rx="1" />
-
-            {/* Chip Body */}
-            <rect x="16" y="16" width="68" height="68" rx="8" fill="#1e2238" stroke="#333b5c" strokeWidth="2" />
-            <rect x="22" y="22" width="56" height="56" rx="6" fill="#141728" />
-
-            {/* Center Gold Bitcoin B */}
-            <text
-              x="50"
-              y="58"
-              textAnchor="middle"
-              fill="#f59e0b"
-              fontSize="30"
-              fontWeight="900"
-              fontFamily="sans-serif"
-            >
-              ₿
-            </text>
-          </svg>
+        <div className="mb-4 flex w-full shrink-0 justify-center sm:mb-5">
+          <img
+            src="/assets/bitdeer-login-logo.webp"
+            alt="Bitdeer"
+            className="h-36 w-36 object-contain drop-shadow-xl sm:h-44 sm:w-44 md:h-48 md:w-48"
+          />
         </div>
 
         {/* Title */}
