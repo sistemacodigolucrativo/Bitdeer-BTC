@@ -51,6 +51,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
   const [total,setTotal]=useState(0);
   const [details,setDetails]=useState<MemberDetails|null>(null);
   const [email,setEmail]=useState('');
+  const [kycDuration,setKycDuration]=useState('1.30');
   const [demoInvestorToastsEnabled,setDemoInvestorToastsEnabled]=useState(false);
   const [demoInvestorToastsReady,setDemoInvestorToastsReady]=useState(false);
   const [previewDays,setPreviewDays]=useState('1');
@@ -87,6 +88,10 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
         api<{email:string}>('support'),
       ]);
       setMembers(m.members);setTotal(m.total);setPlans(p.plans);setOrders(o.orders);setEmail(s.email);
+      void api<{durationMinutes:number}>('kyc.settings').then(x=>{
+        const hours=Math.floor(x.durationMinutes/60),minutes=x.durationMinutes%60;
+        setKycDuration(minutes?`${hours}.${String(minutes).padStart(2,'0')}`:String(hours));
+      }).catch(()=>{});
       void refreshNotifications();
       void api<{enabled:boolean}>('admin.demo.new-investors.settings')
         .then(x=>{setDemoInvestorToastsEnabled(x.enabled);setDemoInvestorToastsReady(true);})
@@ -492,6 +497,12 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
         {!audit.length && <p className="text-sm text-slate-400">{tx("Nenhuma ação registrada.")}</p>}
       </div>}
       {section==='settings' && <section className="space-y-6">
+        <form className="rounded-xl border border-[#374461] bg-[#1b2137] p-4 space-y-3" onSubmit={e=>{e.preventDefault();void change('admin.kyc.settings',{duration:kycDuration});}}>
+          <label className="block text-sm font-semibold" htmlFor="admin-kyc-duration">{language==='en'?'KYC simulation duration':language==='es'?'Duración de la simulación KYC':'Tempo da simulação KYC'}</label>
+          <input id="admin-kyc-duration" data-testid="admin-kyc-duration" type="text" inputMode="decimal" required pattern="[0-9]{1,3}([.][0-5][0-9])?" maxLength={6} value={kycDuration} onChange={e=>setKycDuration(e.target.value)} className="w-full rounded-xl border border-[#333a57] bg-[#101629] p-3 text-sm"/>
+          <p className="text-xs text-slate-400">{language==='en'?'Hours.minutes: 0.30 = 30 minutes; 1.30 = 1 hour 30 minutes.':language==='es'?'Horas.minutos: 0.30 = 30 minutos; 1.30 = 1 hora y 30 minutos.':'Horas.minutos: 0.30 = 30 minutos; 1.30 = 1 hora e 30 minutos.'}</p>
+          <button type="submit" disabled={busy} className={btn}>{language==='en'?'Save duration':language==='es'?'Guardar duración':'Salvar prazo'}</button>
+        </form>
         {MOCKUP_LOCK && <section data-testid="admin-legit-copy-preview"
           className="rounded-xl border border-amber-300/25 bg-[#1b2137] p-4 space-y-3">
           <div className="space-y-1">

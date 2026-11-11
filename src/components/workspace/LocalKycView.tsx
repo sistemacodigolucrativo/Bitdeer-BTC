@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {ArrowLeft} from 'lucide-react';
 import {LanguageCode} from '../../types';
+import {api} from '../../services/api';
 
 export type LocalKycRecord={userId:number;documentType:string;document:Blob;photo:Blob;submittedAt:number;approveAt:number};
 
@@ -27,7 +28,7 @@ async function saveLocalKyc(record:LocalKycRecord):Promise<void>{
     tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>{db.close();reject(tx.error);};tx.onabort=()=>{db.close();reject(tx.error);};
   });
 }
-export const LocalKycView:React.FC<{userId:number;language:LanguageCode;onBack:()=>void;onSaved:(record:LocalKycRecord)=>void}>=({userId,language,onBack,onSaved})=>{
+export const LocalKycView:React.FC<{userId:number;language:LanguageCode;durationMinutes:number|null;onDuration:(value:number)=>void;onBack:()=>void;onSaved:(record:LocalKycRecord)=>void}>=({userId,language,durationMinutes,onDuration,onBack,onSaved})=>{
   const [record,setRecord]=useState<LocalKycRecord|null>(null);const [kind,setKind]=useState('passport');
   const [documentFile,setDocumentFile]=useState<File|null>(null);const [photo,setPhoto]=useState<File|null>(null);
   const [error,setError]=useState('');const [busy,setBusy]=useState(false);const [clock,setClock]=useState(Date.now());
@@ -40,12 +41,12 @@ export const LocalKycView:React.FC<{userId:number;language:LanguageCode;onBack:(
     const validDoc=documentFile&&['application/pdf','image/jpeg','image/png','image/webp'].includes(documentFile.type)&&documentFile.size<=8*1024*1024;
     const validPhoto=photo&&['image/jpeg','image/png','image/webp'].includes(photo.type)&&photo.size<=8*1024*1024;
     if(!validDoc||!validPhoto||!documentFile||!photo){setError(tr.size);return;}
-    setBusy(true);try{const now=Date.now();const r={userId,documentType:kind,document:documentFile,photo,submittedAt:now,approveAt:now+(60+Math.floor(Math.random()*31))*60000};await saveLocalKyc(r);setRecord(r);onSaved(r);}catch{setError(tr.error);}finally{setBusy(false);}
+    setBusy(true);try{const setting=await api<{durationMinutes:number}>('kyc.settings');if(!Number.isInteger(setting.durationMinutes)||setting.durationMinutes<1||setting.durationMinutes>43200)throw new Error('Invalid duration');onDuration(setting.durationMinutes);const now=Date.now();const r={userId,documentType:kind,document:documentFile,photo,submittedAt:now,approveAt:now+setting.durationMinutes*60000};await saveLocalKyc(r);setRecord(r);onSaved(r);}catch{setError(tr.error);}finally{setBusy(false);}
   }
   return <section className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 text-white"><button type="button" onClick={onBack} className="flex items-center gap-2 text-sm text-indigo-200"><ArrowLeft size={24}/>{tr.back}</button><h2 className="text-xl font-bold">{tr.title}</h2>
-    <p className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-100">{tr.note}</p>
+    <p className="text-xs text-slate-400">{tr.note}</p>
     {error&&<p role="alert" className="text-rose-300 text-xs">{error}</p>}
-    {record?<div className="space-y-2 rounded-xl bg-[#1b2137] p-4"><strong className="text-sm">{clock>=record.approveAt?tr.approved:tr.pending}</strong><p className="text-xs text-slate-300">{tr.submitted}: {new Date(record.submittedAt).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR')}</p></div>:
+    {record?<div className="space-y-2 rounded-xl bg-[#1b2137] p-4"><strong className="text-sm">{clock>=(durationMinutes===null?record.approveAt:record.submittedAt+durationMinutes*60000)?tr.approved:tr.pending}</strong><p className="text-xs text-slate-300">{tr.submitted}: {new Date(record.submittedAt).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR')}</p></div>:
       <form onSubmit={e=>void submit(e)} className="space-y-4"><label className="block text-sm">{tr.type}<select value={kind} onChange={e=>setKind(e.target.value)} className="mt-2 w-full rounded-xl bg-[#1b2137] p-3"><option value="passport">Passaporte / Passport</option><option value="rg">RG</option><option value="cpf">CPF</option><option value="other">Outro / Other</option></select></label>
         <label className="block text-sm">{tr.doc}<input required type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={e=>setDocumentFile(e.target.files?.[0]??null)} className="mt-2 block w-full text-xs"/></label>
         <label className="block text-sm">{tr.photo}<input required type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setPhoto(e.target.files?.[0]??null)} className="mt-2 block w-full text-xs"/></label>

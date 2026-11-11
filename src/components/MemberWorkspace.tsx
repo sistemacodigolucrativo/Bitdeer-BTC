@@ -88,8 +88,10 @@ export const MemberWorkspace: React.FC<{
   const [profile, setProfile] = useState({displayName:'',email:'',phone:'',avatarUrl:'',avatarPhoto:'',favoritePhrase:-1,avatarLocked:false,walletAddress:''});
   const [profilePhoto,setProfilePhoto]=useState<string|null>(null);
   const [localKyc,setLocalKyc]=useState<LocalKycRecord|null>(null);
+  const [kycDuration,setKycDuration]=useState<number|null>(null);
   const [kycClock,setKycClock]=useState(Date.now());
   useEffect(()=>{let mounted=true;readLocalKyc(user.id).then(record=>{if(mounted)setLocalKyc(record);}).catch(()=>{});return()=>{mounted=false;};},[user.id]);
+  useEffect(()=>{let mounted=true;void api<{durationMinutes:number}>('kyc.settings').then(result=>{if(mounted)setKycDuration(result.durationMinutes);}).catch(()=>{});return()=>{mounted=false;};},[user.id]);
   useEffect(()=>{const timer=window.setInterval(()=>setKycClock(Date.now()),30000);return()=>window.clearInterval(timer);},[]);
   const [avatarModal,setAvatarModal]=useState(false);
   const [avatarDraft,setAvatarDraft]=useState('');
@@ -586,7 +588,7 @@ export const MemberWorkspace: React.FC<{
             </form>}
           </section>}
     </div> :
-      page==='kyc' ? <LocalKycView userId={user.id} language={language} onBack={()=>setPage('profile')} onSaved={setLocalKyc}/> :
+      page==='kyc' ? <LocalKycView userId={user.id} language={language} durationMinutes={kycDuration} onDuration={setKycDuration} onBack={()=>setPage('profile')} onSaved={setLocalKyc}/> :
       page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('settings')}/> :
       page==='topMiners' ? <TopMinersView language={language} btcUsd={displayBtcUsd} quoteTime={btcQuote?.quotedAt??null} onBack={()=>setPage('settings')}/> :
       page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
@@ -738,8 +740,14 @@ export const MemberWorkspace: React.FC<{
         {page==='history' && <RewardHistoryLog language={language} ledger={ledger}
           onRefresh={()=>{void api<typeof ledger>('ledger').then(setLedger).catch(e=>setNotice((e as Error).message));}}/>}
         {page==='profile' && <form onSubmit={e=>{e.preventDefault();void saveProfile();}} className="space-y-3">
-          <h2 className="text-lg font-bold">{words.profile}</h2>
-          {(['displayName','email','phone','walletAddress'] as const).map(k=><label key={k} className="block text-sm text-slate-300">
+          <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">{words.profile}</h2>
+            {!mockupMode&&<label title={language==='en'?'Choose profile photo':language==='es'?'Elegir foto de perfil':'Escolher foto de perfil'}
+              className="flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-emerald-600 font-bold text-white ring-2 ring-indigo-400/40">
+              {profilePhoto||profile.avatarPhoto||profile.avatarUrl?<img src={profilePhoto||profile.avatarPhoto||profile.avatarUrl} alt={language==='en'?'Profile photo':language==='es'?'Foto de perfil':'Foto de perfil'} className="h-full w-full object-cover"/>:(profile.displayName||user.login||'M').charAt(0).toUpperCase()}
+              <input aria-label={language==='en'?'Choose profile photo':language==='es'?'Elegir foto de perfil':'Escolher foto de perfil'} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void chooseProfilePhoto(e.target.files?.[0]??null)} className="sr-only"/>
+            </label>}
+          </div>
+          {(['displayName','email','phone','walletAddress'] as const).map(k=><React.Fragment key={k}><label className="block text-sm text-slate-300">
             {({displayName:words.name,email:words.optionalEmail,phone:words.phone,walletAddress:words.btcWallet} as const)[k]}
             <input type={k==='email'?'email':k==='phone'?'tel':'text'} autoComplete={k==='email'?'email':k==='phone'?'tel':'off'}
               value={profile[k]}
@@ -748,20 +756,15 @@ export const MemberWorkspace: React.FC<{
               onChange={e=>setProfile(p=>({...p,[k]:k==='phone'?formatInternationalPhone(e.target.value):e.target.value}))}
               onBlur={e=>{if(k==='phone')setProfile(p=>({...p,phone:normalizeInternationalPhone(e.target.value)}));}}
               className="mt-1 w-full bg-[#1b2137] border border-[#2b3350] p-3 rounded-xl text-white"/>
-          </label>)}
-          {!mockupMode&&<>
-            <label className="block text-sm text-slate-300">{language==='en'?'Profile photo':language==='es'?'Foto de perfil':'Foto de perfil'}
-              <input type="file" accept="image/jpeg,image/png,image/webp" disabled={profile.avatarLocked} onChange={e=>void chooseProfilePhoto(e.target.files?.[0]??null)} className="mt-2 block w-full rounded-xl bg-[#1b2137] p-3 text-xs disabled:opacity-50"/>
-              {profile.avatarLocked&&<span className="mt-1 block text-xs text-slate-400">{language==='en'?'Profile image already set.':language==='es'?'La imagen de perfil ya fue definida.':'A imagem de perfil já foi definida.'}</span>}
-              {profilePhoto&&<img src={profilePhoto} alt="" className="mt-2 h-16 w-16 rounded-full object-cover"/>}
-            </label>
-            <label className="block text-sm text-slate-300">{language==='en'?'Favorite phrase':language==='es'?'Frase favorita':'Frase favorita'}
+          </label>
+          {k==='phone'&&!mockupMode&&<label className="block text-sm text-slate-300">{language==='en'?'Favorite phrase':language==='es'?'Frase favorita':'Frase favorita'}
               <select value={profile.favoritePhrase} onChange={e=>setProfile(p=>({...p,favoritePhrase:Number(e.target.value)}))} className="mt-1 w-full rounded-xl bg-[#1b2137] p-3 text-sm">
                 <option value={-1}>—</option>{topMinerDescriptions[language].map((phrase,index)=><option value={index} key={phrase}>{phrase}</option>)}
               </select>
-            </label>
+            </label>}</React.Fragment>)}
+          {!mockupMode&&<>
             <button type="button" onClick={()=>setPage('kyc')} className="w-full rounded-xl border border-indigo-400/40 bg-[#1b2137] p-3 text-left text-sm font-semibold">{language==='en'?'KYC verification':language==='es'?'Verificación KYC':'Verificação KYC'}</button>
-            {localKyc&&<p className="rounded-xl bg-indigo-500/15 p-3 text-xs text-indigo-100">{kycClock>=localKyc.approveAt?(language==='en'?'KYC verification approved — simulated':language==='es'?'Verificación KYC aprobada — simulada':'Verificação KYC aprovada — simulada'):(language==='en'?'KYC verification in progress':language==='es'?'Verificación KYC en curso':'Verificação KYC em andamento')}</p>}
+            {localKyc&&<p className="rounded-xl bg-indigo-500/15 p-3 text-xs text-indigo-100">{kycClock>=(kycDuration===null?localKyc.approveAt:localKyc.submittedAt+kycDuration*60000)?(language==='en'?'KYC verification approved — simulated':language==='es'?'Verificación KYC aprobada — simulada':'Verificação KYC aprovada — simulada'):(language==='en'?'KYC verification in progress':language==='es'?'Verificación KYC en curso':'Verificação KYC em andamento')}</p>}
           </>}
           <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3">{words.update}</button>
         </form>}

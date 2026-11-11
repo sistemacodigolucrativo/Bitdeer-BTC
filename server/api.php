@@ -339,6 +339,23 @@ function is_valid_member_phone(string $value): bool { return normalize_member_ph
 function api_dispatch(PDO $db, string $action, string $method): never {
     ensure_member_features($db);
     expire_pending_orders($db);
+    if($action==='kyc.settings' && $method==='GET') {
+        auth_user($db);
+        $setting=query_one($db,'SELECT value FROM app_settings WHERE name=?',['kyc_duration_minutes']);
+        $minutes=(int)($setting['value']??90);
+        json_out(['durationMinutes'=>$minutes>0&&$minutes<=43200?$minutes:90]);
+    }
+    if($action==='admin.kyc.settings' && $method==='POST') {
+        $actor=require_post_csrf($db,true);$body=request_body();$duration=$body['duration']??null;
+        if(!is_string($duration)||!preg_match('/^(\d{1,3})(?:\.([0-5]\d))?$/D',$duration,$parts))fail(422,'Use horas.minutos, por exemplo 0.30 ou 1.30');
+        $minutes=(int)$parts[1]*60+(int)($parts[2]??0);
+        if($minutes<1||$minutes>43200)fail(422,'Informe um prazo entre 1 minuto e 720 horas');
+        atomic($db,static function()use($db,$actor,$minutes):void {
+            execute_sql($db,'INSERT INTO app_settings(name,value) VALUES (?,?) ON CONFLICT(name) DO UPDATE SET value=excluded.value',['kyc_duration_minutes',(string)$minutes]);
+            audit($db,(int)$actor['id'],'settings.kyc_duration',null,['minutes'=>$minutes]);
+        });
+        json_out(['ok'=>true,'durationMinutes'=>$minutes]);
+    }
     // Member-only fictional announcement setting, disabled unless explicitly enabled by an admin.
     if ($action === 'demo.new-investors.settings' && $method === 'GET') {
         $actor=auth_user($db);
@@ -630,7 +647,6 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         atomic($db,static function()use($db,$actor,$phrase,$photo):void {
             $current=query_one($db,'SELECT avatar_locked FROM users WHERE id=?',[$actor['id']]);
             if(!$current)fail(404,'Perfil indisponível');
-            if($photo!==null && (int)$current['avatar_locked']===1)fail(409,'A imagem de perfil já foi definida e não pode ser alterada');
             if($photo!==null)execute_sql($db,'UPDATE users SET avatar_photo=?,avatar_locked=1,favorite_phrase=?,updated_at=? WHERE id=?',[$photo,$phrase,now(),$actor['id']]);
             else execute_sql($db,'UPDATE users SET favorite_phrase=?,updated_at=? WHERE id=?',[$phrase,now(),$actor['id']]);
         });
