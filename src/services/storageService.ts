@@ -10,8 +10,8 @@ class StorageService {
       const legacyRaw=localStorage.getItem('btc_mining_user_preferences_v1');
       if(legacyRaw){
         const legacy=JSON.parse(legacyRaw) as Record<string,unknown>;
-        if(Object.prototype.hasOwnProperty.call(legacy,'lastUpdated')){delete legacy.lastUpdated;localStorage.setItem('btc_mining_user_preferences_v1',JSON.stringify(legacy));}
-        const theme=legacy.theme==='light'?'light':'dark';localStorage.setItem(THEME_KEY,theme);return {theme};
+        const theme=legacy.theme==='light'?'light':'dark';localStorage.setItem(THEME_KEY,theme);
+        localStorage.removeItem('btc_mining_user_preferences_v1');return {theme};
       }
       return {theme:'dark'};
     }
