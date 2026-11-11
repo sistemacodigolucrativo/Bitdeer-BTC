@@ -1,3 +1,0 @@
-- [ProjetoGIT: limites de edição](projetogit-scope.md) — replique mudanças visuais na raiz e no clone; no clone, altere apenas layout e template.
-- [Copy de produção antes do backend](production-copy-gating.md) — mantenha dados demonstrativos separados; todas as contas demo seguem o corte dinâmico do histórico de saques.
-- [SQLite do preview como fonte](sqlite-default-seed.md) — o banco ativo do preview é a única fonte local e deve ser versionado no Git remoto.
