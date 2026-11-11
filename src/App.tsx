@@ -89,9 +89,7 @@ export default function App() {
       window.visualViewport?.removeEventListener('resize',updateHeight);
     };
   },[]);
-  const [language, setLanguage] = useState<LanguageCode>(() => {
-    return normalizeLanguage(storageService.getPreferences().language);
-  });
+  const [language, setLanguage] = useState<LanguageCode>('pt');
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     const savedTheme = storageService.getPreferences().theme;
     return savedTheme === 'light' ? 'light' : 'dark';
@@ -101,56 +99,27 @@ export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const choiceRevision=useRef(0);
-  // Local, member-scoped selection takes priority on this device. Otherwise
-  // restore the persisted SQLite choice (including after changing devices).
-  async function restoreMemberLanguage(user:AuthUser) {
-    if(user.role!=='member')return;
+  async function restoreAccountLanguage(user:AuthUser,showPicker:boolean):Promise<void> {
     const revision=choiceRevision.current;
-    const local=storageService.getMemberLanguage(user.id);
     try {
       const result=await api<{language:string|null}>('language.preference');
-      if (choiceRevision.current!==revision) return; // user changed language while loading
-      const backend=result.language;
-      if(local) {
-        setLanguage(local);
-        storageService.savePreferences({language:local,isFirstLaunch:false});
-        if (backend!==local) await api('language.preference',{language:local});
-      } else if(backend==='pt'||backend==='en'||backend==='es') {
-        setLanguage(backend);
-        storageService.saveMemberLanguage(user.id,backend);
+      if(choiceRevision.current!==revision)return;
+      let remote=result.language;
+      if(remote!=='pt'&&remote!=='en'&&remote!=='es'&&user.role==='member') {
+        const legacy=storageService.getLegacyMemberLanguage(user.id);
+        if(legacy){await api('language.preference',{language:legacy});storageService.removeLegacyMemberLanguage(user.id);remote=legacy;}
       }
-    } catch {
-      if(local && choiceRevision.current===revision) setLanguage(local);
-    }
+      if(remote==='pt'||remote==='en'||remote==='es'){
+        setLanguage(remote);
+        setActiveScreen(user.role==='admin'?'workspace':showPicker?'workspace':'terminal');
+      }else if(user.role==='admin')setActiveScreen('workspace');
+      else if(showPicker)setActiveScreen('language');
+    }catch{if(choiceRevision.current===revision)setActiveScreen(user.role==='admin'?'workspace':'language');}
   }
   useEffect(() => {
     backendSession().then(async user => {
       setAuthUser(user);
-      if (user.role !== 'member') {
-        setActiveScreen('workspace');
-        return;
-      }
-      const local = storageService.getMemberLanguage(user.id);
-      if (local) {
-        setLanguage(local);
-        setActiveScreen('workspace');
-        void restoreMemberLanguage(user);
-        return;
-      }
-      // A restored session without a device choice must still ask once.
-      // Only after a deliberate choice may a member bypass the picker.
-      try {
-        const {language:remote} = await api<{language:string|null}>('language.preference');
-        if (remote === 'pt' || remote === 'en' || remote === 'es') {
-          storageService.saveMemberLanguage(user.id,remote);
-          setLanguage(remote);
-          setActiveScreen('workspace');
-        } else {
-          setActiveScreen('language');
-        }
-      } catch {
-        setActiveScreen('language');
-      }
+      await restoreAccountLanguage(user,user.role==='member');
     }).catch(() => {}).finally(() => setCheckingSession(false));
   }, []);
 
@@ -158,9 +127,6 @@ export default function App() {
   useEffect(() => {
     const handleStorageChange = (e: Event) => {
       const customEvent = e as CustomEvent;
-      if (customEvent.detail?.language) {
-        setLanguage(normalizeLanguage(customEvent.detail.language));
-      }
       if (customEvent.detail?.theme) {
         setTheme(customEvent.detail.theme === 'light' ? 'light' : 'dark');
       }
@@ -173,20 +139,11 @@ export default function App() {
     const validLang = normalizeLanguage(newLang);
     setLanguage(validLang);
     choiceRevision.current+=1;
-    if(authUser?.role==='member') {
-      storageService.saveMemberLanguage(authUser.id,validLang);
-      void api('language.preference',{language:validLang}).catch(()=>{});
-    } else {
-      storageService.savePreferences({language:validLang,isFirstLaunch:false});
-    }
+    if(authUser)void api('language.preference',{language:validLang}).catch(()=>{});
   };
 
   const handleConfirmLanguage = () => {
-    storageService.savePreferences({ language,isFirstLaunch:false });
-    if (authUser?.role==='member') {
-      storageService.saveMemberLanguage(authUser.id,language);
-      void api('language.preference',{language}).catch(()=>{});
-    }
+    if(authUser)void api('language.preference',{language}).catch(()=>{});
     setActiveScreen('terminal');
   };
 
@@ -197,31 +154,9 @@ export default function App() {
   const handleLoginSuccess = (user: AuthUser) => {
     setAuthUser(user);
     setShowCongratulations(false);
-    if(user.role==='admin'){setActiveScreen('workspace');return;}
-    const local=storageService.getMemberLanguage(user.id);
-    if(local){
-      setLanguage(local);
-      storageService.savePreferences({language:local,isFirstLaunch:false});
-      setActiveScreen('terminal');
-      void restoreMemberLanguage(user); // Keep SQLite aligned in the background.
-      return;
-    }
-    // First device sign-in: use SQLite choice if available, otherwise ask once.
-    // While checking, render neither the language picker nor an obsolete intro.
-    const revision=++choiceRevision.current;
     setCheckingSession(true);
-    void api<{language:string|null}>('language.preference').then(({language:remote})=>{
-      if(choiceRevision.current!==revision)return;
-      if(remote==='pt'||remote==='en'||remote==='es'){
-        storageService.saveMemberLanguage(user.id,remote);
-        setLanguage(remote);
-        setActiveScreen('terminal');
-      } else {
-        setActiveScreen('language');
-      }
-    }).catch(()=>{
-      if(choiceRevision.current===revision)setActiveScreen('language');
-    }).finally(()=>setCheckingSession(false));
+    choiceRevision.current+=1;
+    void restoreAccountLanguage(user,user.role==='member').finally(()=>setCheckingSession(false));
   };
 
   const handleProceedFromCongratulations = () => {
@@ -234,7 +169,6 @@ export default function App() {
 
     const defaultLang = 'pt';
     setLanguage(defaultLang);
-    storageService.savePreferences({ language: defaultLang });
     setShowCongratulations(false);
     setActiveScreen('login');
   };

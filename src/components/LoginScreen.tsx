@@ -3,7 +3,7 @@ import { User, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
 import { useProjectCopy } from '../i18n/copyMode';
-import { AuthUser, login as backendLogin, register as backendRegister } from '../services/api';
+import { AuthUser, api, login as backendLogin, logout as backendLogout, register as backendRegister } from '../services/api';
 
 const SESSION_PREFERENCE_KEY = 'bitdeer:stay-connected';
 
@@ -68,24 +68,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionPromptOpen, setSessionPromptOpen] = useState(false);
-  const [savedSessionPreference, setSavedSessionPreference] = useState(getSavedSessionPreference);
+  const [pendingUser,setPendingUser]=useState<AuthUser|null>(null);
 
   const completeLogin = async (stayConnected: boolean) => {
     setErrorMessage('');
     setIsLoading(true);
     try {
-      const user = await backendLogin(loginInput.trim(), passwordInput, stayConnected);
-      const preference = { login: normalizeLogin(user.login), stayConnected };
-      setSavedSessionPreference(preference);
-      try {
-        window.localStorage.setItem(SESSION_PREFERENCE_KEY, JSON.stringify(preference));
-      } catch {
-        // The secure server session still works when local storage is unavailable.
-      }
+      if(!pendingUser)throw new Error('Sessão de login indisponível');
+      await api('session.remember',{enabled:stayConnected});
+      try{window.localStorage.removeItem(SESSION_PREFERENCE_KEY);}catch{}
       setSessionPromptOpen(false);
-      onLoginSuccess(user);
+      onLoginSuccess(pendingUser);setPendingUser(null);
     } catch (e) {
-      setSessionPromptOpen(false);
+      if(!pendingUser)setSessionPromptOpen(false);
       setErrorMessage((e as Error).message);
     } finally {
       setIsLoading(false);
@@ -96,20 +91,29 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     e.preventDefault();
     setErrorMessage('');
     if (!registerMode) {
-      const savedPreference = getSavedSessionPreference() ?? savedSessionPreference;
-      if (savedPreference?.login === normalizeLogin(loginInput)) {
-        void completeLogin(savedPreference.stayConnected);
-        return;
-      }
-      setSessionPromptOpen(true);
+      setIsLoading(true);
+      try{
+        const result=await backendLogin(loginInput.trim(),passwordInput);
+        const legacy=getSavedSessionPreference();
+        const remembered=result.rememberPreference!==null?result.rememberPreference:
+          legacy?.login===normalizeLogin(result.user.login)?legacy.stayConnected:null;
+        setPendingUser(result.user);
+        if(remembered===null)setSessionPromptOpen(true);
+        else{
+          await api('session.remember',{enabled:remembered});
+          if(legacy?.login===normalizeLogin(result.user.login))try{window.localStorage.removeItem(SESSION_PREFERENCE_KEY);}catch{}
+          onLoginSuccess(result.user);setPendingUser(null);
+        }
+      }catch(e){setErrorMessage((e as Error).message);}
+      finally{setIsLoading(false);}
       return;
     }
     setIsLoading(true);
     try {
       const userLogin = loginInput.trim();
       await backendRegister(userLogin, passwordInput, fullNameInput.trim(),inviteCode.trim());
-      const user = await backendLogin(userLogin, passwordInput, false);
-      onLoginSuccess(user);
+      const result = await backendLogin(userLogin, passwordInput);
+      setPendingUser(result.user);setSessionPromptOpen(true);
     } catch (e) {
       setErrorMessage((e as Error).message);
     } finally { setIsLoading(false); }
@@ -242,7 +246,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 className="min-h-11 rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-100 disabled:opacity-60">
                 {sessionCopy.temporary}
               </button>
-              <button type="button" disabled={isLoading} onClick={()=>setSessionPromptOpen(false)}
+              <button type="button" disabled={isLoading} onClick={()=>{void backendLogout().finally(()=>{setSessionPromptOpen(false);setPendingUser(null);});}}
                 className="min-h-10 text-xs font-semibold text-slate-400 underline underline-offset-4 disabled:opacity-60">
                 {sessionCopy.back}
               </button>

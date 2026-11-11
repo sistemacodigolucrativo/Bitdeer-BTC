@@ -103,3 +103,36 @@ As equivalências BTC dos registros antigos usam uma **cotação ilustrativa**,
 não uma cotação histórica verificada. O saldo BTC atual é calculado pela
 cotação pública recente via servidor. O fundador pode navegar normalmente no
 painel, e o administrador pode editar os históricos simulados depois.
+
+## Dados centralizados, KYC e cópias de segurança
+
+O perfil, carteira BTC, idioma, preferência de permanência de sessão,
+preferências de boas-vindas, contratos, saldos, mineração, recompensas,
+indicações, pedidos, saques e auditoria são lidos e gravados pelo PHP/SQLite.
+O navegador mantém apenas tema visual e caches de apresentação. As antigas
+carteiras e preferências por usuário ainda no navegador não são sobrescritas:
+carteira antiga pode ser importada explicitamente em Carteira. Registros KYC
+antigos de IndexedDB também permanecem intactos e oferecem transferência
+explícita para a conta.
+
+Os novos documentos e selfies KYC são cifrados com libsodium antes de serem
+gravados como BLOBs no SQLite. Configure uma chave aleatória de 32 bytes em
+`/etc/bitdeer-btc/kyc.key`, fora da raiz pública, com leitura apenas por
+root e pelo usuário do PHP. Nunca coloque essa chave no Git ou no banco.
+O vhost Nginx deve passar `BITDEER_KYC_KEY_FILE` ao PHP e permitir até 18 MB
+somente em `/api/index.php` para os dois arquivos de até 8 MB.
+
+Em VPS, `deploy/install-storage-security.sh` prepara a chave sem substituir
+uma chave existente, instala o timer systemd diário e executa a primeira cópia.
+As cópias usam `VACUUM INTO`, passam `quick_check` e `foreign_key_check`, ficam
+fora da raiz pública com permissões root-only e são mantidas por 30 dias.
+O backup inclui cópias protegidas das versões da chave KYC necessárias à
+recuperação. Armazene também uma cópia cifrada fora do servidor para cobrir
+perda total do host; sem a chave correspondente os documentos KYC não podem
+ser decifrados.
+
+Para a atualização de Nginx, faça backup do vhost e aplique
+`deploy/kyc-nginx-location.conf` dentro do `location = /api/index.php`.
+Valide com `nginx -t` antes de recarregar. Em hospedagem compartilhada, o
+provedor precisa permitir PHP PDO SQLite, libsodium, upload multipart e
+permissões privadas; o timer systemd é específico de VPS.

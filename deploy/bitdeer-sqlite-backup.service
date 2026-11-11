@@ -1,0 +1,22 @@
+[Unit]
+Description=Consistent Bitdeer BTC SQLite backup
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+Environment=BITDEER_DB_PATH=/var/lib/bitdeer-btc/data/bitdeer.sqlite
+Environment=BITDEER_BACKUP_DIR=/var/backups/bitdeer-btc
+Environment=BITDEER_KYC_KEY_FILE=/etc/bitdeer-btc/kyc.key
+ExecStart=/usr/bin/php /srv/bitdeer-btc/current/scripts/backup-sqlite.php
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/bitdeer-btc/data /var/backups/bitdeer-btc
+ReadOnlyPaths=/srv/bitdeer-btc
+RestrictAddressFamilies=AF_UNIX
+LockPersonality=true
+MemoryDenyWriteExecute=true

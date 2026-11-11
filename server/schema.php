@@ -232,6 +232,30 @@ CREATE TABLE IF NOT EXISTS language_preferences (
   user_id INTEGER PRIMARY KEY REFERENCES users(id),
   language TEXT NOT NULL DEFAULT 'pt' CHECK(language IN ('pt','en','es'))
 );
+CREATE TABLE IF NOT EXISTS member_preferences (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  preference_key TEXT NOT NULL,
+  value_json TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY(user_id,preference_key)
+);
+CREATE TABLE IF NOT EXISTS member_kyc_submissions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  document_type TEXT NOT NULL,
+  document_mime TEXT NOT NULL,
+  document_name TEXT NOT NULL,
+  document_nonce BLOB NOT NULL,
+  document_ciphertext BLOB NOT NULL,
+  photo_mime TEXT NOT NULL,
+  photo_name TEXT NOT NULL,
+  photo_nonce BLOB NOT NULL,
+  photo_ciphertext BLOB NOT NULL,
+  submitted_at INTEGER NOT NULL,
+  approved_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_member_kyc_latest ON member_kyc_submissions(user_id,id DESC);
 CREATE TABLE IF NOT EXISTS withdraw_requests (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id),

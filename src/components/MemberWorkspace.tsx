@@ -44,15 +44,6 @@ function readMemberWalletAddress(userId:number):string {
     return '';
   }
 }
-function cacheMemberWalletAddress(userId:number,address:string):void {
-  try {
-    const key=memberWalletStorageKey(userId);
-    const value=address.trim();
-    if(value)window.localStorage.setItem(key,value);
-  } catch {
-    // The server profile remains authoritative if local storage is unavailable.
-  }
-}
 function removeMemberWalletAddress(userId:number):void {
   try {
     window.localStorage.removeItem(memberWalletStorageKey(userId));
@@ -74,7 +65,6 @@ export const MemberWorkspace: React.FC<{
   const [balanceTick,setBalanceTick] = useState(Date.now());
   const [lastSnapshotReceivedAt,setLastSnapshotReceivedAt] = useState(Date.now());
   const acceptSnapshot=(data:MemberData)=>{
-    cacheMemberWalletAddress(data.user.id,data.profile.walletAddress);
     setLastSnapshotReceivedAt(Date.now());
     setAccount(data);
   };
@@ -91,15 +81,40 @@ export const MemberWorkspace: React.FC<{
   const [profile, setProfile] = useState({displayName:'',email:'',phone:'',avatarUrl:'',avatarPhoto:'',favoritePhrase:-1,avatarLocked:false,walletAddress:''});
   const [profilePhoto,setProfilePhoto]=useState<string|null>(null);
   const [localKyc,setLocalKyc]=useState<LocalKycRecord|null>(null);
+  const [memberPreferences,setMemberPreferences]=useState<Record<string,unknown>>({});
+  const [memberPreferencesReady,setMemberPreferencesReady]=useState(false);
+  const [returningMember,setReturningMember]=useState(false);
+  const [legacyWallet,setLegacyWallet]=useState(()=>readMemberWalletAddress(user.id));
   const [welcomeBack,setWelcomeBack]=useState<{days:number|null;demo:boolean;unavailable:boolean}|null>(null);
   const welcomeShown=useRef<number|null>(null);
   const [kycDuration,setKycDuration]=useState<number|null>(null);
   const [kycClock,setKycClock]=useState(Date.now());
-  useEffect(()=>{let mounted=true;readLocalKyc(user.id).then(record=>{if(mounted)setLocalKyc(record);}).catch(()=>{});return()=>{mounted=false;};},[user.id]);
+  useEffect(()=>{let mounted=true;api<{record:(LocalKycRecord&{submittedAt:number;approvedAt:number;status:'pending'|'approved'})|null}>('kyc.mine').then(({record})=>{if(mounted&&record)setLocalKyc({...record,submittedAt:record.submittedAt*1000,approveAt:record.approvedAt*1000});}).catch(()=>{});return()=>{mounted=false;};},[user.id]);
+  useEffect(()=>{let mounted=true;void (async()=>{
+    try{
+      const result=await api<{preferences:Record<string,unknown>}>('member.preferences');
+      if(!mounted)return;let preferences=result.preferences;
+      const updates:Record<string,unknown>={};
+      const legacyKeysToRemove:string[]=[];
+      if(typeof preferences.firstHomeVisit!=='boolean'){
+        const oldKey=`btc-member-home-welcomed-v1:${user.id}`;let wasVisited=false;
+        try{wasVisited=localStorage.getItem(oldKey)==='visited';}catch{}
+        updates.firstHomeVisit=true;setReturningMember(wasVisited);
+        if(wasVisited)legacyKeysToRemove.push(oldKey);
+      }else setReturningMember(preferences.firstHomeVisit===true);
+      if(typeof preferences.welcomeDismissed!=='boolean'){
+        const oldKey=`bitdeer-welcome-dismissed:${user.id}`;let dismissed=false;
+        try{dismissed=localStorage.getItem(oldKey)==='1';}catch{}
+        if(dismissed){updates.welcomeDismissed=true;legacyKeysToRemove.push(oldKey);}
+      }
+      if(Object.keys(updates).length){await api('member.preferences',updates);preferences={...preferences,...updates};}
+      for(const key of legacyKeysToRemove)try{localStorage.removeItem(key);}catch{}
+      setMemberPreferences(preferences);setMemberPreferencesReady(true);
+    }catch{if(mounted)setMemberPreferencesReady(true);}
+  })();return()=>{mounted=false;};},[user.id]);
   useEffect(()=>{let mounted=true;void api<{durationMinutes:number}>('kyc.settings').then(result=>{if(mounted)setKycDuration(result.durationMinutes);}).catch(()=>{});return()=>{mounted=false;};},[user.id]);
   useEffect(()=>{
-    if(mockupMode||welcomeShown.current===user.id)return;
-    try{if(localStorage.getItem(`bitdeer-welcome-dismissed:${user.id}`)==='1'){welcomeShown.current=user.id;return;}}catch{}
+    if(mockupMode||!memberPreferencesReady||memberPreferences.welcomeDismissed===true||welcomeShown.current===user.id)return;
     welcomeShown.current=user.id;let mounted=true;
     void api<{requests:Array<{created_at:number;simulation?:boolean;historyId?:string;id:number|string}>}>('withdraw.mine').then(result=>{
       if(!mounted)return;
@@ -107,7 +122,7 @@ export const MemberWorkspace: React.FC<{
       setWelcomeBack({days:latest?Math.floor((Date.now()-Number(latest.created_at)*1000)/86400000):null,demo:!!latest&&(latest.simulation===true||String(latest.historyId??'').startsWith('manual:')||String(latest.id).startsWith('D-')),unavailable:false});
     }).catch(()=>{if(mounted)setWelcomeBack({days:null,demo:false,unavailable:true});});
     return()=>{mounted=false;};
-  },[mockupMode,user.id]);
+  },[mockupMode,user.id,memberPreferencesReady,memberPreferences.welcomeDismissed]);
   useEffect(()=>{const timer=window.setInterval(()=>setKycClock(Date.now()),30000);return()=>window.clearInterval(timer);},[]);
   const [avatarModal,setAvatarModal]=useState(false);
   const [avatarDraft,setAvatarDraft]=useState('');
@@ -228,11 +243,12 @@ export const MemberWorkspace: React.FC<{
     const result=await api<{orders:PurchaseHistoryOrder[]}>('orders.mine');
     setPurchaseHistory(result.orders);
   }
-  async function reload() {
+  async function reload():Promise<MemberData|null> {
     try {
       const data = await api<MemberData>('profile');
       acceptSnapshot(data); setProfile({...data.profile,phone:formatInternationalPhone(data.profile.phone)});
-    } catch(e) { setNotice((e as Error).message); }
+      return data;
+    } catch(e) { setNotice((e as Error).message);return null; }
   }
   function refreshQuote():Promise<boolean> {
     setQuotePhase('loading');
@@ -348,6 +364,7 @@ export const MemberWorkspace: React.FC<{
     setProfile({...saved.profile,phone:formatInternationalPhone(saved.profile.phone)});
     setWalletDraft(saved.profile.walletAddress);
     setWalletStep('none');
+    removeMemberWalletAddress(user.id);setLegacyWallet('');
   }
   async function saveWalletForWithdrawal(){
     if(!walletConfirmation){setWalletConfirmation(true);return;}
@@ -416,10 +433,6 @@ export const MemberWorkspace: React.FC<{
         throw new Error(tr.phone);
       }
       const result = await api<PurchaseOrder | {ok:boolean}>(action,body);
-      if(action==='profile.update'&&typeof body.walletAddress==='string'){
-        if(body.walletAddress.trim())cacheMemberWalletAddress(user.id,body.walletAddress);
-        else removeMemberWalletAddress(user.id);
-      }
       if (action==='orders.create') {
         const order=result as PurchaseOrder;
         setCheckout(order);
@@ -490,7 +503,9 @@ export const MemberWorkspace: React.FC<{
       if(!validInternationalPhone(profile.phone))throw new Error(tr.phone);
       await api('profile.update',profile);
       await api('profile.preferences',{favoritePhrase:profile.favoritePhrase,...(profilePhoto?{avatarPhoto:profilePhoto}:{})});
-      setProfilePhoto(null);await reload();setNotice(words.saved);
+      setProfilePhoto(null);const saved=await reload();
+      if(saved&&legacyWallet&&saved.profile.walletAddress===profile.walletAddress){removeMemberWalletAddress(user.id);setLegacyWallet('');}
+      setNotice(words.saved);
     }catch(e){setNotice((e as Error).message);}finally{setBusy(false);}
   }
   const tab = (p:Page, label:string, Icon:typeof Home) =>
@@ -499,7 +514,7 @@ export const MemberWorkspace: React.FC<{
       className={'flex flex-1 min-w-0 flex-col items-center justify-center text-[10px] sm:text-[11px] gap-1 rounded-xl py-1.5 transition-colors '+(page===p?'text-white bg-indigo-500/15':'text-slate-400 hover:text-white')}>
       <Icon size={20} className="shrink-0"/><span className="w-full truncate text-center">{label}</span></button>;
   return <div className="relative w-full h-full flex flex-col bg-[#121526] text-white">
-    {welcomeBack&&<WelcomeBackCard language={language} name={account?.profile.displayName||user.displayName||user.login} {...welcomeBack} onRememberChange={remember=>{try{if(remember)localStorage.setItem(`bitdeer-welcome-dismissed:${user.id}`,'1');else localStorage.removeItem(`bitdeer-welcome-dismissed:${user.id}`);}catch{}}} onClose={()=>setWelcomeBack(null)}/>}
+    {welcomeBack&&<WelcomeBackCard language={language} name={account?.profile.displayName||user.displayName||user.login} {...welcomeBack} onRememberChange={remember=>{setMemberPreferences(p=>({...p,welcomeDismissed:remember}));void api('member.preferences',{welcomeDismissed:remember}).catch(()=>setNotice(language==='en'?'Could not save this preference.':language==='es'?'No se pudo guardar esta preferencia.':'Não foi possível salvar esta preferência.'));}} onClose={()=>setWelcomeBack(null)}/>}
     {savedToast&&<div data-testid="saved-toast" role="status" aria-live="polite"
       style={{bottom:'calc(env(safe-area-inset-bottom, 0px) + 4.5rem)'}}
       className={'pointer-events-none fixed right-4 z-[200] w-fit max-w-[calc(100vw-2rem)] rounded-xl border border-emerald-300/25 bg-[#16352f]/95 px-3 py-2 text-center text-xs font-semibold text-emerald-100 shadow-xl backdrop-blur transition-all duration-300 '+
@@ -615,7 +630,7 @@ export const MemberWorkspace: React.FC<{
           className={page==='home'
             ?'pointer-events-none fixed right-4 z-[201] w-fit max-w-[calc(100vw-2rem)] rounded-xl border border-amber-300/25 bg-[#20243c]/95 px-3 py-2 text-xs text-amber-200 shadow-xl backdrop-blur'
             :'p-3 rounded-lg bg-[#20243c] text-sm text-amber-300'}>{notice}</p>}
-        {page==='home' && <><ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language} busy={busy}
+        {page==='home' && <><ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language} busy={busy} returning={returningMember}
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
           onRewards={()=>setPage('reward')}
           onHistory={()=>setPage('history')} avatarLocked={profile.avatarLocked} onAvatarClick={()=>{setAvatarDraft(profile.avatarUrl);setAvatarModal(true);}}/><MockPaymentFeed language={language}/></>}
@@ -623,6 +638,10 @@ export const MemberWorkspace: React.FC<{
           ledger={ledger} onClaim={()=>void act('rewards.claim')}
           onRefreshHistory={()=>{void api<typeof ledger>('ledger').then(setLedger).catch(e=>setNotice((e as Error).message));}}/>}
         {page==='wallet' && <>
+          {!account?.profile.walletAddress&&legacyWallet&&<div className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-xs text-amber-100">
+            <p>{language==='en'?'A Bitcoin address from this browser can be moved to your account database. It will be removed from this device only after the server confirms the saved value.':language==='es'?'Se puede transferir a la base de datos de su cuenta una dirección Bitcoin guardada en este navegador. Solo se eliminará del dispositivo cuando el servidor confirme el guardado.':'Há um endereço Bitcoin legado neste navegador. Você pode transferi-lo para sua conta; ele só será removido deste dispositivo após confirmação do servidor.'}</p>
+            <button type="button" disabled={busy} className="mt-2 rounded-lg bg-amber-400/20 px-3 py-2 font-bold" onClick={()=>void registerRequiredWallet(legacyWallet).then(()=>setNotice(words.saved)).catch(e=>setNotice((e as Error).message))}>{language==='en'?'Move address to account':language==='es'?'Transferir dirección a la cuenta':'Transferir endereço para a conta'}</button>
+          </div>}
           <ServerWalletView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language}
             accruals={ledger.accruals} onEdit={()=>setPage('profile')}
             onWithdraw={()=>{
@@ -781,7 +800,7 @@ export const MemberWorkspace: React.FC<{
             </label>}</React.Fragment>)}
           {!mockupMode&&<>
             <button type="button" onClick={()=>setPage('kyc')} className="w-full rounded-xl border border-indigo-400/40 bg-[#1b2137] p-3 text-left text-sm font-semibold">{language==='en'?'KYC verification':language==='es'?'Verificación KYC':'Verificação KYC'}</button>
-            {localKyc&&<p className="rounded-xl bg-indigo-500/15 p-3 text-xs text-indigo-100">{kycClock>=(kycDuration===null?localKyc.approveAt:localKyc.submittedAt+kycDuration*60000)?mockupSafetyCopy.kycApproved[language]:(language==='en'?'KYC verification in progress':language==='es'?'Verificación KYC en curso':'Verificação KYC em andamento')}</p>}
+            {localKyc&&<p className="rounded-xl bg-indigo-500/15 p-3 text-xs text-indigo-100">{localKyc.status==='approved'||kycClock>=(kycDuration===null?localKyc.approveAt:localKyc.submittedAt+kycDuration*60000)?mockupSafetyCopy.kycApproved[language]:(language==='en'?'KYC verification in progress':language==='es'?'Verificación KYC en curso':'Verificação KYC em andamento')}</p>}
           </>}
           <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3">{words.update}</button>
         </form>}

@@ -515,18 +515,21 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
             <strong data-testid="admin-legit-copy-countdown">{previewCountdown}</strong>
           </p>}
           <form data-testid="admin-legit-copy-preview-form" className="space-y-3"
-            onSubmit={e=>{
+            onSubmit={async e=>{
               e.preventDefault();
               const days=Number(previewDays);
               if(!Number.isInteger(days)||days<MOCKUP_PREVIEW_MIN_DAYS||days>MOCKUP_PREVIEW_MAX_DAYS){
                 setNotice(copy('adminPreviewDurationError'));
                 return;
               }
-              if(!startLegitPreview(days)){
-                setNotice(copy('adminPreviewStorageError'));
-                return;
-              }
-              setNotice('');
+              setBusy(true);
+              try{
+                if(!await startLegitPreview(days)){
+                  setNotice(language==='en'?'Could not save the global setting. Check your admin session and try again.':language==='es'?'No se pudo guardar la configuración global. Comprueba la sesión de administrador e inténtalo de nuevo.':'Não foi possível salvar a configuração global. Verifique a sessão administrativa e tente novamente.');
+                  return;
+                }
+                setNotice('');
+              }finally{setBusy(false);}
             }}>
             <label htmlFor="admin-legit-copy-preview-days" className="block text-sm">
               {copy('adminPreviewDurationLabel')}

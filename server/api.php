@@ -252,6 +252,30 @@ function ensure_member_features(PDO $db): void {
       user_id INTEGER PRIMARY KEY REFERENCES users(id),
       language TEXT NOT NULL DEFAULT 'pt' CHECK(language IN ('pt','en','es'))
     )");
+    $db->exec("CREATE TABLE IF NOT EXISTS member_preferences (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      preference_key TEXT NOT NULL,
+      value_json TEXT NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY(user_id,preference_key)
+    )");
+    $db->exec("CREATE TABLE IF NOT EXISTS member_kyc_submissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      document_type TEXT NOT NULL,
+      document_mime TEXT NOT NULL,
+      document_name TEXT NOT NULL,
+      document_nonce BLOB NOT NULL,
+      document_ciphertext BLOB NOT NULL,
+      photo_mime TEXT NOT NULL,
+      photo_name TEXT NOT NULL,
+      photo_nonce BLOB NOT NULL,
+      photo_ciphertext BLOB NOT NULL,
+      submitted_at INTEGER NOT NULL,
+      approved_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    )");
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_member_kyc_latest ON member_kyc_submissions(user_id,id DESC)');
     $db->exec("CREATE TABLE IF NOT EXISTS withdraw_requests (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL REFERENCES users(id),
@@ -349,6 +373,110 @@ function is_valid_member_phone(string $value): bool { return normalize_member_ph
 function api_dispatch(PDO $db, string $action, string $method): never {
     ensure_member_features($db);
     expire_pending_orders($db);
+    if($action==='legit-preview.settings' && $method==='GET') {
+        $enabled=query_one($db,'SELECT value FROM app_settings WHERE name=?',['legit_preview_enabled']);
+        $expires=query_one($db,'SELECT value FROM app_settings WHERE name=?',['legit_preview_expires_at']);
+        $expiresAt=(int)($expires['value']??0);
+        $active=($enabled['value']??'0')==='1' && $expiresAt>now();
+        json_out(['enabled'=>$active,'expiresAt'=>$active?$expiresAt:null]);
+    }
+    if($action==='admin.legit-preview.settings' && $method==='POST') {
+        $actor=require_post_csrf($db,true);$body=request_body();$days=$body['days']??null;
+        if(!is_int($days)||$days<0||$days>365)fail(422,'Informe de 0 a 365 dias; zero desativa a prévia.');
+        $at=now();$expiresAt=$days===0?0:$at+$days*86400;
+        atomic($db,static function()use($db,$actor,$days,$at,$expiresAt):void {
+            foreach(['legit_preview_enabled'=>$days>0?'1':'0','legit_preview_expires_at'=>(string)$expiresAt,
+                'legit_preview_updated_at'=>(string)$at,'legit_preview_admin_id'=>(string)$actor['id']] as $name=>$value) {
+                execute_sql($db,'INSERT INTO app_settings(name,value) VALUES (?,?) ON CONFLICT(name) DO UPDATE SET value=excluded.value',[$name,$value]);
+            }
+            audit($db,(int)$actor['id'],$days===0?'settings.legit_preview.deactivate':'settings.legit_preview.activate',null,
+                ['days'=>$days,'expiresAt'=>$expiresAt]);
+        });
+        json_out(['enabled'=>$days>0,'expiresAt'=>$days>0?$expiresAt:null]);
+    }
+    if($action==='member.preferences' && $method==='GET') {
+        $actor=auth_user($db);if($actor['role']!=='member')fail(403,'Conta de membro necessária');
+        $rows=query_all($db,'SELECT preference_key,value_json FROM member_preferences WHERE user_id=?',[$actor['id']]);
+        $preferences=[];foreach($rows as $row)$preferences[$row['preference_key']]=json_decode($row['value_json'],true,512,JSON_THROW_ON_ERROR);
+        $lang=query_one($db,'SELECT language FROM language_preferences WHERE user_id=?',[$actor['id']]);
+        if(!isset($preferences['language'])&&$lang)$preferences['language']=$lang['language'];
+        json_out(['preferences'=>$preferences]);
+    }
+    if($action==='member.preferences' && $method==='POST') {
+        $actor=require_post_csrf($db);if($actor['role']!=='member')fail(403,'Conta de membro necessária');
+        $body=request_body();$allowed=['language','theme','firstHomeVisit','welcomeDismissed','rememberSession'];
+        foreach($body as $key=>$value) {
+            if(!in_array($key,$allowed,true))fail(422,'Preferência não permitida');
+            if($key==='language'&&!in_array($value,['pt','en','es'],true))fail(422,'Idioma inválido');
+            if($key==='theme'&&!in_array($value,['dark','light'],true))fail(422,'Tema inválido');
+            if(in_array($key,['firstHomeVisit','welcomeDismissed','rememberSession'],true)&&!is_bool($value))fail(422,'Preferência inválida');
+        }
+        atomic($db,static function()use($db,$actor,$body):void {
+            foreach($body as $key=>$value) {
+                execute_sql($db,'INSERT INTO member_preferences(user_id,preference_key,value_json,updated_at) VALUES (?,?,?,?)
+                    ON CONFLICT(user_id,preference_key) DO UPDATE SET value_json=excluded.value_json,updated_at=excluded.updated_at',
+                    [$actor['id'],$key,json_encode($value,JSON_THROW_ON_ERROR),now()]);
+                if($key==='language')execute_sql($db,'INSERT INTO language_preferences(user_id,language) VALUES (?,?)
+                    ON CONFLICT(user_id) DO UPDATE SET language=excluded.language',[$actor['id'],$value]);
+            }
+        });
+        json_out(['ok'=>true]);
+    }
+    if($action==='kyc.mine' && $method==='GET') {
+        $actor=auth_user($db);if($actor['role']!=='member')fail(403,'Conta de membro necessária');
+        $r=query_one($db,'SELECT id,document_type,document_mime,document_name,photo_mime,photo_name,submitted_at,approved_at
+            FROM member_kyc_submissions WHERE user_id=? ORDER BY id DESC LIMIT 1',[$actor['id']]);
+        if(!$r)json_out(['record'=>null]);
+        $status=now()>=(int)$r['approved_at']?'approved':'pending';
+        json_out(['record'=>['id'=>(int)$r['id'],'documentType'=>$r['document_type'],'documentMime'=>$r['document_mime'],
+            'documentName'=>$r['document_name'],'photoMime'=>$r['photo_mime'],'photoName'=>$r['photo_name'],
+            'submittedAt'=>(int)$r['submitted_at'],'approvedAt'=>(int)$r['approved_at'],'status'=>$status,
+            'simulation'=>true]]);
+    }
+    if($action==='kyc.file' && $method==='GET') {
+        $actor=auth_user($db);if($actor['role']!=='member')fail(403,'Conta de membro necessária');
+        $kind=$_GET['kind']??'';if(!in_array($kind,['document','photo'],true))fail(422,'Arquivo inválido');
+        $r=query_one($db,'SELECT * FROM member_kyc_submissions WHERE user_id=? ORDER BY id DESC LIMIT 1',[$actor['id']]);
+        if(!$r)fail(404,'Arquivo não encontrado');
+        require_once __DIR__.'/kyc_crypto.php';
+        $prefix=$kind==='document'?'document':'photo';
+        $bytes=kyc_decrypt((string)$r[$prefix.'_ciphertext'],(string)$r[$prefix.'_nonce']);
+        header('Content-Type: '.$r[$prefix.'_mime']);header('Content-Length: '.strlen($bytes));
+        header('Content-Disposition: inline; filename="'.rawurlencode((string)$r[$prefix.'_name']).'"');
+        header('Cache-Control: private, no-store');header('X-Content-Type-Options: nosniff');echo $bytes;exit;
+    }
+    if($action==='kyc.submit' && $method==='POST') {
+        $actor=require_post_csrf($db);if($actor['role']!=='member')fail(403,'Conta de membro necessária');
+        if(!str_starts_with(strtolower((string)($_SERVER['CONTENT_TYPE']??'')),'multipart/form-data'))fail(415,'Envio multipart obrigatório');
+        $type=$_POST['documentType']??'';if(!is_string($type)||!in_array($type,['passport','rg','cpf','other'],true))fail(422,'Tipo de documento inválido');
+        $readUpload=static function(string $field,array $mimes):array {
+            $f=$_FILES[$field]??null;if(!is_array($f)||($f['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK||!is_uploaded_file((string)$f['tmp_name']))fail(422,'Arquivo ausente ou inválido');
+            $size=(int)($f['size']??0);if($size<1||$size>8*1024*1024)fail(413,'Cada arquivo deve ter até 8 MB');
+            $mime=(new finfo(FILEINFO_MIME_TYPE))->file((string)$f['tmp_name']);if(!is_string($mime)||!in_array($mime,$mimes,true))fail(422,'Formato de arquivo não permitido');
+            $bytes=file_get_contents((string)$f['tmp_name']);if($bytes===false)fail(422,'Não foi possível ler o arquivo');
+            if(str_starts_with($mime,'image/')&&!@getimagesizefromstring($bytes))fail(422,'Imagem inválida');
+            $name=basename((string)($f['name']??'upload'));$name=preg_replace('/[^A-Za-z0-9._-]/','_',substr($name,0,120))?:'upload';
+            return [$bytes,$mime,$name];
+        };
+        [$doc,$docMime,$docName]=$readUpload('document',['application/pdf','image/jpeg','image/png','image/webp']);
+        [$photo,$photoMime,$photoName]=$readUpload('photo',['image/jpeg','image/png','image/webp']);
+        require_once __DIR__.'/kyc_crypto.php';$docEncrypted=kyc_encrypt($doc);$photoEncrypted=kyc_encrypt($photo);
+        $duration=(int)(query_one($db,'SELECT value FROM app_settings WHERE name="kyc_duration_minutes"')['value']??90);
+        if($duration<1||$duration>43200)$duration=90;$at=now();
+        $insert=$db->prepare('INSERT INTO member_kyc_submissions(user_id,document_type,document_mime,document_name,document_nonce,document_ciphertext,
+            photo_mime,photo_name,photo_nonce,photo_ciphertext,submitted_at,approved_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        $insert->bindValue(1,(int)$actor['id'],PDO::PARAM_INT);$insert->bindValue(2,$type,PDO::PARAM_STR);
+        $insert->bindValue(3,$docMime,PDO::PARAM_STR);$insert->bindValue(4,$docName,PDO::PARAM_STR);
+        $insert->bindValue(5,$docEncrypted['nonce'],PDO::PARAM_LOB);$insert->bindValue(6,$docEncrypted['ciphertext'],PDO::PARAM_LOB);
+        $insert->bindValue(7,$photoMime,PDO::PARAM_STR);$insert->bindValue(8,$photoName,PDO::PARAM_STR);
+        $insert->bindValue(9,$photoEncrypted['nonce'],PDO::PARAM_LOB);$insert->bindValue(10,$photoEncrypted['ciphertext'],PDO::PARAM_LOB);
+        $insert->bindValue(11,$at,PDO::PARAM_INT);$insert->bindValue(12,$at+$duration*60,PDO::PARAM_INT);$insert->bindValue(13,$at,PDO::PARAM_INT);
+        $insert->execute();
+        $record=query_one($db,'SELECT id,document_type,document_mime,document_name,photo_mime,photo_name,submitted_at,approved_at FROM member_kyc_submissions WHERE id=last_insert_rowid()');
+        json_out(['ok'=>true,'record'=>['id'=>(int)$record['id'],'documentType'=>$record['document_type'],'documentMime'=>$record['document_mime'],
+            'documentName'=>$record['document_name'],'photoMime'=>$record['photo_mime'],'photoName'=>$record['photo_name'],
+            'submittedAt'=>(int)$record['submitted_at'],'approvedAt'=>(int)$record['approved_at'],'status'=>'pending','simulation'=>true]],201);
+    }
     if($action==='kyc.settings' && $method==='GET') {
         auth_user($db);
         $setting=query_one($db,'SELECT value FROM app_settings WHERE name=?',['kyc_duration_minutes']);
@@ -610,9 +738,7 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $login = string_field($body,'login',40);
         $password = $body['password'] ?? '';
         if (!is_string($password) || strlen($password) > 256) fail(401,'Credenciais inválidas');
-        $rememberSession = $body['rememberSession'] ?? false;
-        if (!is_bool($rememberSession)) fail(422,'Preferência de sessão inválida');
-        $result = atomic($db, static function () use ($db,$login,$password,$rememberSession): ?array {
+        $result = atomic($db, static function () use ($db,$login,$password): ?array {
             $recent = query_one($db,'SELECT COUNT(*) AS n FROM auth_attempts WHERE login=? AND attempted_at>?',
               [$login,now()-900]);
             if ((int)($recent['n'] ?? 0) >= 10) fail(429,'Muitas tentativas. Tente mais tarde.');
@@ -622,16 +748,30 @@ function api_dispatch(PDO $db, string $action, string $method): never {
                 return null;
             }
             execute_sql($db,'DELETE FROM auth_attempts WHERE login=?',[$login]);
+            $rememberPreference=query_one($db,'SELECT value_json FROM member_preferences WHERE user_id=? AND preference_key="rememberSession"',[$user['id']]);
             $token=bin2hex(random_bytes(32));$csrf=bin2hex(random_bytes(32));
-            $expires=now()+($rememberSession?2592000:43200);
+            $expires=now()+43200;
             execute_sql($db,'INSERT INTO sessions(user_id,token_hash,csrf_token,issued_at,expires_at) VALUES (?,?,?,?,?)',
               [$user['id'],hash('sha256',$token),$csrf,now(),$expires]);
             return ['user'=>public_user($user),'token'=>$token,'csrf'=>$csrf,'expires'=>$expires,
-              'persistent'=>$rememberSession];
+              'rememberPreference'=>$rememberPreference?json_decode($rememberPreference['value_json'],true):null];
         });
         if ($result === null) fail(401,'Credenciais inválidas');
-        cookie_session($result['token'],$result['persistent']?$result['expires']:null);
-        json_out(['user'=>$result['user'],'csrfToken'=>$result['csrf']]);
+        cookie_session($result['token'],null);
+        json_out(['user'=>$result['user'],'csrfToken'=>$result['csrf'],'rememberPreference'=>$result['rememberPreference']]);
+    }
+    if($action==='session.remember'&&$method==='POST') {
+        $actor=require_post_csrf($db);$body=request_body();$enabled=$body['enabled']??null;
+        if(!is_bool($enabled))fail(422,'Preferência de sessão inválida');
+        $expires=now()+($enabled?2592000:43200);
+        atomic($db,static function()use($db,$actor,$enabled,$expires):void {
+            execute_sql($db,'UPDATE sessions SET expires_at=? WHERE id=?',[$expires,$actor['session_id']]);
+            execute_sql($db,'INSERT INTO member_preferences(user_id,preference_key,value_json,updated_at) VALUES (?,"rememberSession",?,?)
+              ON CONFLICT(user_id,preference_key) DO UPDATE SET value_json=excluded.value_json,updated_at=excluded.updated_at',
+              [$actor['id'],json_encode($enabled,JSON_THROW_ON_ERROR),now()]);
+        });
+        $raw=(string)($_COOKIE['bitdeer_session']??'');cookie_session($raw,$enabled?$expires:null);
+        json_out(['ok'=>true,'rememberSession'=>$enabled,'expiresAt'=>$expires]);
     }
     if ($action === 'session' && $method === 'GET') {
         $actor = auth_user($db);
@@ -645,6 +785,8 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     }
     if ($action === 'language.preference' && $method === 'GET') {
         $actor=auth_user($db);
+        $row=query_one($db,'SELECT value_json FROM member_preferences WHERE user_id=? AND preference_key="language"',[$actor['id']]);
+        if($row)json_out(['language'=>json_decode($row['value_json'],true,512,JSON_THROW_ON_ERROR)]);
         $row=query_one($db,'SELECT language FROM language_preferences WHERE user_id=?',[$actor['id']]);
         json_out(['language'=>$row['language']??null]);
     }
@@ -652,8 +794,13 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $actor=require_post_csrf($db);
         $language=string_field(request_body(),'language',2);
         if (!in_array($language,['pt','en','es'],true)) fail(422,'Idioma inválido');
-        execute_sql($db,'INSERT INTO language_preferences(user_id,language) VALUES (?,?)
-          ON CONFLICT(user_id) DO UPDATE SET language=excluded.language',[$actor['id'],$language]);
+        atomic($db,static function()use($db,$actor,$language):void {
+          execute_sql($db,'INSERT INTO language_preferences(user_id,language) VALUES (?,?)
+            ON CONFLICT(user_id) DO UPDATE SET language=excluded.language',[$actor['id'],$language]);
+          execute_sql($db,'INSERT INTO member_preferences(user_id,preference_key,value_json,updated_at) VALUES (?,"language",?,?)
+            ON CONFLICT(user_id,preference_key) DO UPDATE SET value_json=excluded.value_json,updated_at=excluded.updated_at',
+            [$actor['id'],json_encode($language,JSON_THROW_ON_ERROR),now()]);
+        });
         json_out(['ok'=>true,'language'=>$language]);
     }
     if ($action === 'profile' && $method === 'GET') {

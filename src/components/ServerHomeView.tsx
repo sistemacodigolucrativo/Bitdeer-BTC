@@ -10,6 +10,7 @@ type Props = {
   liveBtc:string|null; liveBalanceUsd:number;
   onStart: () => void; onStop: () => void;
   onRewards: () => void; onHistory: () => void; onAvatarClick:()=>void; avatarLocked:boolean;
+  returning:boolean;
 };
 const details = {
   pt:{mining:'Painel de mineração', active:'Sessão ativa',
@@ -34,15 +35,13 @@ const greetingCopy = {
   es:{hello:'Hola,', welcome:'te damos la bienvenida', returning:'te damos la bienvenida de nuevo', member:'Miembro', plan:'Plan'}
 };
 export const ServerHomeView: React.FC<Props> = ({
-  account,language,busy,liveBtc,liveBalanceUsd,onStart,onStop,onRewards,onHistory,onAvatarClick,avatarLocked
+  account,language,busy,liveBtc,liveBalanceUsd,onStart,onStop,onRewards,onHistory,onAvatarClick,avatarLocked,returning
 }) => {
   const t=translations[language]?.home ?? translations.pt.home;
   const d=details[language] ?? details.pt;
   const { copy, mockupMode } = useProjectCopy(language);
   const [clock,setClock]=useState(Date.now());
   const [avatarFailed,setAvatarFailed]=useState(false);
-  const [welcomeVisit,setWelcomeVisit]=useState<{userId:number|null;returning:boolean}>({userId:null,returning:false});
-  const processedWelcomeUser=useRef<number|null>(null);
   const avatarUrl=account?.profile.avatarPhoto || account?.profile.avatarUrl || '';
   const welcome=greetingCopy[language] ?? greetingCopy.pt;
   const fullName=account?.profile.displayName.trim() || account?.user.login || welcome.member;
@@ -50,22 +49,7 @@ export const ServerHomeView: React.FC<Props> = ({
   const compactName=nameParts.length>2?`${nameParts.slice(0,2).join(' ')}…`:fullName;
   const planId=account?.plan.id ?? 'FREE';
   const planLabel=planId.toUpperCase()==='FREE'?'Free':planId.replace(/_/g,' ').toUpperCase();
-  const returning=welcomeVisit.userId===account?.user.id && welcomeVisit.returning;
   useEffect(()=>setAvatarFailed(false),[avatarUrl]);
-  useEffect(()=>{
-    const userId=account?.user.id;
-    if(userId===undefined || processedWelcomeUser.current===userId)return;
-    processedWelcomeUser.current=userId;
-    let hasVisited=false;
-    try{
-      const key=`btc-member-home-welcomed-v1:${userId}`;
-      hasVisited=window.localStorage.getItem(key)==='visited';
-      window.localStorage.setItem(key,'visited');
-    }catch{
-      // The greeting remains usable when browser storage is unavailable.
-    }
-    setWelcomeVisit({userId,returning:hasVisited});
-  },[account?.user.id]);
   useEffect(()=>{
     const timer=setInterval(()=>setClock(Date.now()),1000);
     return ()=>clearInterval(timer);

@@ -45,19 +45,31 @@ export async function api<T>(action: string, body?: Record<string, unknown>, que
   if (!response.ok) throw new ApiError(data.error || 'Falha na solicitação', response.status);
   return data as T;
 }
+export async function apiUpload<T>(action: string, fields: Record<string, string | Blob>): Promise<T> {
+  const params = new URLSearchParams({action});
+  const form = new FormData();
+  for (const [key,value] of Object.entries(fields)) form.append(key,value);
+  const response = await fetch('/api/index.php?' + params.toString(), {
+    credentials:'same-origin', method:'POST', headers:{'X-CSRF-Token':csrfToken},
+    body:form, cache:'no-store',
+  });
+  let data:any;
+  try { data=await response.json(); } catch { throw new ApiError('Resposta inválida do servidor.',response.status); }
+  if(!response.ok)throw new ApiError(data.error||'Falha na solicitação',response.status);
+  return data as T;
+}
 export async function session(): Promise<AuthUser> {
   const data = await api<{user: AuthUser; csrfToken: string}>('session');
   csrfToken = data.csrfToken;
   return data.user;
 }
-export async function login(loginValue: string, password: string, rememberSession = false): Promise<AuthUser> {
-  const data = await api<{user: AuthUser; csrfToken: string}>('login', {
+export async function login(loginValue: string, password: string): Promise<{user:AuthUser;rememberPreference:boolean|null}> {
+  const data = await api<{user: AuthUser; csrfToken: string;rememberPreference:boolean|null}>('login', {
     login: loginValue,
     password,
-    rememberSession,
   });
   csrfToken = data.csrfToken;
-  return data.user;
+  return {user:data.user,rememberPreference:data.rememberPreference};
 }
 export async function register(loginValue: string, password: string, displayName: string, inviteCode = '') {
   return api<{id: number; role: 'member'}>('register', {login: loginValue, password, displayName, inviteCode});
