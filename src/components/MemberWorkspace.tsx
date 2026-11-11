@@ -721,8 +721,8 @@ export const MemberWorkspace: React.FC<{
             </div>
           </div>}
           {purchaseHistory.length>0&&<section data-testid="member-purchase-history" className="bg-[#171b2d] rounded-2xl p-3 space-y-2">
-            <h3 className="font-bold text-sm">{language==='en'?'Latest VIP request':language==='es'?'Última solicitud VIP':'Solicitação VIP mais recente'}</h3>
-            {[...purchaseHistory].sort((a,b)=>Number(b.created_at)-Number(a.created_at)||Number(!!b.native_order)-Number(!!a.native_order)||Number(String(b.id).replace(/^M-/,''))-Number(String(a.id).replace(/^M-/,''))).slice(0,1).map(x=><article key={x.id} data-testid="purchase-history-order"
+            <h3 className="font-bold text-sm">{language==='en'?'Purchase history':language==='es'?'Historial de compras':'Histórico de compras'}</h3>
+            {purchaseHistory.map(x=><article key={x.id} data-testid="purchase-history-order"
               className="min-w-0 border-b border-[#2b3350] pb-3 text-xs last:border-b-0">
               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
                 <span className="font-semibold">#{x.id} · {x.plan_id}</span>
