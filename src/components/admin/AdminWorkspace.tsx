@@ -358,9 +358,10 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
                   .catch(e=>setNotice((e as Error).message))}>{tx("Detalhes / Editar")}</button>
               {m.status==='active' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'suspended'})}>{tx("Suspender")}</button>}
               {m.status==='suspended' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'active'})}>{tx("Reativar")}</button>}
-              {m.status!=='archived' && <button disabled={busy} className={btn} onClick={()=>{
-                if(window.confirm(tx("Arquivar conta e preservar histórico?")))void change('admin.status',{userId:m.id,status:'archived'});
-              }}>{tx("Arquivar")}</button>}
+              <button disabled={busy} className={btn} onClick={()=>{
+                const message=language==='en'?`Permanently delete ${m.login} and their history? Other members will be preserved.`:language==='es'?`¿Eliminar definitivamente a ${m.login} y su historial? Los demás miembros se conservarán.`:`Excluir definitivamente ${m.login} e todo o histórico? Os demais membros serão preservados.`;
+                if(window.confirm(message))void change('admin.member.delete',{userId:m.id,confirmed:true});
+              }}>{tx("Excluir")}</button>
               {m.status==='archived' && <button disabled={busy} className={btn} onClick={()=>void change('admin.status',{userId:m.id,status:'active'})}>{tx("Restaurar")}</button>}
             </div>
           </article>)}</div>
@@ -383,7 +384,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
             aria-expanded={selected?.id===p.id}
             className="w-full text-left p-4 flex justify-between items-center gap-2">
             <div><strong>{p.name}</strong>
-              <p className="text-xs text-slate-400 mt-1">US$ {p.priceUsd} · US$ {p.dailyUsd}/{tx('dia')} · {tx('revisão')} {p.revision} · {tx(p.available?'Disponível':'Arquivado')}</p></div>
+              <p className="text-xs text-slate-400 mt-1">USD {p.priceUsd} · USD {p.dailyUsd}/{tx('dia')} · {tx('revisão')} {p.revision} · {tx(p.available?'Disponível':'Arquivado')}</p></div>
             {selected?.id===p.id?<ChevronUp size={19}/>:<ChevronDown size={19}/>}
           </button>
           {selected?.id===p.id && <div className="border-t border-[#2b3350] p-4">
@@ -399,7 +400,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
         {withdrawals.map(w=><article key={w.id} className="bg-[#1b2137] rounded-xl border border-[#2b3350] p-4 space-y-2">
           <strong>{tx("Solicitação")} #{w.id} · {w.login}</strong>
           <p className="text-xs text-slate-300">{tx("Plano:")} {w.plan_id} · {tx('Estado:')} {tx(w.status==='awaiting_vip'?'Aguardando assinatura VIP':w.status==='pending'?'Pendente de conferência':w.status==='approved'?copy('adminApprovedWithdrawal'):'Rejeitada')}</p>
-          <p className="text-sm">US$ {(w.usd_cents/100).toFixed(2)} · {(w.btc_satoshis/1e8).toFixed(8)} BTC ({copy('adminWithdrawalEquivalent')})</p>
+          <p className="text-sm">USD {(w.usd_cents/100).toFixed(2)} · {(w.btc_satoshis/1e8).toFixed(8)} BTC ({copy('adminWithdrawalEquivalent')})</p>
           <p className="text-xs text-slate-400 break-all">{w.btc_address}</p>
           {(w.status==='pending'||w.status==='awaiting_vip')&&<div className="flex flex-wrap gap-2">
             {w.status==='pending'&&<button disabled={busy} className={btn} onClick={()=>{
@@ -624,7 +625,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
         {details && <section className="space-y-2 rounded-xl bg-[#1b2137] p-4 text-sm">
           <h2 className="font-semibold">{tx("Detalhes de")} #{details.member.id} — {details.member.login}</h2>
           <p>{tx("Plano(s) contratados:")} {details.contracts.length}</p>
-          <p>{copy('adminInternalBalanceLabel')} US$ {details.balanceUsd} · {copy('adminInternalSatoshisLabel')} {details.bonusSatoshis}</p>
+          <p>{copy('adminInternalBalanceLabel')} USD {details.balanceUsd} · {copy('adminInternalSatoshisLabel')} {details.bonusSatoshis}</p>
           <p>{tx("Últimos pedidos:")} {details.orders.length}</p>
           {details.contracts.length>0 && <section className="mt-4 space-y-2">
             <h3 className="font-bold text-xs">{tx("Histórico de contratos VIP")}</h3>

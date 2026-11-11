@@ -33,7 +33,7 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
     {currentPlan && <div data-testid="store-active-plan" className="bg-[#171b2d] border border-[#252c45] p-3 rounded-2xl flex justify-between gap-3 items-center">
       <div className="min-w-0">
         <div className="flex items-center gap-1.5"><span className="text-xs text-slate-400">{helper.current}</span></div>
-        <p className="font-bold">{currentPlan.name} · US$ {currentPlan.dailyUsd}/{t.day}</p>
+        <p className="font-bold">{currentPlan.name} · USD {currentPlan.dailyUsd}/{t.day}</p>
       </div>
       <span data-testid="store-plan-shield" aria-label={language==='en'?'Active plan':language==='es'?'Plan activo':'Plano ativo'}
         className="shrink-0 rounded-xl border border-emerald-400/35 bg-emerald-400/10 p-2 text-emerald-300"><ShieldCheck size={24}/></span>
@@ -57,9 +57,9 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
         </div>
         <div className="min-w-0 flex-1 space-y-0.5">
           <p className="text-xs font-bold text-slate-100 break-words">{selected.name} · {selected.serverModel}</p>
-          <strong className="text-base leading-tight block">US$ {selected.dailyUsd} <span className="text-[11px] text-slate-400">/ {helper.day}</span></strong>
+          <strong className="text-base leading-tight block">USD {selected.dailyUsd} <span className="text-[11px] text-slate-400">/ {helper.day}</span></strong>
           <p className="text-[11px] text-slate-300">{selected.durationDays} {helper.term} · {selected.hashrate}</p>
-          <p className="text-[11px] text-slate-300">US$ {selected.bonusUsd} + {selected.bonusSatoshis.toLocaleString(locale)} satoshis /24h</p>
+          <p className="text-[11px] text-slate-300">USD {selected.bonusUsd} + {selected.bonusSatoshis.toLocaleString(locale)} satoshis /24h</p>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -73,7 +73,7 @@ export const ServerStoreView:React.FC<Props>=({plans,activePlanId,busy,language,
       </div>
       <div className="bg-[#171b2d] border border-[#262e49] rounded-2xl p-3 space-y-2 text-sm">
         <div className="flex justify-between"><span className="text-slate-400">{helper.choose}</span><strong>{selected.name}</strong></div>
-        <div className="flex justify-between"><span className="text-slate-400">{t.price}</span><strong>US$ {selected.priceUsd}</strong></div>
+        <div className="flex justify-between"><span className="text-slate-400">{t.price}</span><strong>USD {selected.priceUsd}</strong></div>
         <button disabled={busy||selected.id===activePlanId}
           onClick={()=>onPurchase(selected.id)}
           className="w-full py-3 rounded-xl bg-[#f43f5e] hover:bg-[#e11d48] disabled:opacity-40 text-xs font-bold flex gap-2 items-center justify-center">

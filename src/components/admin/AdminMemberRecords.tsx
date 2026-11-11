@@ -128,8 +128,8 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];language:La
       </div>
       <div className="border-t border-[#303a56] pt-3 space-y-2">
         <h4 className="font-bold text-sm">{copy('adminRecordsBalanceLabel')}</h4>
-        <p className="font-mono text-sm" data-testid="admin-member-balance">US$ {data.balanceUsd} · {data.balanceBtc??'—'} BTC</p>
-        <p className="text-xs text-slate-400">{data.btcUsd?tx('Cotação BTC/USD: US$')+' '+data.btcUsd+' · '+(data.quoteSource||''):tx('Cotação indisponível; ajustes bloqueados.')}</p>
+        <p className="font-mono text-sm" data-testid="admin-member-balance">USD {data.balanceUsd} · {data.balanceBtc??'—'} BTC</p>
+        <p className="text-xs text-slate-400">{data.btcUsd?tx('Cotação BTC/USD: USD')+' '+data.btcUsd+' · '+(data.quoteSource||''):tx('Cotação indisponível; ajustes bloqueados.')}</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <select className={fieldClass} value={currency} onChange={e=>{setCurrency(e.target.value as 'USD'|'BTC');setAmount('');}}>
             <option value="USD">{tx("Dólar (USD)")}</option><option value="BTC">Bitcoin (BTC)</option>

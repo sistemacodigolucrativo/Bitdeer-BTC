@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script src="/interaction-restrictions.js"></script>
 <title>Checkout integrado — Bitdeer BTC</title>
 <style>
 :root {
@@ -89,13 +89,14 @@ a {
   transition: filter 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 a:hover { filter: brightness(1.06); box-shadow: 0 12px 28px rgb(169 110 12 / .3); }
-a:active { transform: translateY(1px); }
+a:active { transform: translateY(1px) scale(.97); filter: brightness(.88); }
 a:focus-visible { outline: 2px solid var(--cyan); outline-offset: 4px; }
 @media (max-width: 480px) {
   .card { border-radius: 22px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+  a:active { transform: none; }
 }
 </style></head>
 <body><main class="card"><h1>Checkout atualizado</h1>

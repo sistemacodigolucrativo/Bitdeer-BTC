@@ -185,7 +185,7 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
               <span data-testid="payment-hash" className="block max-w-full single-line-ellipsis font-mono text-[10px] text-slate-400"
                 title={row.hash}>{displayTransactionId(row.hash)}</span>
             </td>
-            <td className={cell+' font-mono tabular-nums whitespace-nowrap'}>US$ {row.valueUsd}</td>
+            <td className={cell+' font-mono tabular-nums whitespace-nowrap'}>USD {row.valueUsd}</td>
             <td className={cell+' border-r rounded-r-lg font-mono tabular-nums whitespace-nowrap'}>{row.btc} BTC</td>
           </tr>)}
         </tbody>

@@ -212,9 +212,9 @@ export const mockupCopy = {
     es: 'Cuenta demostrativa · Marcelo'
   },
   adminMarceloDescription: {
-    pt: 'Histórico de aproximadamente cinco meses: recompensas, bônus, VIP 01–03 e saques. Plano atual FREE; saldo interno US$ 1.837,42.',
-    en: 'About five months of rewards, bonuses, VIP 01–03 and withdrawal history. Current plan FREE; internal balance US$ 1,837.42.',
-    es: 'Unos cinco meses de recompensas, bonos, VIP 01–03 y retiros. Plan actual FREE; saldo interno US$ 1.837,42.'
+    pt: 'Histórico de aproximadamente cinco meses: recompensas, bônus, VIP 01–03 e saques. Plano atual FREE; saldo interno USD 1.837,42.',
+    en: 'About five months of rewards, bonuses, VIP 01–03 and withdrawal history. Current plan FREE; internal balance USD 1,837.42.',
+    es: 'Unos cinco meses de recompensas, bonos, VIP 01–03 y retiros. Plan actual FREE; saldo interno USD 1.837,42.'
   },
   adminMarceloAlreadyCreated: {
     pt: 'Conta de demonstração já criada',

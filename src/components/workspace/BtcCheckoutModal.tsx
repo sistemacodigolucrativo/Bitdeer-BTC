@@ -238,7 +238,7 @@ export const BtcCheckoutModal: React.FC<BtcCheckoutModalProps> = ({
                 Checkout Bitcoin — {selectedPlan.name}
               </h2>
               <p className="text-[10px] text-slate-400">
-                US$ {selectedPlan.priceUsd} • US$ {selectedPlan.dailyRewardUsd}/dia ({selectedPlan.durationDays} dias = US$ {selectedPlan.total30DaysUsd})
+                USD {selectedPlan.priceUsd} • USD {selectedPlan.dailyRewardUsd}/dia ({selectedPlan.durationDays} dias = USD {selectedPlan.total30DaysUsd})
               </p>
             </div>
           </div>

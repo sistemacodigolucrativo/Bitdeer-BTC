@@ -38,7 +38,7 @@ export const ServerHomeView: React.FC<Props> = ({
 }) => {
   const t=translations[language]?.home ?? translations.pt.home;
   const d=details[language] ?? details.pt;
-  const { copy } = useProjectCopy(language);
+  const { copy, mockupMode } = useProjectCopy(language);
   const [clock,setClock]=useState(Date.now());
   const [avatarFailed,setAvatarFailed]=useState(false);
   const [welcomeVisit,setWelcomeVisit]=useState<{userId:number|null;returning:boolean}>({userId:null,returning:false});
@@ -106,10 +106,10 @@ export const ServerHomeView: React.FC<Props> = ({
     <section className="bg-[#191e32] border border-[#262e49] rounded-3xl p-5 overflow-hidden shadow-md">
       <div className="mb-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
         <h3 className="single-line-ellipsis min-w-0 text-[clamp(0.625rem,2.8vw,0.75rem)] font-black tracking-wider text-slate-300 uppercase">{d.mining}</h3>
-        <span data-testid="home-plan-daily-card" aria-label={`${planLabel} · US$ ${account?.plan.dailyUsd ?? '0.00'}/${language==='en'?'day':language==='es'?'día':'dia'}`}
+        <span data-testid="home-plan-daily-card" aria-label={`${planLabel} · USD ${account?.plan.dailyUsd ?? '0.00'}/${language==='en'?'day':language==='es'?'día':'dia'}`}
           className="inline-flex w-fit min-w-max shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-center font-mono text-[10px] font-bold leading-tight text-emerald-400">
           <span className="whitespace-nowrap text-center">
-             {planLabel} · US$ {account?.plan.dailyUsd ?? '0.00'}/{language==='en'?'day':language==='es'?'día':'dia'}
+             {planLabel} · USD {account?.plan.dailyUsd ?? '0.00'}/{language==='en'?'day':language==='es'?'día':'dia'}
           </span>
         </span>
       </div>
@@ -120,20 +120,22 @@ export const ServerHomeView: React.FC<Props> = ({
         <strong data-testid="mining-live-btc" className="text-2xl font-bold font-mono text-amber-300">{liveBtc??'—'} BTC</strong>
 
         <p data-testid="mining-live-usd" className="text-xs text-slate-300 mt-1">
-          US$ {liveBalanceUsd.toFixed(8)}
+          USD {liveBalanceUsd.toFixed(8)}
         </p>
       </div>
       <div className="flex justify-between items-center mb-5">
         <div>
           <div className="text-2xl font-black text-white">
-            {account?.plan.hashrate ?? '---'}
+            {mockupMode ? (account?.plan.hashrate ?? '---') : 'Processor Info / Processador'}
           </div>
-          <p className="text-[11px] mt-1 text-slate-300">{d.noHash}</p>
-          <p className="text-[11px] mt-1 flex items-center gap-2">
+          {mockupMode&&<p className="text-[11px] mt-1 text-slate-300">{d.noHash}</p>}
+          {mockupMode&&<p className="text-[11px] mt-1 flex items-center gap-2">
             <span className={'w-2 h-2 rounded-full '+(status?'bg-emerald-400 animate-pulse':'bg-slate-500')}/>
             {status?d.active:d.inactive}
-          </p>
+          </p>}
         </div>
+        <div className="shrink-0 flex flex-col items-center gap-1">
+        {!mockupMode&&<span className="text-xs font-bold text-slate-100">{account?.plan.hashrate ?? '---'}</span>}
         <svg viewBox="0 0 120 70" className="w-24 h-16 drop-shadow-md" aria-label={copy('equipmentAlt')}>
           <rect x="10" y="10" width="95" height="50" rx="6" fill="#1e294b" stroke="#3b82f6" strokeWidth="1.5"/>
           <circle cx="35" cy="35" r="16" fill="#0f172a" stroke="#60a5fa" strokeWidth="1.5"/>
@@ -142,6 +144,8 @@ export const ServerHomeView: React.FC<Props> = ({
           <path d="M75 21v28M61 35h28" stroke="#60a5fa" strokeWidth="2" className={status?'origin-[75px_35px] animate-spin':''}/>
           <circle cx="95" cy="52" r="7" fill="#f59e0b"/><text x="95" y="55" textAnchor="middle" fill="white" fontSize="8">₿</text>
         </svg>
+        {!mockupMode&&<p className="text-[11px] flex items-center gap-2"><span className={'w-2 h-2 rounded-full '+(status?'bg-emerald-400 animate-pulse':'bg-slate-500')}/>{status?'Processor ON':'Processor OFF'}</p>}
+        </div>
       </div>
       <button data-testid="mining-session-toggle" onClick={status?onStop:onStart}
         disabled={busy}

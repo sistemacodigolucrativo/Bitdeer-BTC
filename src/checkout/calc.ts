@@ -76,10 +76,10 @@ export function formatSatoshis(satoshis: number): string {
 }
 
 /**
- * Formata valor monetário em USD (ex.: "US$ 80.285,58" ou "US$ 20,00").
+ * Formata valor monetário em USD (ex.: "USD 80.285,58" ou "USD 20,00").
  */
 export function formatUsdCurrency(amountUsd: number): string {
-  return `US$ ${new Intl.NumberFormat('pt-BR', {
+  return `USD ${new Intl.NumberFormat('pt-BR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amountUsd)}`;

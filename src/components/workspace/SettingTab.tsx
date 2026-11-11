@@ -415,7 +415,7 @@ export const SettingTab: React.FC<SettingTabProps> = ({
               </div>
               <div className="flex justify-between p-2.5 bg-[#141829] rounded-xl">
                 <span className="text-slate-400">Rendimento Diário:</span>
-                <span className="font-mono font-bold text-emerald-400">US$ {miningService.getActivePlanDailyRewardUsd().toFixed(2)} / dia</span>
+                <span className="font-mono font-bold text-emerald-400">USD {miningService.getActivePlanDailyRewardUsd().toFixed(2)} / dia</span>
               </div>
               <div className="flex justify-between p-2.5 bg-[#141829] rounded-xl">
                 <span className="text-slate-400">Status da Máquina:</span>

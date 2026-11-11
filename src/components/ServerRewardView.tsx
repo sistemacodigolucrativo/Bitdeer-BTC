@@ -44,7 +44,7 @@ export const ServerRewardView:React.FC<Props>=({account,language,busy,ledger,onC
       <div data-testid="reward-bonus-grid" className="grid grid-cols-2 gap-2">
         <div className="rounded-xl border border-[#2c3551] bg-[#212943] p-2.5 min-w-0">
           <p className="flex gap-1 items-center text-[11px] text-slate-300"><Gift size={14} className="text-indigo-300"/>{t.usd}</p>
-          <strong className="text-base font-extrabold tabular-nums">US$ {account?.plan.bonusUsd??'0.00'}</strong>
+          <strong className="text-base font-extrabold tabular-nums">USD {account?.plan.bonusUsd??'0.00'}</strong>
         </div>
         <div className="rounded-xl border border-[#2c3551] bg-[#212943] p-2.5 min-w-0">
           <p className="flex gap-1 items-center text-[11px] text-slate-300"><Coins size={14} className="text-amber-300"/>{t.sats}</p>

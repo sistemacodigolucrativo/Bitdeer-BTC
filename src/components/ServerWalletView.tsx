@@ -41,7 +41,7 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
       <div className="absolute right-0 top-0 h-28 w-28 bg-indigo-600/10 blur-2xl rounded-full"/>
       <p className="text-xs text-slate-400">{copy('walletBalanceLabel')}</p>
       <p data-testid="wallet-live-btc" className="block whitespace-nowrap text-[clamp(0.85rem,4.1vw,1.875rem)] tracking-tight leading-tight font-extrabold font-mono tabular-nums mt-3">{liveBtc??'—'} BTC</p>
-      <p data-testid="wallet-live-usd" className="mt-2 text-sm font-semibold font-mono tabular-nums text-slate-300">≈ US$ {account?liveBalanceUsd.toFixed(8):'0.00000000'}</p>
+      <p data-testid="wallet-live-usd" className="mt-2 text-sm font-semibold font-mono tabular-nums text-slate-300">≈ USD {account?liveBalanceUsd.toFixed(8):'0.00000000'}</p>
 
       <button onClick={onWithdraw} className="mt-4 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold w-full">{t.withdraw}</button>
       <p className="flex gap-2 items-center text-xs text-slate-300 mt-4">
@@ -56,7 +56,7 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
       <div className="h-28 flex gap-2 justify-between items-end">
         {days.map(day=><div key={day.time} className="flex-1 flex flex-col items-center justify-end h-full">
           <div className="w-full max-w-9 bg-indigo-500 rounded-t-md"
-            title={'US$ '+(day.units/864000000).toFixed(8)}
+            title={'USD '+(day.units/864000000).toFixed(8)}
             style={{height:Math.max(4,Math.round(day.units/largest*86))+'px'}}/>
           <small className="text-[10px] text-slate-400 mt-1">
             {new Date(day.time).toLocaleDateString(locale,{weekday:'short'})}</small>

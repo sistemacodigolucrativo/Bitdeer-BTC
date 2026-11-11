@@ -68,10 +68,10 @@ export const NewInvestorToast: React.FC<{language:LanguageCode;userId:number}> =
         clearTimer=window.setTimeout(()=>setCurrent(null),5700);
         nextTimer=window.setTimeout(()=>void show(),randomDelay());
       }catch{
-        if(!stopped)nextTimer=window.setTimeout(()=>void show(),15000);
+        if(!stopped)nextTimer=window.setTimeout(()=>void show(),randomDelay());
       }
     };
-    nextTimer=window.setTimeout(()=>void show(),legitPreviewActive?1000:randomDelay());
+    nextTimer=window.setTimeout(()=>void show(),randomDelay());
     return ()=>{
       stopped=true;
       if(nextTimer!==undefined)window.clearTimeout(nextTimer);

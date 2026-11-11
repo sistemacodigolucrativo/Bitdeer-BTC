@@ -617,7 +617,7 @@ export const WalletTab: React.FC<WalletTabProps> = ({
                 {t.referralBalance}
               </span>
               <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
-                US$ 1,00 / indicado (travado em BTC)
+                USD 1,00 / indicado (travado em BTC)
               </span>
             </div>
 
@@ -688,7 +688,7 @@ export const WalletTab: React.FC<WalletTabProps> = ({
                 <div className="flex items-center justify-between text-[10px] text-slate-400">
                   <span>Registrar indicado com código</span>
                   <span className="font-mono text-emerald-400">
-                    US$ 1,00 ≈ {(1 / (priceState.priceUsd > 1000 ? priceState.priceUsd : 80285.58)).toFixed(8)} BTC
+                    USD 1,00 ≈ {(1 / (priceState.priceUsd > 1000 ? priceState.priceUsd : 80285.58)).toFixed(8)} BTC
                   </span>
                 </div>
 
@@ -734,7 +734,7 @@ export const WalletTab: React.FC<WalletTabProps> = ({
                   disabled={isSubmittingReferral}
                   className="w-full py-2.5 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white font-bold text-xs transition-colors cursor-pointer"
                 >
-                  {isSubmittingReferral ? 'Processando cadastro...' : 'Concluir Cadastro e Creditar US$ 1 em BTC'}
+                  {isSubmittingReferral ? 'Processando cadastro...' : 'Concluir Cadastro e Creditar USD 1 em BTC'}
                 </button>
               </form>
             )}

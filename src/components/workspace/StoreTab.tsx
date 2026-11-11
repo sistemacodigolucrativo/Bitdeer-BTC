@@ -117,7 +117,7 @@ export const StoreTab: React.FC<StoreTabProps> = ({
           </p>
           <div className="mt-1">
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-extrabold text-xs tracking-wide border border-rose-500/30">
-              {activeVip.name} — US$ {formattedPlanDailyUsd}/dia
+              {activeVip.name} — USD {formattedPlanDailyUsd}/dia
             </span>
           </div>
         </div>
@@ -358,12 +358,12 @@ export const StoreTab: React.FC<StoreTabProps> = ({
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-white">{plan.name}</span>
-                  <span className="text-xs font-black text-amber-400">US$ {plan.priceUsd}</span>
+                  <span className="text-xs font-black text-amber-400">USD {plan.priceUsd}</span>
                 </div>
                 <div className="mt-2 space-y-1 text-[10px] text-slate-300">
                   <p className="flex justify-between">
                     <span className="text-slate-400">Diário:</span>
-                    <span className="font-bold text-emerald-400">US$ {plan.dailyRewardUsd}/dia</span>
+                    <span className="font-bold text-emerald-400">USD {plan.dailyRewardUsd}/dia</span>
                   </p>
                   <p className="flex justify-between">
                     <span className="text-slate-400">Duração:</span>
@@ -371,7 +371,7 @@ export const StoreTab: React.FC<StoreTabProps> = ({
                   </p>
                   <p className="flex justify-between">
                     <span className="text-slate-400">Total 30d:</span>
-                    <span className="font-bold text-white">US$ {plan.total30DaysUsd}</span>
+                    <span className="font-bold text-white">USD {plan.total30DaysUsd}</span>
                   </p>
                 </div>
               </button>
@@ -403,9 +403,9 @@ export const StoreTab: React.FC<StoreTabProps> = ({
         {/* Details Dropdown/Expand */}
         {showDetails && (
           <div className="bg-[#171b2d] border border-[#232a43] rounded-2xl p-3.5 text-xs text-slate-300 space-y-2 animate-in fade-in duration-200">
-            <p><strong>Plano Selecionado:</strong> {activeVip.name} — US$ {formattedPlanDailyUsd}/dia</p>
+            <p><strong>Plano Selecionado:</strong> {activeVip.name} — USD {formattedPlanDailyUsd}/dia</p>
             {activeVip.priceUsd > 0 && (
-              <p><strong>Preço de Ativação:</strong> US$ {activeVip.priceUsd},00 (Total 30 dias: US$ {activeVip.total30DaysUsd},00)</p>
+              <p><strong>Preço de Ativação:</strong> USD {activeVip.priceUsd},00 (Total 30 dias: USD {activeVip.total30DaysUsd},00)</p>
             )}
             <p><strong>Equipamento Alocado:</strong> {activeVip.serverModel}</p>
             <p><strong>Uptime Garantido:</strong> 100% de disponibilidade em nuvem</p>

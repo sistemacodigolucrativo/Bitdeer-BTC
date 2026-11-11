@@ -59,7 +59,7 @@ function demo_new_investor_profiles(): array {
     return $profiles;
 }
 
-/** Randomly draw each profile once per cycle for this member. */
+/** Randomly draw a profile never previously shown to this member. */
 function claim_demo_new_investor(PDO $db, int $userId): ?array {
     if($userId<=0)return null;
     $profiles=demo_new_investor_profiles();
@@ -67,16 +67,17 @@ function claim_demo_new_investor(PDO $db, int $userId): ?array {
         $latest=query_one($db,'SELECT MAX(cycle_index) AS cycle_index
             FROM demo_new_investor_cycle_impressions WHERE user_id=?',[$userId]);
         $cycle=max(1,(int)($latest['cycle_index']??0));
-        $seen=query_all($db,'SELECT profile_index FROM demo_new_investor_cycle_impressions
-            WHERE user_id=? AND cycle_index=?',[$userId,$cycle]);
+        $seen=query_all($db,'SELECT profile_index,first_name,last_name FROM demo_new_investor_cycle_impressions
+            WHERE user_id=?',[$userId]);
+        $older=query_all($db,'SELECT first_name,last_name FROM demo_new_investor_impressions WHERE user_id=?',[$userId]);
         $used=[];
         foreach($seen as $row) $used[(int)$row['profile_index']]=true;
+        $usedNames=[];
+        foreach(array_merge($seen,$older) as $row) $usedNames[mb_strtolower($row['first_name'].' '.$row['last_name'],'UTF-8')]=true;
         $available=[];
-        foreach($profiles as $index=>$candidate) if(!isset($used[$index])) $available[$index]=$candidate;
-        if(!$available) {
-            $cycle++;
-            $available=$profiles;
-        }
+        foreach($profiles as $index=>$candidate)
+            if(!isset($used[$index])&&!isset($usedNames[mb_strtolower($candidate['firstName'].' '.$candidate['lastName'],'UTF-8')])) $available[$index]=$candidate;
+        if(!$available)return null;
         $indices=array_keys($available);
         $profileIndex=$indices[random_int(0,count($indices)-1)];
         $profile=$available[$profileIndex];

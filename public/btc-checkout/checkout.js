@@ -13,7 +13,7 @@ let remainingSeconds = CONFIG.QUOTE_LOCK_SECONDS;
 let countdownTimer = null;
 
 function formatUsd(val) {
-  return `US$ ${Number(val).toLocaleString('pt-BR', {
+  return `USD ${Number(val).toLocaleString('pt-BR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -41,12 +41,12 @@ function renderPlanCards() {
     card.innerHTML = `
       <div class="plan-header">
         <span class="plan-name">${plan.name}</span>
-        <span class="plan-price">US$ ${plan.priceUsd}</span>
+        <span class="plan-price">USD ${plan.priceUsd}</span>
       </div>
       <div class="plan-details">
-        <div><span>Diário:</span> <strong class="text-emerald">US$ ${plan.dailyUsd}/dia</strong></div>
+        <div><span>Diário:</span> <strong class="text-emerald">USD ${plan.dailyUsd}/dia</strong></div>
         <div><span>Duração:</span> <strong>${plan.durationDays} dias</strong></div>
-        <div><span>Total 30d:</span> <strong>US$ ${plan.total30DaysUsd}</strong></div>
+        <div><span>Total 30d:</span> <strong>USD ${plan.total30DaysUsd}</strong></div>
       </div>
     `;
     // Ao clicar nos cards maiores, o efeito é somente a seleção do card
@@ -63,7 +63,7 @@ async function openCheckoutForSelectedPlan() {
   const checkoutSection = document.getElementById('checkout-section');
 
   document.getElementById('selected-plan-title').textContent = `Checkout Bitcoin — ${selectedPlan.name}`;
-  document.getElementById('selected-plan-subtitle').textContent = `US$ ${selectedPlan.priceUsd} • US$ ${selectedPlan.dailyUsd}/dia (${selectedPlan.durationDays} dias = US$ ${selectedPlan.total30DaysUsd})`;
+  document.getElementById('selected-plan-subtitle').textContent = `USD ${selectedPlan.priceUsd} • USD ${selectedPlan.dailyUsd}/dia (${selectedPlan.durationDays} dias = USD ${selectedPlan.total30DaysUsd})`;
 
   storeSection.classList.add('hidden');
   checkoutSection.classList.remove('hidden');

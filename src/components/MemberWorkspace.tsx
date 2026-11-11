@@ -166,7 +166,7 @@ export const MemberWorkspace: React.FC<{
     ? Math.floor(availableUsdCents/100*100000000/freshBtcUsd)
     : null;
   const availableAmount=withdrawMode==='USD'
-    ? 'US$ '+new Intl.NumberFormat(dateLocale,{minimumFractionDigits:2,maximumFractionDigits:2})
+    ? 'USD '+new Intl.NumberFormat(dateLocale,{minimumFractionDigits:2,maximumFractionDigits:2})
         .format(availableUsdCents/100)
     : availableBtcSatoshis!==null
       ? (availableBtcSatoshis/100000000).toFixed(8)+' BTC'
@@ -537,7 +537,7 @@ export const MemberWorkspace: React.FC<{
               </div>}
               <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{walletConfirmation?(language==='en'?'Confirm and save':language==='es'?'Confirmar y guardar':'Confirmar e salvar'):tr.save}</button>
             </form> : <form className="space-y-3" onSubmit={e=>{e.preventDefault();void submitWithdrawal();}}>
-              <p className="text-xs text-slate-400">{tr.minimum}: US$ {account?.plan.withdrawMinUsd??'0.00'}.</p>
+              <p className="text-xs text-slate-400">{tr.minimum}: USD {account?.plan.withdrawMinUsd??'0.00'}.</p>
               <div className="flex gap-2">
                 <button type="button" className={'flex-1 p-2 rounded-lg '+(withdrawMode==='USD'?'bg-indigo-600':'bg-[#11182c]')}
                   onClick={()=>{setWithdrawMode('USD');setWithdrawEdited(false);}}>{tr.usd}</button>
@@ -590,7 +590,7 @@ export const MemberWorkspace: React.FC<{
                 {visibleWithdrawHistory.map(x=><div key={x.id} data-testid="withdraw-history-row"
                   className="w-full min-w-max text-xs border-b border-[#2b3350] pb-2 flex items-center gap-3">
                   <span>#{x.id}</span>
-                  <span>US$ {(x.usd_cents/100).toFixed(2)}</span>
+                  <span>USD {(x.usd_cents/100).toFixed(2)}</span>
                   <span>{(x.btc_satoshis/1e8).toFixed(8)} BTC</span>
                   <span data-testid="withdraw-status"
                     className={x.status==='approved'?'text-emerald-400 font-semibold':x.status==='failed'||x.status==='rejected'?'text-rose-300 font-semibold':'text-slate-300'}>

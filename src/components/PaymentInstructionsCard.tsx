@@ -225,7 +225,7 @@ export const PaymentInstructionsCard: React.FC<Props> = ({
               <span className="text-xs font-semibold text-amber-100/70">BTC</span>
             </div>
             <p className="mt-1 text-xs text-slate-300">
-              US$ {order.priceUsd} <span className="text-slate-500">·</span> {order.btcSatoshis.toLocaleString(locale)} sats
+              USD {order.priceUsd} <span className="text-slate-500">·</span> {order.btcSatoshis.toLocaleString(locale)} sats
             </p>
             <button
               type="button"
@@ -255,7 +255,7 @@ export const PaymentInstructionsCard: React.FC<Props> = ({
           <dl className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-3 rounded-xl border border-white/[0.07] bg-[#141827] p-3">
             <div className="min-w-0">
               <dt className="text-[10px] text-slate-500">{t.rate}</dt>
-              <dd className="mt-1 truncate font-mono text-xs text-slate-200">US$ {order.quoteRateUsd}</dd>
+              <dd className="mt-1 truncate font-mono text-xs text-slate-200">USD {order.quoteRateUsd}</dd>
             </div>
             <div className="min-w-0">
               <dt className="text-[10px] text-slate-500">{t.source}</dt>

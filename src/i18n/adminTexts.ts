@@ -707,9 +707,9 @@ const dictionary: Record<string,{en:string;es:string}> = {
     "en": "Current:",
     "es": "Actual:"
   },
-  "Cotação BTC/USD: US$": {
-    "en": "BTC/USD quote: US$",
-    "es": "Cotización BTC/USD: US$"
+  "Cotação BTC/USD: USD": {
+    "en": "BTC/USD quote: USD",
+    "es": "Cotización BTC/USD: USD"
   },
   "Cotação indisponível; ajustes bloqueados.": {
     "en": "Quote unavailable; adjustments disabled.",

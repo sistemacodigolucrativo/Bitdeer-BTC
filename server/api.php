@@ -6,6 +6,7 @@ require_once __DIR__ . '/demo_new_investor_toast.php';
 require_once __DIR__ . '/quote.php';
 require_once __DIR__ . '/bitcoin.php';
 require_once __DIR__ . '/member_history.php';
+require_once __DIR__ . '/member_delete.php';
 require_once __DIR__ . '/order_features.php';
 require_once __DIR__ . '/demo_marcelo.php';
 require_once __DIR__ . '/demo_withdrawal_timeline.php';
@@ -486,13 +487,13 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         $owner=(int)$actor['id'];
         $code=own_referral_code($db,$owner);
         $items=query_all($db,'SELECT e.id,e.created_at,e.reward_usd_units,u.login
-          FROM referral_events e JOIN users u ON u.id=e.invitee_id
+          FROM referral_events e LEFT JOIN users u ON u.id=e.invitee_id
           WHERE e.inviter_id=? ORDER BY e.id DESC LIMIT 100',[$owner]);
         $history=[];
         foreach ($items as $row) {
-            $user=(string)$row['login'];
+            $user=(string)($row['login']??'');
             $history[]=['id'=>(int)$row['id'],
-                'referredAlias'=>substr($user,0,2).'***',
+                'referredAlias'=>$user===''?'—':substr($user,0,2).'***',
                 'createdAt'=>(int)$row['created_at'],
                 'rewardUsd'=>units_usd((int)$row['reward_usd_units'])];
         }
@@ -1361,6 +1362,14 @@ function api_dispatch(PDO $db, string $action, string $method): never {
               [$login,$name,$email,$phone,$wallet,now(),$id]);
             audit($db,(int)$actor['id'],'member.edit',$id,['fields'=>['login','display_name','email','phone','wallet_address']]);
         });
+        json_out(['ok'=>true]);
+    }
+    if ($action === 'admin.member.delete' && $method === 'POST') {
+        $actor=require_post_csrf($db,true);$body=request_body();
+        $id=param_id($body,'userId');
+        if(($body['confirmed']??null)!==true)fail(422,'Confirmação obrigatória');
+        if(!query_one($db,'SELECT id FROM users WHERE id=? AND role="member"',[$id]))fail(404,'Membro não encontrado');
+        atomic($db,static function()use($db,$id,$actor):void {delete_member_preserving_affiliates($db,$id,(int)$actor['id']);});
         json_out(['ok'=>true]);
     }
     if ($action === 'admin.status' && $method === 'POST') {

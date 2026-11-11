@@ -134,7 +134,7 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     congratulations: {
       title: 'Congratulations',
-      desc1: 'Your Free Plan (FREE) with a daily reward of US$ 1.00/day is now active on your account!',
+      desc1: 'Your Free Plan (FREE) with a daily reward of USD 1.00/day is now active on your account!',
       desc2: 'Thanks for signing up! Start your mining sessions in the panel to accumulate your daily reward.🎁',
       actionBtn: 'Enter Mining Panel'
     },
@@ -197,7 +197,7 @@ export const translations: Record<LanguageCode, Translations> = {
       shareToEarn: 'Share to Earn',
       howToEarn: 'How to Earn Rewards',
       step1: 'Step 1: Share the invite code with friends.',
-      step2: 'Step 2: Your friend signs up for free and you earn US$ 1 per referral.',
+      step2: 'Step 2: Your friend signs up for free and you earn USD 1 per referral.',
       referredListTitle: 'Referred Users'
     },
     setting: {
@@ -238,7 +238,7 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     congratulations: {
       title: 'Parabéns!',
-      desc1: 'Seu Plano Gratuito (FREE) com recompensa diária de US$ 1,00/dia já está ativo em sua conta!',
+      desc1: 'Seu Plano Gratuito (FREE) com recompensa diária de USD 1,00/dia já está ativo em sua conta!',
       desc2: 'Obrigado pelo cadastro! Inicie suas sessões no painel para acumular sua recompensa diária.🎁',
       actionBtn: 'Acessar Painel de Mineração'
     },
@@ -301,7 +301,7 @@ export const translations: Record<LanguageCode, Translations> = {
       shareToEarn: 'Compartilhar e Ganhar',
       howToEarn: 'Como ganhar recompensa',
       step1: 'Passo 1: Compartilhar o código de convite com amigos.',
-      step2: 'Passo 2: O amigo se cadastra gratuitamente e o usuário ganha US$ 1 por indicado.',
+      step2: 'Passo 2: O amigo se cadastra gratuitamente e o usuário ganha USD 1 por indicado.',
       referredListTitle: 'Lista de Indicados'
     },
     setting: {
@@ -342,7 +342,7 @@ export const translations: Record<LanguageCode, Translations> = {
     },
     congratulations: {
       title: '¡Felicitaciones!',
-      desc1: '¡Tu Plan Gratuito (FREE) con recompensa diaria de US$ 1,00/día ya está activo en tu cuenta!',
+      desc1: '¡Tu Plan Gratuito (FREE) con recompensa diaria de USD 1,00/día ya está activo en tu cuenta!',
       desc2: '¡Gracias por registrarte! Inicia tus sesiones en el panel para acumular tu recompensa diaria.🎁',
       actionBtn: 'Entrar al Panel de Minería'
     },
@@ -405,7 +405,7 @@ export const translations: Record<LanguageCode, Translations> = {
       shareToEarn: 'Compartir y Ganar',
       howToEarn: 'Cómo ganar recompensa',
       step1: 'Paso 1: Compartir el código de invitación con amigos.',
-      step2: 'Paso 2: El amigo se registra gratis y el usuario gana US$ 1 por referido.',
+      step2: 'Paso 2: El amigo se registra gratis y el usuario gana USD 1 por referido.',
       referredListTitle: 'Lista de Referidos'
     },
     setting: {

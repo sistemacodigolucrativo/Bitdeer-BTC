@@ -81,7 +81,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     const res = miningService.claimReward1_Hashrate();
     if (res.success) {
       const valFormatted = (res.bonusUsd ?? dailyBonusUsd).toFixed(2).replace('.', ',');
-      setClaimNotice(`💰 +US$ ${valFormatted} de bônus diário (${activePlanId}) creditados no saldo!`);
+      setClaimNotice(`💰 +USD ${valFormatted} de bônus diário (${activePlanId}) creditados no saldo!`);
       setTimeout(() => setClaimNotice(null), 3000);
     }
   };
@@ -134,7 +134,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           </h3>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
-              {activePlanId} • US$ {activeDailyUsd.toFixed(2)}/dia
+              {activePlanId} • USD {activeDailyUsd.toFixed(2)}/dia
             </span>
             <Info className="w-4 h-4 text-slate-400" />
           </div>
@@ -236,7 +236,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <div className="flex items-center gap-2 my-2">
             <Gift className="w-5 h-5 text-indigo-400 flex-shrink-0" />
             <span className="text-base font-black text-white">
-              US$ {formattedDailyBonusUsd} <span className="text-[10px] font-normal text-slate-400">/ 24h</span>
+              USD {formattedDailyBonusUsd} <span className="text-[10px] font-normal text-slate-400">/ 24h</span>
             </span>
           </div>
           <button
@@ -324,7 +324,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         {faqOpen && (
           <div className="mt-3 pt-3 border-t border-[#222840] space-y-2 text-xs text-slate-400 animate-in fade-in duration-200">
             <p><strong>1. {language==='en'?'How does a mining session work?':language==='es'?'¿Cómo funciona una sesión de minería?':'Como funciona a sessão de mineração?'}</strong> {copy('homeFaqAnswer')}</p>
-            <p><strong>2. Como funcionam as recompensas diárias?</strong> Você possui 3 bônus diários (US$ {formattedDailyBonusUsd}, +2 Horas de Mineração e {formattedDailyBonusSatoshis} Satoshis), cada um disponível a cada 24 horas.</p>
+            <p><strong>2. Como funcionam as recompensas diárias?</strong> Você possui 3 bônus diários (USD {formattedDailyBonusUsd}, +2 Horas de Mineração e {formattedDailyBonusSatoshis} Satoshis), cada um disponível a cada 24 horas.</p>
             <p><strong>3. Meus dados ficam salvos?</strong> Sim, todo seu saldo e tempos restantes ficam salvos localmente e persistem mesmo ao fechar o app.</p>
           </div>
         )}

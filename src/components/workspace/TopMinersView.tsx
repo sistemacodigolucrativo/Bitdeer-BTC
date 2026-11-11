@@ -168,7 +168,7 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd,quoteTime})=
       </div><span aria-hidden="true"/>
     </header>
     <div data-testid="top-miners-scroll" className="top-miners-vertical-scroll flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y member-vertical-scroll p-4 space-y-3">
-      <p className="text-[11px] text-slate-400">{copy('topMinersNotice')}</p>
+      {mockupMode&&<p className="text-[11px] text-slate-400">{copy('topMinersNotice')}</p>}
       {mockupMode&&<p data-testid="top-miners-demo-status" className="text-[10px] text-slate-500">
         {language==='en'?'Green online dots and the counter are simulated.':language==='es'?'Los puntos verdes y el contador son simulados.':'As bolinhas verdes e o contador são simulados.'}
       </p>}

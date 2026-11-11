@@ -51,7 +51,7 @@ const INITIAL_SUBSCRIPTIONS: SubscriptionRecord[] = [
     purchaseDate: Date.now() - 86400 * 1000 * 2,
     purchaseDateFormatted: '24/10/2026 14:30',
     status: 'active',
-    priceFormatted: 'Plano Gratuito (US$ 1,00/dia)',
+    priceFormatted: 'Plano Gratuito (USD 1,00/dia)',
     transactionId: 'TXN-FREE-INIT-BTC'
   }
 ];
@@ -66,7 +66,7 @@ const INITIAL_MINING_STATE: MiningState = {
   activeMinersCount: 55161,
   sessionSecondsLeft: DEFAULT_SESSION_SECONDS,
   claimedBoosts: [],
-  userVipTier: 'none', // Usuário inicia no Plano Gratuito (US$ 1,00/dia)
+  userVipTier: 'none', // Usuário inicia no Plano Gratuito (USD 1,00/dia)
   rewardCooldowns: {},
   miningSessions: INITIAL_SESSIONS,
   currentSessionId: 'sess-' + Date.now(),
@@ -745,7 +745,7 @@ export class MiningService {
   }
 
   /**
-   * Credita US$ 1,00 no Saldo de Indicação convertido para o equivalente em BTC
+   * Credita USD 1,00 no Saldo de Indicação convertido para o equivalente em BTC
    * pela cotação BTC/USD exata do momento do cadastro do indicado, aplicando
    * a máscara de e-mail no backend (ex.: jo***@dominio.com) sem expor o e-mail completo.
    */
@@ -828,7 +828,7 @@ export class MiningService {
 
     return {
       success: true,
-      message: `+${newRecord.amountBtc.toFixed(8)} BTC (US$ 1,00 @ $${newRecord.btcUsdRateUsed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) creditados no Saldo de Indicação!`,
+      message: `+${newRecord.amountBtc.toFixed(8)} BTC (USD 1,00 @ $${newRecord.btcUsdRateUsed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) creditados no Saldo de Indicação!`,
       record: newRecord,
     };
   }
