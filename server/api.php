@@ -92,7 +92,7 @@ function member_snapshot(PDO $db, int $userId): array {
        'asOf'=>now(),
        'user'=>public_user($user),
        'profile'=>['displayName'=>$user['display_name'], 'email'=>$user['email'],
-         'phone'=>$user['phone'],'avatarUrl'=>$user['avatar_url'] ?? '', 'avatarPhoto'=>$user['avatar_photo'] ?? '', 'favoritePhrase'=>(int)($user['favorite_phrase']??-1), 'avatarLocked'=>(bool)($user['avatar_locked'] ?? false), 'walletAddress'=>$user['wallet_address']],
+         'phone'=>$user['phone'],'avatarUrl'=>$user['avatar_url'] ?? '', 'avatarPhoto'=>$user['avatar_photo'] ?? '', 'favoritePhrase'=>(int)($user['favorite_phrase']??-1), 'avatarLocked'=>(bool)($user['avatar_locked'] ?? false), 'walletAddress'=>$user['wallet_address'], 'loginChangeUsed'=>(bool)($user['login_change_used']??false)],
        'mining'=>['running'=>(bool)$mining['running'],
          'balanceUnits'=>(int)$mining['balance_units'],
          'balanceUsd'=>units_usd((int)$mining['balance_units']),
@@ -214,6 +214,7 @@ function ensure_member_features(PDO $db): void {
     }
     if(!in_array('avatar_photo',$userCols,true))$db->exec("ALTER TABLE users ADD COLUMN avatar_photo TEXT NOT NULL DEFAULT ''");
     if(!in_array('favorite_phrase',$userCols,true))$db->exec('ALTER TABLE users ADD COLUMN favorite_phrase INTEGER NOT NULL DEFAULT -1');
+    if(!in_array('login_change_used',$userCols,true))$db->exec('ALTER TABLE users ADD COLUMN login_change_used INTEGER NOT NULL DEFAULT 0 CHECK(login_change_used IN (0,1))');
     $cols=array_column(query_all($db,'PRAGMA table_info(plans)'),'name');
     if (!in_array('withdraw_min_cents',$cols,true))
         $db->exec('ALTER TABLE plans ADD COLUMN withdraw_min_cents INTEGER NOT NULL DEFAULT 0');
@@ -835,9 +836,10 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
         $body=request_body();
         $name=string_field($body,'displayName',120);$email=string_field($body,'email',254);
-        $phone=normalize_member_phone(string_field($body,'phone',30));$wallet=string_field($body,'walletAddress',150);
+        $hasPhone=array_key_exists('phone',$body);$phone=$hasPhone?normalize_member_phone(string_field($body,'phone',30)):null;
+        $wallet=string_field($body,'walletAddress',150);
         $avatar=array_key_exists('avatarUrl',$body)?string_field($body,'avatarUrl',2048):null;
-        if ($name === '' || !is_email_or_empty($email) || $phone===null) fail(422,'Nome, e-mail ou telefone inválido');
+        if ($name === '' || !is_email_or_empty($email) || ($hasPhone&&$phone===null)) fail(422,'Nome, e-mail ou telefone inválido');
         if ($wallet!=='' && !btc_receive_address_valid($wallet)) fail(422,'Carteira Bitcoin inválida');
         if($avatar!==null && $avatar!=='' && (!filter_var($avatar,FILTER_VALIDATE_URL) ||
             !in_array(strtolower((string)parse_url($avatar,PHP_URL_SCHEME)),['https','http'],true)))
@@ -850,8 +852,46 @@ function api_dispatch(PDO $db, string $action, string $method): never {
             $resolvedAvatar=$avatar??(string)$current['avatar_url'];
             if((int)$current['avatar_locked']===1 && $resolvedAvatar!==(string)$current['avatar_url'])
                 fail(409,'A imagem de perfil já foi definida e não pode ser alterada');
-            execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=?,avatar_url=?,avatar_locked=?,wallet_address=?,updated_at=? WHERE id=?',
+            execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=COALESCE(?,phone),avatar_url=?,avatar_locked=?,wallet_address=?,updated_at=? WHERE id=?',
               [$name,$email,$phone,$resolvedAvatar,$resolvedAvatar!==''?1:(int)$current['avatar_locked'],$wallet,now(),$actor['id']]);
+        });
+        json_out(['ok'=>true]);
+    }
+    if ($action === 'profile.login.change' && $method === 'POST') {
+        $actor=require_post_csrf($db);
+        if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
+        $body=request_body();
+        $newLogin=string_field($body,'login',40);
+        $password=$body['currentPassword']??null;
+        if(!validate_login($newLogin))fail(422,'Login inválido: use de 3 a 40 letras, números, ponto, hífen ou sublinhado.');
+        if(!is_string($password)||$password===''||strlen($password)>256)fail(422,'Informe sua senha atual.');
+        $changedLogin=atomic($db,static function()use($db,$actor,$newLogin,$password):string {
+            $current=query_one($db,'SELECT login,password_hash,login_change_used FROM users WHERE id=? AND role="member"',[$actor['id']]);
+            if(!$current)fail(404,'Conta de membro indisponível');
+            if((int)$current['login_change_used']===1)fail(409,'O login já foi alterado e não pode ser modificado novamente.');
+            if(strcasecmp((string)$current['login'],$newLogin)===0)fail(422,'Escolha um login diferente do atual.');
+            if(!password_verify($password,(string)$current['password_hash']))fail(401,'Senha atual incorreta.');
+            if(query_one($db,'SELECT id FROM users WHERE login=? COLLATE NOCASE AND id<>?',[$newLogin,$actor['id']]))
+                fail(409,'Este login já está em uso.');
+            execute_sql($db,'UPDATE users SET login=?,login_change_used=1,updated_at=? WHERE id=?',[$newLogin,now(),$actor['id']]);
+            return $newLogin;
+        });
+        json_out(['ok'=>true,'login'=>$changedLogin,'loginChangeUsed'=>true]);
+    }
+    if ($action === 'profile.password.change' && $method === 'POST') {
+        $actor=require_post_csrf($db);
+        if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
+        $body=request_body();$currentPassword=$body['currentPassword']??null;$newPassword=$body['newPassword']??null;
+        if(!is_string($currentPassword)||$currentPassword===''||strlen($currentPassword)>256)fail(422,'Informe sua senha atual.');
+        if(!is_string($newPassword)||!validate_password($newPassword))fail(422,'A nova senha deve ter de 12 a 256 caracteres.');
+        $hash=secure_password($newPassword);
+        atomic($db,static function()use($db,$actor,$currentPassword,$hash):void {
+            $current=query_one($db,'SELECT password_hash FROM users WHERE id=? AND role="member"',[$actor['id']]);
+            if(!$current)fail(404,'Conta de membro indisponível');
+            if(!password_verify($currentPassword,(string)$current['password_hash']))fail(401,'Senha atual incorreta.');
+            execute_sql($db,'UPDATE users SET password_hash=?,updated_at=? WHERE id=?',[$hash,now(),$actor['id']]);
+            execute_sql($db,'UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL AND id<>?',
+                [now(),$actor['id'],$actor['session_id']]);
         });
         json_out(['ok'=>true]);
     }

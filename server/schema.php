@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_photo TEXT NOT NULL DEFAULT '',
   favorite_phrase INTEGER NOT NULL DEFAULT -1,
   wallet_address TEXT NOT NULL DEFAULT '',
+  login_change_used INTEGER NOT NULL DEFAULT 0 CHECK(login_change_used IN (0,1)),
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );

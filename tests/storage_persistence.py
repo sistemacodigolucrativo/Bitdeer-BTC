@@ -54,6 +54,25 @@ def main():
             _,_,raw=request(other_device,'member.preferences');prefs=json.loads(raw)['preferences']
             assert prefs['firstHomeVisit'] is True and prefs['welcomeDismissed'] is True
             _,_,raw=request(other_device,'profile');assert json.loads(raw)['profile']['walletAddress']==profile['walletAddress']
+            try:
+                request(member,'profile.login.change',{'login':'member-renamed','currentPassword':'WrongPassword123!'},headers=mh)
+                raise AssertionError('Wrong current password must not change login')
+            except urllib.error.HTTPError as error:assert error.code==401
+            _,_,raw=request(member,'profile.login.change',{'login':'member-renamed','currentPassword':'MemberPassword123!'},headers=mh)
+            assert json.loads(raw)['loginChangeUsed'] is True
+            _,_,raw=request(member,'profile');assert json.loads(raw)['user']['login']=='member-renamed' and json.loads(raw)['profile']['loginChangeUsed'] is True
+            try:
+                request(other_device,'profile.login.change',{'login':'member-renamed-again','currentPassword':'MemberPassword123!'},headers=other_headers)
+                raise AssertionError('Second login change must be blocked')
+            except urllib.error.HTTPError as error:assert error.code==409
+            _,_,raw=request(member,'profile.password.change',{'currentPassword':'MemberPassword123!','newPassword':'MemberPassword456!'},headers=mh)
+            assert json.loads(raw)['ok'] is True
+            try:
+                request(other_device,'profile')
+                raise AssertionError('Password change must revoke other sessions')
+            except urllib.error.HTTPError as error:assert error.code==401
+            new_device=opener();_,_,raw=request(new_device,'login',{'login':'member-renamed','password':'MemberPassword456!'})
+            assert json.loads(raw)['user']['login']=='member-renamed'
 
             pdf=b'%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF\n'
             png=base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/s3sAAAAASUVORK5CYII=')
@@ -62,11 +81,11 @@ def main():
                 return (f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; filename="{filename}"\r\nContent-Type: {mime}\r\n\r\n').encode()+data+b'\r\n'
             body=(f'--{boundary}\r\nContent-Disposition: form-data; name="documentType"\r\n\r\npassport\r\n').encode()
             body+=part('document','id.pdf','application/pdf',pdf)+part('photo','selfie.png','image/png',png)+f'--{boundary}--\r\n'.encode()
-            _,_,raw=request(other_device,'kyc.submit',headers={**other_headers,'Content-Type':f'multipart/form-data; boundary={boundary}'},raw=body)
+            _,_,raw=request(member,'kyc.submit',headers={**mh,'Content-Type':f'multipart/form-data; boundary={boundary}'},raw=body)
             kyc=json.loads(raw)['record'];assert kyc['status']=='pending' and kyc['simulation'] is True
-            _,_,raw=request(other_device,'kyc.mine');assert json.loads(raw)['record']['id']==kyc['id']
-            _,_,raw=request(other_device,'kyc.file',query={'kind':'document'});assert raw==pdf
-            _,_,raw=request(other_device,'kyc.file',query={'kind':'photo'});assert raw==png
+            _,_,raw=request(member,'kyc.mine');assert json.loads(raw)['record']['id']==kyc['id']
+            _,_,raw=request(member,'kyc.file',query={'kind':'document'});assert raw==pdf
+            _,_,raw=request(member,'kyc.file',query={'kind':'photo'});assert raw==png
             import sqlite3
             with sqlite3.connect(db) as connection:
                 encrypted=connection.execute('SELECT document_ciphertext,photo_ciphertext FROM member_kyc_submissions').fetchone()
@@ -79,7 +98,7 @@ def main():
             files=list(backup.glob('bitdeer-*.sqlite'));keys=list((backup/'key-recovery').glob('*.key'))
             assert len(files)==1 and len(keys)==1 and keys[0].read_bytes()==key.read_bytes()
             with sqlite3.connect(files[0]) as connection:assert connection.execute('PRAGMA quick_check').fetchone()[0]=='ok'
-            print('PASS: preview global/audit, preferences, remember-session, profile/wallet cross-session, encrypted KYC, and SQLite backup/key recovery')
+            print('PASS: preview/global audit, preferences, cross-session profile, one-time login, password change/session revocation, encrypted KYC, and SQLite backup/key recovery')
         finally:
             server.terminate();server.wait(timeout=5)
 

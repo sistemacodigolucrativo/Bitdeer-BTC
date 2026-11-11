@@ -11,7 +11,7 @@ import { ServerHomeView } from './ServerHomeView';
 import { ServerStoreView } from './ServerStoreView';
 import { ServerWalletView } from './ServerWalletView';
 import { MockPaymentFeed } from './MockPaymentFeed';
-import { formatInternationalPhone, normalizeInternationalPhone, validInternationalPhone } from '../utils/phone';
+import { callingCodeForCountry, countryForPhone, formatNationalPhone, formatInternationalPhone, normalizePhoneForCountry, nationalPhoneValue, phoneCountries, PhoneCountryCode, validPhoneForCountry, validInternationalPhone } from '../utils/phone';
 import { projectInternalBalance } from '../utils/projectInternalBalance';
 import { ServerRewardView } from './ServerRewardView';
 import { RewardHistoryLog } from './RewardHistoryLog';
@@ -36,6 +36,7 @@ type PurchaseHistoryOrder = {
   expires_at?:number;can_pay?:boolean;native_order?:boolean;
   proof_url?:string|null;proof_submitted_at?:number|null;
 };
+const countryFlag=(country:string)=>String.fromCodePoint(...country.toUpperCase().split('').map(char=>char.charCodeAt(0)+127397));
 const memberWalletStorageKey=(userId:number)=>`bitdeer:member-wallet:${userId}`;
 function readMemberWalletAddress(userId:number):string {
   try {
@@ -54,11 +55,13 @@ function removeMemberWalletAddress(userId:number):void {
 export const MemberWorkspace: React.FC<{
   user: AuthUser; language: LanguageCode; onLogout: () => void;
   onChangeLanguage: (lang:LanguageCode)=>void;
-}> = ({user, language, onLogout, onChangeLanguage}) => {
+  onLoginChanged:(login:string)=>void;
+}> = ({user, language, onLogout, onChangeLanguage,onLoginChanged}) => {
   const [page, setPage] = useState<Page>('home');
   const tabNames = translations[language].tabs;
   const words = memberTexts[language] || memberTexts.pt;
   const tr = memberViewCopy[language];
+  const countryNames=new Intl.DisplayNames([language==='en'?'en':language==='es'?'es':'pt-BR'],{type:'region'});
   const { copy: copyText, mockupMode } = useProjectCopy(language);
   const dateLocale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const [account, setAccount] = useState<MemberData | null>(null);
@@ -78,7 +81,14 @@ export const MemberWorkspace: React.FC<{
     accruals: Array<{plan_id:string;start_ts:number;end_ts:number;earned_units:number}>;
     bonuses: Array<{plan_id:string;claimed_at:number;bonus_usd_units:number;bonus_satoshis:number}>;
   }>({accruals:[],bonuses:[]});
-  const [profile, setProfile] = useState({displayName:'',email:'',phone:'',avatarUrl:'',avatarPhoto:'',favoritePhrase:-1,avatarLocked:false,walletAddress:''});
+  const [profile, setProfile] = useState({displayName:'',email:'',phone:'',avatarUrl:'',avatarPhoto:'',favoritePhrase:-1,avatarLocked:false,walletAddress:'',loginChangeUsed:false});
+  const [phoneCountry,setPhoneCountry]=useState<PhoneCountryCode>('BR');
+  const [phoneInput,setPhoneInput]=useState('');
+  const [newLogin,setNewLogin]=useState('');
+  const [currentPassword,setCurrentPassword]=useState('');
+  const [passwordCurrent,setPasswordCurrent]=useState('');
+  const [passwordNew,setPasswordNew]=useState('');
+  const [passwordConfirm,setPasswordConfirm]=useState('');
   const [profilePhoto,setProfilePhoto]=useState<string|null>(null);
   const [localKyc,setLocalKyc]=useState<LocalKycRecord|null>(null);
   const [memberPreferences,setMemberPreferences]=useState<Record<string,unknown>>({});
@@ -246,7 +256,9 @@ export const MemberWorkspace: React.FC<{
   async function reload():Promise<MemberData|null> {
     try {
       const data = await api<MemberData>('profile');
-      acceptSnapshot(data); setProfile({...data.profile,phone:formatInternationalPhone(data.profile.phone)});
+      acceptSnapshot(data); setProfile(data.profile);
+      const country=countryForPhone(data.profile.phone);setPhoneCountry(country);
+      setPhoneInput(nationalPhoneValue(data.profile.phone,country));
       return data;
     } catch(e) { setNotice((e as Error).message);return null; }
   }
@@ -500,12 +512,31 @@ export const MemberWorkspace: React.FC<{
   async function saveProfile(){
     setBusy(true);setNotice('');
     try{
-      if(!validInternationalPhone(profile.phone))throw new Error(tr.phone);
-      await api('profile.update',profile);
+      if(!validPhoneForCountry(phoneInput,phoneCountry))throw new Error(tr.phone);
+      const phone=normalizePhoneForCountry(phoneInput,phoneCountry);
+      await api('profile.update',{...profile,phone});
       await api('profile.preferences',{favoritePhrase:profile.favoritePhrase,...(profilePhoto?{avatarPhoto:profilePhoto}:{})});
       setProfilePhoto(null);const saved=await reload();
       if(saved&&legacyWallet&&saved.profile.walletAddress===profile.walletAddress){removeMemberWalletAddress(user.id);setLegacyWallet('');}
       setNotice(words.saved);
+    }catch(e){setNotice((e as Error).message);}finally{setBusy(false);}
+  }
+  async function changeMemberLogin(){
+    setBusy(true);setNotice('');
+    try{
+      const result=await api<{login:string;loginChangeUsed:boolean}>('profile.login.change',{login:newLogin.trim(),currentPassword});
+      onLoginChanged(result.login);setProfile(p=>({...p,loginChangeUsed:true}));setNewLogin('');setCurrentPassword('');
+      setNotice(language==='en'?'Login changed. It cannot be changed again.':language==='es'?'Inicio de sesión cambiado. No se puede cambiar otra vez.':'Login alterado. Não será possível alterá-lo novamente.');
+    }catch(e){setNotice((e as Error).message);}finally{setBusy(false);}
+  }
+  async function changeMemberPassword(){
+    setBusy(true);setNotice('');
+    try{
+      if(passwordNew!==passwordConfirm)throw new Error(language==='en'?'The new passwords do not match.':language==='es'?'Las nuevas contraseñas no coinciden.':'As novas senhas não coincidem.');
+      if(passwordNew.length<12)throw new Error(language==='en'?'Use at least 12 characters.':language==='es'?'Usa al menos 12 caracteres.':'Use pelo menos 12 caracteres.');
+      await api('profile.password.change',{currentPassword:passwordCurrent,newPassword:passwordNew});
+      setPasswordCurrent('');setPasswordNew('');setPasswordConfirm('');
+      setNotice(language==='en'?'Password changed. Other sessions were signed out.':language==='es'?'Contraseña cambiada. Las demás sesiones se cerraron.':'Senha alterada. As outras sessões foram encerradas.');
     }catch(e){setNotice((e as Error).message);}finally{setBusy(false);}
   }
   const tab = (p:Page, label:string, Icon:typeof Home) =>
@@ -784,20 +815,60 @@ export const MemberWorkspace: React.FC<{
             </label>}
           </div>
           {(['displayName','email','phone','walletAddress'] as const).map(k=><React.Fragment key={k}><label className="block text-sm text-slate-300">
-            {({displayName:words.name,email:words.optionalEmail,phone:words.phone,walletAddress:words.btcWallet} as const)[k]}
-            <input type={k==='email'?'email':k==='phone'?'tel':'text'} autoComplete={k==='email'?'email':k==='phone'?'tel':'off'}
-              value={profile[k]}
-              maxLength={k==='phone'?24:undefined} inputMode={k==='phone'?'tel':undefined}
-              placeholder={k==='phone'?'+55 31 99999-9999':undefined}
-              onChange={e=>setProfile(p=>({...p,[k]:k==='phone'?formatInternationalPhone(e.target.value):e.target.value}))}
-              onBlur={e=>{if(k==='phone')setProfile(p=>({...p,phone:normalizeInternationalPhone(e.target.value)}));}}
-              className="mt-1 w-full bg-[#1b2137] border border-[#2b3350] p-3 rounded-xl text-white"/>
+            {k==='phone'?`${words.phone} (${language==='en'?'optional':language==='es'?'opcional':'opcional'})`:({displayName:words.name,email:words.optionalEmail,walletAddress:words.btcWallet} as const)[k]}
+            {k==='phone'?<div className="mt-1 grid grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-2">
+              <select aria-label={language==='en'?'Country calling code':language==='es'?'Código telefónico del país':'Código telefônico do país'} value={phoneCountry}
+                onChange={e=>{const country=e.target.value as PhoneCountryCode;setPhoneCountry(country);setPhoneInput(value=>formatNationalPhone(value,country));}}
+                className="min-w-0 rounded-xl border border-[#2b3350] bg-[#1b2137] p-3 text-sm text-white">
+                {phoneCountries.map(country=><option key={country} value={country}>{countryFlag(country)} {countryNames.of(country)??country} (+{callingCodeForCountry(country)})</option>)}
+              </select>
+              <div className="flex min-w-0 items-center rounded-xl border border-[#2b3350] bg-[#1b2137]">
+                <span className="shrink-0 pl-3 text-sm text-slate-300">+{callingCodeForCountry(phoneCountry)}</span>
+                <input type="tel" autoComplete="tel-national" value={phoneInput} maxLength={24} inputMode="tel"
+                  placeholder={language==='en'?'Phone number':language==='es'?'Número de teléfono':'Número de telefone'}
+                  onChange={e=>setPhoneInput(formatNationalPhone(e.target.value,phoneCountry))}
+                  onBlur={e=>setPhoneInput(formatNationalPhone(e.target.value,phoneCountry))}
+                  className="min-w-0 w-full rounded-xl bg-transparent p-3 pl-2 text-white outline-none"/>
+              </div>
+            </div>:<input type={k==='email'?'email':'text'} autoComplete={k==='email'?'email':'off'}
+              value={profile[k]} onChange={e=>setProfile(p=>({...p,[k]:e.target.value}))}
+              className="mt-1 w-full rounded-xl border border-[#2b3350] bg-[#1b2137] p-3 text-white"/>}
           </label>
           {k==='phone'&&!mockupMode&&<label className="block text-sm text-slate-300">{language==='en'?'Favorite phrase':language==='es'?'Frase favorita':'Frase favorita'}
               <select value={profile.favoritePhrase} onChange={e=>setProfile(p=>({...p,favoritePhrase:Number(e.target.value)}))} className="mt-1 w-full rounded-xl bg-[#1b2137] p-3 text-sm">
                 <option value={-1}>—</option>{topMinerDescriptions[language].map((phrase,index)=><option value={index} key={phrase}>{phrase}</option>)}
               </select>
             </label>}</React.Fragment>)}
+          <section className="space-y-3 rounded-xl border border-[#2b3350] bg-[#151a2c] p-4">
+            <div><h3 className="font-semibold">{language==='en'?'Change login':language==='es'?'Cambiar usuario':'Alterar login'}</h3>
+              <p className="mt-1 text-xs text-slate-400">{language==='en'?'Current login:':language==='es'?'Usuario actual:':'Login atual:'} <strong className="text-slate-200">{user.login}</strong></p></div>
+            {profile.loginChangeUsed?<p className="text-sm text-slate-300">{language==='en'?'Your one-time login change has been used.':language==='es'?'Ya utilizaste el único cambio de usuario disponible.':'Você já usou sua única alteração de login.'}</p>:<>
+              <input value={newLogin} onChange={e=>setNewLogin(e.target.value)} maxLength={40} autoComplete="username"
+                placeholder={language==='en'?'New login':language==='es'?'Nuevo usuario':'Novo login'}
+                className="w-full rounded-xl border border-[#2b3350] bg-[#1b2137] p-3 text-white"/>
+              <input type="password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)} autoComplete="current-password"
+                placeholder={language==='en'?'Current password':language==='es'?'Contraseña actual':'Senha atual'}
+                className="w-full rounded-xl border border-[#2b3350] bg-[#1b2137] p-3 text-white"/>
+              <p className="text-xs text-slate-400">{language==='en'?'You can change your login only once.':language==='es'?'Solo puedes cambiar tu usuario una vez.':'O login pode ser alterado uma única vez.'}</p>
+              <button type="button" disabled={busy||!newLogin.trim()||!currentPassword} onClick={()=>void changeMemberLogin()}
+                className="w-full rounded-xl bg-indigo-600 p-3 font-semibold disabled:opacity-50">{language==='en'?'Change login':language==='es'?'Cambiar usuario':'Alterar login'}</button>
+            </>}
+          </section>
+          <section className="space-y-3 rounded-xl border border-[#2b3350] bg-[#151a2c] p-4">
+            <div><h3 className="font-semibold">{language==='en'?'Change password':language==='es'?'Cambiar contraseña':'Alterar senha'}</h3>
+              <p className="mt-1 text-xs text-slate-400">{language==='en'?'Enter your current password and choose a new one (12 characters minimum).':language==='es'?'Ingresa tu contraseña actual y elige una nueva (mínimo 12 caracteres).':'Informe sua senha atual e escolha uma nova (mínimo de 12 caracteres).'}</p></div>
+            <input type="password" autoComplete="current-password" value={passwordCurrent} onChange={e=>setPasswordCurrent(e.target.value)}
+              onKeyDown={e=>{if(e.key==='Enter')e.preventDefault();}} placeholder={language==='en'?'Current password':language==='es'?'Contraseña actual':'Senha atual'}
+              className="w-full rounded-xl border border-[#2b3350] bg-[#1b2137] p-3 text-white"/>
+            <input type="password" autoComplete="new-password" minLength={12} value={passwordNew} onChange={e=>setPasswordNew(e.target.value)}
+              onKeyDown={e=>{if(e.key==='Enter')e.preventDefault();}} placeholder={language==='en'?'New password':language==='es'?'Nueva contraseña':'Nova senha'}
+              className="w-full rounded-xl border border-[#2b3350] bg-[#1b2137] p-3 text-white"/>
+            <input type="password" autoComplete="new-password" minLength={12} value={passwordConfirm} onChange={e=>setPasswordConfirm(e.target.value)}
+              onKeyDown={e=>{if(e.key==='Enter')e.preventDefault();}} placeholder={language==='en'?'Confirm new password':language==='es'?'Confirmar nueva contraseña':'Confirme a nova senha'}
+              className="w-full rounded-xl border border-[#2b3350] bg-[#1b2137] p-3 text-white"/>
+            <button type="button" disabled={busy||!passwordCurrent||passwordNew.length<12||!passwordConfirm} onClick={()=>void changeMemberPassword()}
+              className="w-full rounded-xl bg-indigo-600 p-3 font-semibold disabled:opacity-50">{language==='en'?'Update password':language==='es'?'Actualizar contraseña':'Atualizar senha'}</button>
+          </section>
           {!mockupMode&&<>
             <button type="button" onClick={()=>setPage('kyc')} className="w-full rounded-xl border border-indigo-400/40 bg-[#1b2137] p-3 text-left text-sm font-semibold">{language==='en'?'KYC verification':language==='es'?'Verificación KYC':'Verificação KYC'}</button>
             {localKyc&&<p className="rounded-xl bg-indigo-500/15 p-3 text-xs text-indigo-100">{localKyc.status==='approved'||kycClock>=(kycDuration===null?localKyc.approveAt:localKyc.submittedAt+kycDuration*60000)?mockupSafetyCopy.kycApproved[language]:(language==='en'?'KYC verification in progress':language==='es'?'Verificación KYC en curso':'Verificação KYC em andamento')}</p>}

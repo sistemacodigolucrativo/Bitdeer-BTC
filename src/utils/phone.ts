@@ -1,4 +1,38 @@
-import { AsYouType, parsePhoneNumberFromString } from 'libphonenumber-js';
+import { AsYouType, CountryCode, getCountries, getCountryCallingCode, parsePhoneNumberFromString } from 'libphonenumber-js';
+
+export const phoneCountries=getCountries();
+export type PhoneCountryCode=CountryCode;
+export const callingCodeForCountry=(country:PhoneCountryCode)=>getCountryCallingCode(country);
+
+export function countryForPhone(value:string):PhoneCountryCode {
+  return parsePhoneNumberFromString(value)?.country??'BR';
+}
+
+export function nationalPhoneValue(value:string,country:PhoneCountryCode):string {
+  if(!value.trim())return '';
+  const parsed=parsePhoneNumberFromString(value);
+  if(parsed?.country===country)return parsed.formatNational();
+  return new AsYouType(country).input(value.replace(/\D/g,''));
+}
+
+export function formatNationalPhone(value:string,country:PhoneCountryCode):string {
+  if(!value.trim())return '';
+  let digits=value.replace(/\D/g,'');
+  const callingCode=getCountryCallingCode(country);
+  if(digits.startsWith(callingCode)&&digits.length>callingCode.length)digits=digits.slice(callingCode.length);
+  return new AsYouType(country).input(digits);
+}
+
+export function validPhoneForCountry(value:string,country:PhoneCountryCode):boolean {
+  if(!value.trim())return true;
+  return Boolean(parsePhoneNumberFromString(value,country)?.isValid());
+}
+
+export function normalizePhoneForCountry(value:string,country:PhoneCountryCode):string {
+  if(!value.trim())return '';
+  const parsed=parsePhoneNumberFromString(value,country);
+  return parsed?.isValid()?parsed.formatInternational():'';
+}
 
 /** Keeps existing Brazilian local numbers compatible while preferring E.164/DDI input. */
 function internationalInput(value:string):string {

@@ -219,6 +219,7 @@ export default function App() {
               ? <AdminWorkspace user={authUser} language={language} onChangeLanguage={handleSelectLanguage} onLogout={() => {void backendLogout().finally(() => {setAuthUser(null);setActiveScreen('login');});}}/>
               : <MemberWorkspace user={authUser} language={language}
                 onChangeLanguage={handleSelectLanguage}
+                onLoginChanged={login=>setAuthUser(current=>current?{...current,login}:current)}
                 onLogout={() => {void backendLogout().finally(() => {setAuthUser(null);setActiveScreen('login');});}}/>
           )}
         </main>
