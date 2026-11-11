@@ -39,7 +39,7 @@ function installer_page(string $title, string $message, int $status): never {
 
 try {
     $path=data_file();
-    if (is_file($path) && !default_seed_pending()) {
+    if (is_file($path)) {
         installer_page('Instalador encerrado','Existe uma base de dados neste servidor. A reinstalação e a substituição de dados são bloqueadas.',410);
     }
 } catch (Throwable $e) {
@@ -124,16 +124,12 @@ if (($_SERVER['REQUEST_METHOD']??'GET')==='POST') {
         $error='Prova de controle do domínio/IP ausente, incorreta ou expirada. Confira as instruções abaixo.';
     } else {
         try {
-            initialize_default_seed();
             $created=provision($login,$pass,$email,$siteUrl,$envType);
             unset($_SESSION['csrf'],$_SESSION['attempts']);
             session_destroy();
-            $memberLabel=!empty($created['fromDefaultSeed'])
-                ? 'Conta padrão (credenciais exibidas somente agora): '
-                : 'Membro fundador da rede (credenciais exibidas somente agora): ';
             installer_page('Instalação concluída',
                 'SQLite e administrador criados. O instalador está bloqueado. '.
-                $memberLabel.
+                'Membro fundador da rede (credenciais exibidas somente agora): '.
                 'usuário '.$created['founderLogin'].' / senha '.$created['founderPassword'].
                 ' / código de indicação '.$created['founderCode'].
                 '. Guarde essa senha em local seguro. Entre pelo aplicativo.',200);

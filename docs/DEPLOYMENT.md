@@ -4,9 +4,9 @@
 
 O pacote ZIP tem public_html com os arquivos do frontend React, api/index.php,
 install/index.php e .htaccess, e private/server com os arquivos PHP do backend.
-private/seed/bitdeer.sqlite é o modelo sanitizado derivado do banco usado no
-workspace. O instalador o copia para private/data/bitdeer.sqlite, que é o banco
-isolado daquela instalação. Nenhum dos dois arquivos pode ficar público.
+Ele não inclui SQLite. O instalador cria um banco novo em
+`private/data/bitdeer.sqlite` para aquela instalação. Mantenha `private` fora
+da raiz pública.
 
 ## Instalação compatível com VPS ou hospedagem PHP
 
@@ -35,30 +35,22 @@ isolado daquela instalação. Nenhum dos dois arquivos pode ficar público.
    `BITDEER_INSTALL_ALLOW_LOCAL=1` e Host e IP de loopback. Nunca
    exponha esse modo local a um proxy público. Não é necessário domínio.
 6. Informe login e senha exclusivos do administrador e o e-mail de suporte.
-    O SQLite inicial é copiado do modelo sanitizado do workspace: mantém os
-    registros do admin e do membro `user`, incluindo o histórico desse membro,
-    e exclui as demais contas. Sessões, hashes de senha e campos pessoais não
-    são distribuídos. A instalação define a senha administrativa informada e
-    gera uma senha aleatória nova para `user`; a senha e o código de indicação
-    são mostrados uma única vez após a instalação.
-    Na inicialização automática do Replit, essas credenciais ficam em
-    `default-user-credentials.txt` dentro da pasta privada do SQLite; não são
-    exibidas nos logs nem incluídas no Git.
-    Os históricos herdados podem conter dados demonstrativos do workspace.
-    Não os apresente como pagamentos, saques ou mineração reais sem verificar
-    a origem. Referências de pagamento, comprovantes, endereços e carteiras
-    são removidos do modelo.
+   Cada instalação cria um banco independente e não copia contas, sessões,
+   senhas, contatos, pedidos ou históricos do preview. A instalação também cria
+   a conta demonstrativa de fundador, cujas credenciais são exibidas uma única
+   vez após a conclusão.
 7. O recebimento BTC começa **sem endereço configurado**: o administrador
    cadastra/alterará a carteira no painel após a instalação, reautenticando
    com sua senha. Até confirmação, o backend bloqueia pedidos novos.
-8. A instalação é recusada após a conclusão. Preserve backup de
-    `private/data`; mantenha `private` fora da raiz pública. O ZIP inclui
-    somente o modelo sanitizado em `private/seed`, nunca o banco ativo local.
+8. A instalação é recusada após a conclusão. Preserve um backup de
+   `private/data`; mantenha `private` fora da raiz pública. O ZIP não inclui
+   nenhum banco SQLite.
 
-Para atualizar o modelo com o banco ativo do workspace, execute
-`php scripts/build-default-seed.php`. O comando cria uma cópia sanitizada em
-`seed/bitdeer.sqlite`, mantém apenas admin e `user` com seus históricos e não
-altera o SQLite ativo. Depois gere novamente o ZIP de instalação.
+O banco usado pelo preview e versionado como fonte da verdade é
+`.local/private/bitdeer.sqlite`. Ele contém contas, sessões e registros
+operacionais; mantenha o repositório privado e restrinja o acesso. O ZIP de
+instalação não inclui esse banco: novas instalações começam com um SQLite
+novo e independente.
 
 **Limites:** a configuração da URL informa o endereço usado pelo aplicativo,
 mas não cria domínio DNS, certificado TLS, regra de proxy, vhost ou

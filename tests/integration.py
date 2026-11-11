@@ -754,6 +754,14 @@ assert realvip.call("profile")["plan"]["id"]=="FREE"
 
 # Every withdrawal shown for the demo member is illustrative. Dates are
 # rescheduled only in the response; the saved manual-history payload is intact.
+db=sqlite3.connect(os.environ["BITDEER_DB_PATH"])
+try:
+    db.execute('UPDATE app_settings SET value="simulation" WHERE name="payment_mode"')
+    # Keep the original populated founder fixture distinct from this empty demo
+    # timeline account; both are used by different parts of this integration run.
+    db.execute('UPDATE users SET login="seeded-user-fixture" WHERE login="user"')
+    db.commit()
+finally: db.close()
 guest.call("register",{"login":"user","password":"DemoHistoryPassword2026"},201)
 demo=Client()
 demo_user=demo.call("login",{"login":"user","password":"DemoHistoryPassword2026"})["user"]

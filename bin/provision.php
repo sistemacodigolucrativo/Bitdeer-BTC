@@ -11,19 +11,8 @@ if ($argc !== 4) {
     exit(2);
 }
 try {
-    if (getenv('BITDEER_SKIP_DEFAULT_SEED') !== '1') {
-        initialize_default_seed();
-    }
-    $created=provision($argv[1], $argv[2], $argv[3]);
-    if (!empty($created['fromDefaultSeed'])) {
-        if (save_default_member_credentials($created) !== null) {
-            fwrite(STDOUT, "SQLite database initialized from the sanitized seed; default user credentials saved privately.\n");
-        } else {
-            fwrite(STDERR, "Warning: default user credentials could not be saved; reset the password through the admin panel.\n");
-        }
-    } else {
-        fwrite(STDOUT, "SQLite schema and administrator created; no browser installer enabled.\n");
-    }
+    provision($argv[1], $argv[2], $argv[3]);
+    fwrite(STDOUT, "SQLite schema and administrator created; no browser installer enabled.\n");
 } catch (Throwable $e) {
     fwrite(STDERR, "Provision failed: " . $e->getMessage() . "\n");
     exit(1);

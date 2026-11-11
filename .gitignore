@@ -8,3 +8,4 @@ coverage/
 .env*
 !.env.example
 .local/
+# The preview's authoritative database is explicitly tracked here.

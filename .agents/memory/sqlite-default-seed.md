@@ -3,8 +3,8 @@ name: SQLite default seed
 description: Use the active workspace database as the sanitized starting data for new installations.
 ---
 
-Use the active workspace SQLite database as the source for the packaged installation seed. Preserve only the administrator and the member whose login is `user`, including their retained account history; remove other accounts and dependent records. Remove sessions, password hashes, personal contact details, payment identifiers, and per-install settings from the seed. Each new installation must create fresh credentials. Keep the active workspace database private and unchanged when rebuilding the seed.
+The SQLite database used by the preview at `.local/private/bitdeer.sqlite` is the project's single source of truth. Keep that database, track it in Git, and push its updates to the remote repository. Remove other local database copies rather than maintaining a separate seed.
 
-**Why:** The user explicitly wants the database currently used in this workspace to be the default starting database for installations elsewhere, while retaining only admin and `user`.
+**Why:** The user explicitly said the preview database is authoritative and confirmed publishing the complete database to the remote repository.
 
-**How to apply:** Generate the seed from the current private SQLite file with the sanitizing script, package it only under a private path outside the web root, and never commit the operational database directly.
+**How to apply:** Preserve the active preview file as-is when syncing it to Git. Do not create sanitized or duplicate database snapshots in the workspace. Keep generated release packages independent: they must not include the live database.

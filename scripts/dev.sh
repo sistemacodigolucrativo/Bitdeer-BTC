@@ -2,9 +2,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Remixes keep Secrets but do not include the private SQLite database.
-# Provision it once for local development; the provisioning script refuses to
-# overwrite an existing database and never logs credentials.
+# The preview database is the repository's authoritative SQLite file.
+# If it is absent in a fresh local setup, provision a new private database;
+# the provisioning script refuses to overwrite an existing database.
 if ! php -r 'require "server/core.php"; exit(is_file(data_file()) ? 0 : 1);'; then
   BITDEER_ALLOW_CLI_PROVISION=1 php bin/provision-replit.php
 fi
