@@ -229,6 +229,7 @@ export const PaymentInstructionsCard: React.FC<Props> = ({
             </p>
             <button
               type="button"
+              data-allow-btc-copy="true"
               onClick={onCopyAmount}
               className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-lg border border-amber-200/20 bg-[#201f2d] px-3 text-xs font-semibold text-amber-100 transition hover:bg-[#2a2837] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
             >
@@ -243,7 +244,7 @@ export const PaymentInstructionsCard: React.FC<Props> = ({
               <p data-testid="payment-btc-address" title={order.btcAddress}
                 className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-center font-mono leading-4 tracking-[-0.04em] text-slate-100"
                 style={{fontSize:addressFontSize}}>{order.btcAddress}</p>
-              <button type="button" onClick={onCopyAddress}
+              <button type="button" data-allow-btc-copy="true" onClick={onCopyAddress}
                 aria-label={copied==='address'?t.copied:t.copyAddress}
                 className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#222944] px-2.5 text-[11px] font-semibold text-slate-100 transition hover:bg-[#2c3556] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300">
                 {copied==='address'?<Check size={13} aria-hidden="true"/>:<Copy size={13} aria-hidden="true"/>}

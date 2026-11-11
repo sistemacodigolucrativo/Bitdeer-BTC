@@ -36,44 +36,44 @@ function demo_withdrawal_timeline(array $requests, int $anchor): array {
     $zone=new DateTimeZone('America/Sao_Paulo');
     $current=(new DateTimeImmutable('@'.$anchor))->setTimezone($zone);
     $anchorMonth=$current->modify('first day of this month')->setTime(0,0);
-    $cutoffMonth=$anchorMonth->modify('-2 months');
-    $cutoffDay=min((int)$current->format('j'),(int)$cutoffMonth->format('t'));
-    $cutoff=$cutoffMonth
-        ->setDate((int)$cutoffMonth->format('Y'),(int)$cutoffMonth->format('m'),$cutoffDay)
-        ->setTime((int)$current->format('H'),(int)$current->format('i'),(int)$current->format('s'));
-    // Keep the final group before the exact two-month cutoff. If the cutoff
-    // falls too early in its month, move that group into the previous month.
-    $latestMonth=$cutoffMonth;
-    $latestDay=$cutoffDay-1;
-    $latestSize=$sizes[count($sizes)-1];
-    if($latestDay < 1+4*($latestSize-1))$latestMonth=$latestMonth->modify('-1 month');
+    // Stable throughout each day, with a changing offset of 46–58 days.
+    // The generated time of day keeps the final age inside roughly 45–60 days.
+    $eligible=[];
+    $latestSize=end($sizes);
+    for($candidate=46;$candidate<=58;$candidate++) {
+        $date=$current->setTime(0,0)->modify('-'.$candidate.' days');
+        if((int)$date->format('j')>=1+4*($latestSize-1))$eligible[]=$candidate;
+    }
+    $offset=$eligible[(int)(hexdec(substr(hash('sha256',$current->format('Y-m-d')),0,4))%count($eligible))];
+    $cutoff=$current->setTime(0,0)->modify('-'.$offset.' days');
+    $latestMonth=$cutoff->modify('first day of this month')->setTime(0,0);
     $month=$latestMonth->modify('-'.($months-1).' months');
-    $usedTimes=[];$usedMinuteSeconds=[];$cursor=0;
+    $usedTimes=[];$usedMinuteSeconds=[];$cursor=0;$slots=[];
     foreach($sizes as $size) {
         $monthKey=$month->format('Y-m');
         // Pseudorandom but stable: no new dates/times on refresh or pagination.
         $hash=hash('sha256',$anchorMonth->getTimestamp().':'.$monthKey);
         $jitter=static fn(int $i):int=>(int)(hexdec(substr($hash,$i*2,2))%3);
-        if($month->format('Y-m')===$latestMonth->format('Y-m') && $latestMonth==$cutoffMonth) {
+        $days=$size===4?[2+$jitter(0),9+$jitter(1),17+$jitter(2),24+$jitter(3)]:
+            [3+$jitter(0),14+$jitter(1),24+$jitter(2)];
+        if($month->format('Y-m')===$latestMonth->format('Y-m')) {
             $days=[];
-            if($size===1)$days[]=$latestDay;
-            else for($i=0;$i<$size;$i++)
-                $days[]=1+(int)floor($i*($latestDay-1)/($size-1));
-        } else {
-            $days=$size===4?[2+$jitter(0),9+$jitter(1),17+$jitter(2),24+$jitter(3)]:
-                [3+$jitter(0),14+$jitter(1),24+$jitter(2)];
+            for($i=0;$i<$size;$i++)$days[]=$size===1?(int)$cutoff->format('j'):
+                1+(int)floor($i*((int)$cutoff->format('j')-1)/($size-1));
         }
-        foreach(array_slice($days,0,$size) as $day) {
+        foreach(array_slice($days,0,$size) as $position=>$day) {
             $index=$indices[$cursor++];
             $seed=hash('sha256',$anchorMonth->getTimestamp().':'.(string)$requests[$index]['id'].':'.$monthKey);
             $time=(int)(hexdec(substr($seed,0,8))%86400);
             while(isset($usedTimes[$time])||isset($usedMinuteSeconds[$time%3600]))$time=($time+1)%86400;
             $usedTimes[$time]=true;$usedMinuteSeconds[$time%3600]=true;
-            $requests[$index]['created_at']=$month->setDate((int)$month->format('Y'),(int)$month->format('m'),$day)
-                ->setTime(intdiv($time,3600),intdiv($time%3600,60),$time%60)->getTimestamp();
+            $date=$month->setDate((int)$month->format('Y'),(int)$month->format('m'),$day);
+            $slots[]=$date->setTime(intdiv($time,3600),intdiv($time%3600,60),$time%60)->getTimestamp();
         }
         $month=$month->modify('+1 month');
     }
+    sort($slots,SORT_NUMERIC);
+    foreach($indices as $i=>$index)$requests[$index]['created_at']=$slots[$i];
     usort($requests,static fn($a,$b)=>(int)$b['created_at']<=>(int)$a['created_at']);
     return $requests;
 }

@@ -977,11 +977,15 @@ function api_dispatch(PDO $db, string $action, string $method): never {
               ['id'=>'D-108','simulation'=>true,'plan_id'=>'VIP_03','status'=>'failed','reason'=>'Falha temporária no processamento.','created_at'=>$timelineAnchor-86400*42,'usd_cents'=>15320,'btc_satoshis'=>232400],
               ['id'=>'D-109','simulation'=>true,'plan_id'=>'VIP_03','status'=>'approved','created_at'=>$timelineAnchor-86400*40,'usd_cents'=>15320,'btc_satoshis'=>232400],
             ]);
-            // Every row in this demo member's withdrawal history is illustrative.
-            // Flag the response for Mockup-only notice; do not modify stored rows.
-            foreach($requests as &$request)$request['simulation']=true;
-            unset($request);
-            $requests=demo_withdrawal_timeline($requests,$timelineAnchor);
+            // Only locally generated and manually inserted demonstration rows
+            // receive presentation dates; actual SQLite requests stay unchanged.
+            $demo=[];$real=[];
+            foreach($requests as $request) {
+                if(str_starts_with((string)($request['historyId']??''),'manual:') || str_starts_with((string)($request['id']??''),'D-'))$demo[]=$request;
+                else $real[]=$request;
+            }
+            $requests=array_merge(demo_withdrawal_timeline($demo,$timelineAnchor),$real);
+            usort($requests,static fn($a,$b)=>(int)$b['created_at']<=>(int)$a['created_at']);
         }
         json_out(['requests'=>$requests,
                   'simulation'=>true]);

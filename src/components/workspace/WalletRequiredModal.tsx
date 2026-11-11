@@ -110,8 +110,8 @@ export const WalletRequiredModal:React.FC<Props>=({language,initialAddress='',on
       </div>
       {editing
         ? <form onSubmit={e=>{void save(e);}} className="space-y-4" data-testid="wallet-required-form">
-            <label className="block space-y-2 text-xs font-semibold text-slate-200">
-              <span>{t.address}</span>
+            <label className="flex flex-col gap-3 text-xs font-semibold text-slate-200">
+              <span className="block leading-relaxed">{t.address}</span>
               <input autoFocus required type="text" autoComplete="off" spellCheck={false}
                 inputMode="text" maxLength={150} placeholder="bc1…"
                 data-testid="wallet-required-address" value={address}

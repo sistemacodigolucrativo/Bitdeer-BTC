@@ -133,7 +133,7 @@ export const ServerHomeView: React.FC<Props> = ({
           </p>
         </div>}
         <div className="shrink-0 flex flex-col items-center gap-1">
-        {!mockupMode&&<span className="text-base font-bold text-white text-center">Processador</span>}
+        {!mockupMode&&<span className="text-base font-bold text-white text-center">{language==='en'?'Processor':language==='es'?'Procesador':'Processador'}</span>}
         {!mockupMode&&<span className="text-lg font-bold text-slate-100 text-center">{account?.plan.hashrate ?? '---'}</span>}
         <svg viewBox="0 0 120 70" className={(mockupMode?'w-24 h-16':'w-36 h-24 max-w-full')+' drop-shadow-md'} aria-label={copy('equipmentAlt')}>
           <rect x="10" y="10" width="95" height="50" rx="6" fill="#1e294b" stroke="#3b82f6" strokeWidth="1.5"/>

@@ -20,7 +20,9 @@ import { memberTexts } from '../i18n/memberTexts';
 import { memberViewCopy } from '../i18n/memberViewCopy';
 import { NewInvestorToast } from './NewInvestorToast';
 import { useProjectCopy } from '../i18n/copyMode';
+import {copyToClipboard} from '../utils/clipboard';
 import { LocalKycView, readLocalKyc, LocalKycRecord } from './workspace/LocalKycView';
+import {WelcomeBackCard} from './workspace/WelcomeBackCard';
 import { descriptions as topMinerDescriptions } from './workspace/TopMinersView';
 import { readLastKnownQuote, saveLastKnownQuote } from '../utils/lastKnownQuote';
 import { PaymentInstructionsCard } from './PaymentInstructionsCard';
@@ -88,10 +90,23 @@ export const MemberWorkspace: React.FC<{
   const [profile, setProfile] = useState({displayName:'',email:'',phone:'',avatarUrl:'',avatarPhoto:'',favoritePhrase:-1,avatarLocked:false,walletAddress:''});
   const [profilePhoto,setProfilePhoto]=useState<string|null>(null);
   const [localKyc,setLocalKyc]=useState<LocalKycRecord|null>(null);
+  const [welcomeBack,setWelcomeBack]=useState<{days:number|null;demo:boolean;unavailable:boolean}|null>(null);
+  const welcomeShown=useRef<number|null>(null);
   const [kycDuration,setKycDuration]=useState<number|null>(null);
   const [kycClock,setKycClock]=useState(Date.now());
   useEffect(()=>{let mounted=true;readLocalKyc(user.id).then(record=>{if(mounted)setLocalKyc(record);}).catch(()=>{});return()=>{mounted=false;};},[user.id]);
   useEffect(()=>{let mounted=true;void api<{durationMinutes:number}>('kyc.settings').then(result=>{if(mounted)setKycDuration(result.durationMinutes);}).catch(()=>{});return()=>{mounted=false;};},[user.id]);
+  useEffect(()=>{
+    if(mockupMode||welcomeShown.current===user.id)return;
+    try{if(localStorage.getItem(`bitdeer-welcome-dismissed:${user.id}`)==='1'){welcomeShown.current=user.id;return;}}catch{}
+    welcomeShown.current=user.id;let mounted=true;
+    void api<{requests:Array<{created_at:number;simulation?:boolean;historyId?:string;id:number|string}>}>('withdraw.mine').then(result=>{
+      if(!mounted)return;
+      const latest=[...result.requests].filter(row=>Number.isFinite(Number(row.created_at))&&Number(row.created_at)>0&&Number(row.created_at)*1000<=Date.now()).sort((a,b)=>Number(b.created_at)-Number(a.created_at))[0];
+      setWelcomeBack({days:latest?Math.floor((Date.now()-Number(latest.created_at)*1000)/86400000):null,demo:!!latest&&(latest.simulation===true||String(latest.historyId??'').startsWith('manual:')||String(latest.id).startsWith('D-')),unavailable:false});
+    }).catch(()=>{if(mounted)setWelcomeBack({days:null,demo:false,unavailable:true});});
+    return()=>{mounted=false;};
+  },[mockupMode,user.id]);
   useEffect(()=>{const timer=window.setInterval(()=>setKycClock(Date.now()),30000);return()=>window.clearInterval(timer);},[]);
   const [avatarModal,setAvatarModal]=useState(false);
   const [avatarDraft,setAvatarDraft]=useState('');
@@ -200,7 +215,7 @@ export const MemberWorkspace: React.FC<{
   },[checkout]);
   async function copy(value:string,field?:'address'|'btc') {
     try {
-      await navigator.clipboard.writeText(value);
+      if(!await copyToClipboard(value))throw new Error('Clipboard unavailable');
       if(field){
         setCheckoutCopied(field);
         window.setTimeout(()=>setCheckoutCopied(null),1600);
@@ -455,7 +470,7 @@ export const MemberWorkspace: React.FC<{
   }
   async function chooseProfilePhoto(file:File|null){
     if(!file)return;
-    if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024){setNotice('Selecione uma imagem JPG, PNG ou WebP de até 8 MB.');return;}
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024){setNotice(language==='en'?'Choose a JPG, PNG or WebP image up to 8 MB.':language==='es'?'Elige una imagen JPG, PNG o WebP de hasta 8 MB.':'Selecione uma imagem JPG, PNG ou WebP de até 8 MB.');return;}
     setBusy(true);
     try{
       const bitmap=await createImageBitmap(file);const canvas=document.createElement('canvas');
@@ -466,7 +481,7 @@ export const MemberWorkspace: React.FC<{
       while(image.length>26000 && quality>0.2){quality-=0.1;image=canvas.toDataURL('image/jpeg',quality);}
       if(image.length>26000)throw new Error('Imagem muito grande');
       setProfilePhoto(image);setNotice('');
-    }catch{setNotice('Não foi possível processar a imagem neste dispositivo.');}finally{setBusy(false);}
+    }catch{setNotice(language==='en'?'Could not process the image on this device.':language==='es'?'No se pudo procesar la imagen en este dispositivo.':'Não foi possível processar a imagem neste dispositivo.');}finally{setBusy(false);}
   }
   async function saveProfile(){
     setBusy(true);setNotice('');
@@ -483,6 +498,7 @@ export const MemberWorkspace: React.FC<{
       className={'flex flex-1 min-w-0 flex-col items-center justify-center text-[10px] sm:text-[11px] gap-1 rounded-xl py-1.5 transition-colors '+(page===p?'text-white bg-indigo-500/15':'text-slate-400 hover:text-white')}>
       <Icon size={20} className="shrink-0"/><span className="w-full truncate text-center">{label}</span></button>;
   return <div className="relative w-full h-full flex flex-col bg-[#121526] text-white">
+    {welcomeBack&&<WelcomeBackCard language={language} name={account?.profile.displayName||user.displayName||user.login} {...welcomeBack} onClose={remember=>{if(remember){try{localStorage.setItem(`bitdeer-welcome-dismissed:${user.id}`,'1');}catch{}}setWelcomeBack(null);}}/>}
     {savedToast&&<div data-testid="saved-toast" role="status" aria-live="polite"
       style={{bottom:'calc(env(safe-area-inset-bottom, 0px) + 4.5rem)'}}
       className={'pointer-events-none fixed right-4 z-[200] w-fit max-w-[calc(100vw-2rem)] rounded-xl border border-emerald-300/25 bg-[#16352f]/95 px-3 py-2 text-center text-xs font-semibold text-emerald-100 shadow-xl backdrop-blur transition-all duration-300 '+
