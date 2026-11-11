@@ -498,7 +498,7 @@ export const MemberWorkspace: React.FC<{
       className={'flex flex-1 min-w-0 flex-col items-center justify-center text-[10px] sm:text-[11px] gap-1 rounded-xl py-1.5 transition-colors '+(page===p?'text-white bg-indigo-500/15':'text-slate-400 hover:text-white')}>
       <Icon size={20} className="shrink-0"/><span className="w-full truncate text-center">{label}</span></button>;
   return <div className="relative w-full h-full flex flex-col bg-[#121526] text-white">
-    {welcomeBack&&<WelcomeBackCard language={language} name={account?.profile.displayName||user.displayName||user.login} {...welcomeBack} onClose={remember=>{if(remember){try{localStorage.setItem(`bitdeer-welcome-dismissed:${user.id}`,'1');}catch{}}setWelcomeBack(null);}}/>}
+    {welcomeBack&&<WelcomeBackCard language={language} name={account?.profile.displayName||user.displayName||user.login} {...welcomeBack} onRememberChange={remember=>{try{if(remember)localStorage.setItem(`bitdeer-welcome-dismissed:${user.id}`,'1');else localStorage.removeItem(`bitdeer-welcome-dismissed:${user.id}`);}catch{}}} onClose={()=>setWelcomeBack(null)}/>}
     {savedToast&&<div data-testid="saved-toast" role="status" aria-live="polite"
       style={{bottom:'calc(env(safe-area-inset-bottom, 0px) + 4.5rem)'}}
       className={'pointer-events-none fixed right-4 z-[200] w-fit max-w-[calc(100vw-2rem)] rounded-xl border border-emerald-300/25 bg-[#16352f]/95 px-3 py-2 text-center text-xs font-semibold text-emerald-100 shadow-xl backdrop-blur transition-all duration-300 '+
@@ -721,8 +721,8 @@ export const MemberWorkspace: React.FC<{
             </div>
           </div>}
           {purchaseHistory.length>0&&<section data-testid="member-purchase-history" className="bg-[#171b2d] rounded-2xl p-3 space-y-2">
-            <h3 className="font-bold text-sm">{language==='en'?'Purchase history':language==='es'?'Historial de compras':'Histórico de compras'}</h3>
-            {purchaseHistory.map(x=><article key={x.id} data-testid="purchase-history-order"
+            <h3 className="font-bold text-sm">{language==='en'?'Latest VIP request':language==='es'?'Última solicitud VIP':'Solicitação VIP mais recente'}</h3>
+            {[...purchaseHistory].sort((a,b)=>Number(b.created_at)-Number(a.created_at)||Number(!!b.native_order)-Number(!!a.native_order)||Number(String(b.id).replace(/^M-/,''))-Number(String(a.id).replace(/^M-/,''))).slice(0,1).map(x=><article key={x.id} data-testid="purchase-history-order"
               className="min-w-0 border-b border-[#2b3350] pb-3 text-xs last:border-b-0">
               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
                 <span className="font-semibold">#{x.id} · {x.plan_id}</span>

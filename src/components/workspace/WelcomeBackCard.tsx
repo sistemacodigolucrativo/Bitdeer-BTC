@@ -2,8 +2,8 @@ import React,{useState} from 'react';
 import {Sparkles} from 'lucide-react';
 import {LanguageCode} from '../../types';
 
-type Props={language:LanguageCode;name:string;days:number|null;demo:boolean;unavailable:boolean;onClose:(remember:boolean)=>void};
-export const WelcomeBackCard:React.FC<Props>=({language,name,days,demo,unavailable,onClose})=>{
+type Props={language:LanguageCode;name:string;days:number|null;demo:boolean;unavailable:boolean;onRememberChange:(remember:boolean)=>void;onClose:()=>void};
+export const WelcomeBackCard:React.FC<Props>=({language,name,days,demo,unavailable,onRememberChange,onClose})=>{
   const [remember,setRemember]=useState(false);
   const t=language==='en'?{title:'Welcome back!',description:'Explore the latest system updates and review your details.',reference:'Days since the latest withdrawal request:',empty:'No previous withdrawal request is available.',unavailable:'The withdrawal reference is unavailable.',demo:'Demonstration record',hint:'The withdrawal date is only a reference; it is not necessarily your last visit.',profile:'Personal details in My Profile',wallet:'Bitcoin withdrawal wallet',kyc:'KYC verification',remember:'Do not show again'}:
     language==='es'?{title:'¡Qué bueno tenerte de vuelta!',description:'Consulta las actualizaciones del sistema y revisa tus datos.',reference:'Días desde la última solicitud de retiro:',empty:'No hay una solicitud de retiro anterior.',unavailable:'La referencia de retiro no está disponible.',demo:'Registro de demostración',hint:'La fecha del retiro es solo una referencia; no necesariamente es tu última visita.',profile:'Datos personales en Mi perfil',wallet:'Billetera Bitcoin para retiros',kyc:'Verificación KYC',remember:'No volver a mostrar'}:
@@ -18,8 +18,8 @@ export const WelcomeBackCard:React.FC<Props>=({language,name,days,demo,unavailab
       </div>
       <p className="mt-3 text-center text-sm leading-relaxed text-slate-300">{t.description}</p>
       <ul className="mt-4 space-y-2 text-sm text-slate-200"><li>• {t.profile}</li><li>• {t.wallet}</li><li>• {t.kyc}</li></ul>
-      <label className="mt-4 flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)} className="h-4 w-4 accent-indigo-500"/>{t.remember}</label>
-      <button type="button" onClick={()=>onClose(remember)} className="mt-4 w-full rounded-xl bg-indigo-600 p-3 text-sm font-bold text-white">OK</button>
+      <label className="mt-4 flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={remember} onChange={e=>{setRemember(e.target.checked);onRememberChange(e.target.checked);}} className="h-4 w-4 accent-indigo-500"/>{t.remember}</label>
+      <button type="button" onClick={onClose} className="mt-4 w-full rounded-xl bg-indigo-600 p-3 text-sm font-bold text-white">OK</button>
     </div>
   </div>;
 };
