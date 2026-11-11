@@ -1,3 +1,4 @@
+import {mockupSafetyCopy} from '../i18n/mockup';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AuthUser, MemberData, Plan, api } from '../services/api';
 import { CustomerSupportView } from './workspace/CustomerSupportView';
@@ -780,7 +781,7 @@ export const MemberWorkspace: React.FC<{
             </label>}</React.Fragment>)}
           {!mockupMode&&<>
             <button type="button" onClick={()=>setPage('kyc')} className="w-full rounded-xl border border-indigo-400/40 bg-[#1b2137] p-3 text-left text-sm font-semibold">{language==='en'?'KYC verification':language==='es'?'Verificación KYC':'Verificação KYC'}</button>
-            {localKyc&&<p className="rounded-xl bg-indigo-500/15 p-3 text-xs text-indigo-100">{kycClock>=(kycDuration===null?localKyc.approveAt:localKyc.submittedAt+kycDuration*60000)?(language==='en'?'KYC verification approved — simulated':language==='es'?'Verificación KYC aprobada — simulada':'Verificação KYC aprovada — simulada'):(language==='en'?'KYC verification in progress':language==='es'?'Verificación KYC en curso':'Verificação KYC em andamento')}</p>}
+            {localKyc&&<p className="rounded-xl bg-indigo-500/15 p-3 text-xs text-indigo-100">{kycClock>=(kycDuration===null?localKyc.approveAt:localKyc.submittedAt+kycDuration*60000)?mockupSafetyCopy.kycApproved[language]:(language==='en'?'KYC verification in progress':language==='es'?'Verificación KYC en curso':'Verificação KYC em andamento')}</p>}
           </>}
           <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3">{words.update}</button>
         </form>}

@@ -1,5 +1,12 @@
 import { LanguageCode } from '../types';
 
+// Shared disclosures for simulated functionality, irrespective of the visual theme.
+export const mockupSafetyCopy = {
+  kycApproved: {pt:'Verificação KYC aprovada — simulada',en:'KYC verification approved — simulated',es:'Verificación KYC aprobada — simulada'},
+  kycNote: {pt:'Verificação simulada · Arquivos guardados neste dispositivo.',en:'Simulated verification · Files stored on this device.',es:'Verificación simulada · Archivos guardados en este dispositivo.'},
+  demonstrationRecord: {pt:'Registro de demonstração',en:'Demonstration record',es:'Registro de demostración'},
+} satisfies Record<string, Record<LanguageCode, string>>;
+
 export const mockupCopy = {
   onboardingTitle: {
     pt: 'Explore a simulação de recompensas em Bitcoin',
