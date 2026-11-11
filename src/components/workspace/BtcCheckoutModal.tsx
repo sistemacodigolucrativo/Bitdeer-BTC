@@ -9,6 +9,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import QRCode from 'qrcode';
+import { copyToClipboard } from '../../utils/clipboard';
 import {
   CHECKOUT_CONFIG,
   CheckoutPlanConfig,
@@ -185,17 +186,7 @@ export const BtcCheckoutModal: React.FC<BtcCheckoutModalProps> = ({
 
   // Copiar texto para a área de transferência
   const handleCopy = async (text: string, field: 'address' | 'btc' | 'bip21') => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedField(field);
-      setTimeout(() => setCopiedField(null), 2000);
-    } catch {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
+    if (await copyToClipboard(text)) {
       setCopiedField(field);
       setTimeout(() => setCopiedField(null), 2000);
     }

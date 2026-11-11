@@ -157,6 +157,28 @@ function updatePaymentUI() {
   }
 }
 
+async function copyCheckoutText(text, button, originalLabel) {
+  let copied = false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    }
+  } catch (_) { /* Try the fallback below. */ }
+  if (!copied) {
+    const input = document.createElement('textarea');
+    input.value = text;
+    input.setAttribute('readonly', '');
+    input.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.appendChild(input);
+    try { input.focus(); input.select(); copied = document.execCommand('copy'); }
+    catch (_) { copied = false; }
+    finally { input.remove(); }
+  }
+  button.textContent = copied ? 'Copiado!' : 'Não foi possível copiar';
+  setTimeout(() => { button.textContent = originalLabel; }, 1800);
+}
+
 function initEvents() {
   document.getElementById('activate-plan-btn').addEventListener('click', () => {
     openCheckoutForSelectedPlan();
@@ -172,16 +194,12 @@ function initEvents() {
   document.getElementById('refresh-quote-btn').addEventListener('click', () => loadQuoteAndRender(true));
 
   document.getElementById('copy-address-btn').addEventListener('click', (e) => {
-    navigator.clipboard.writeText(getReceivingAddress());
-    e.target.textContent = 'Copiado!';
-    setTimeout(() => (e.target.textContent = 'Copiar'), 1800);
+    void copyCheckoutText(getReceivingAddress(), e.currentTarget, 'Copiar');
   });
 
   document.getElementById('copy-btc-btn').addEventListener('click', (e) => {
     if (!currentCalc) return;
-    navigator.clipboard.writeText(currentCalc.amountBtcFormatted);
-    e.target.textContent = 'Copiado!';
-    setTimeout(() => (e.target.textContent = 'Copiar BTC'), 1800);
+    void copyCheckoutText(currentCalc.amountBtcFormatted, e.currentTarget, 'Copiar BTC');
   });
 
   document.getElementById('copy-bip21-btn').addEventListener('click', (e) => {
@@ -191,9 +209,7 @@ function initEvents() {
       currentCalc.amountBtcFormatted,
       `BitCloud ${selectedPlan.name}`
     );
-    navigator.clipboard.writeText(bip21);
-    e.target.textContent = 'Copiado!';
-    setTimeout(() => (e.target.textContent = 'Copiar URI'), 1800);
+    void copyCheckoutText(bip21, e.currentTarget, 'Copiar URI');
   });
 }
 

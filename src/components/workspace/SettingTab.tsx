@@ -78,10 +78,11 @@ export const SettingTab: React.FC<SettingTabProps> = ({
   const referralBtcFormatted = (miningState.referralBtc ?? 0).toFixed(12);
 
   const handleCopy = async () => {
-    await copyToClipboard(referralCode);
-    setCopied(true);
-    showToast('Código 8ZPTC copiado para a área de transferência!');
-    setTimeout(() => setCopied(false), 2000);
+    if (await copyToClipboard(referralCode)) {
+      setCopied(true);
+      showToast('Código 8ZPTC copiado para a área de transferência!');
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const showToast = (msg: string) => {

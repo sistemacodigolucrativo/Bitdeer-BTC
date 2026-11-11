@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {ArrowLeft,ChevronRight,Copy,RefreshCw,Users} from 'lucide-react';
+import {copyToClipboard} from '../../utils/clipboard';
 import {api} from '../../services/api';
 import {LanguageCode} from '../../types';
 
@@ -30,8 +31,8 @@ export const ReferralHistoryView:React.FC<Props>=({language,onBack,embedded=fals
   useEffect(()=>{void refresh()},[]);
   const share=async()=>{if(!data)return;
     const link=window.location.origin+'/?invite='+encodeURIComponent(data.code);
-    try{await navigator.clipboard.writeText(link);setNotice(copy.copy);}
-    catch{setNotice(link);}
+    if(await copyToClipboard(link))setNotice(copy.copy);
+    else setNotice(link);
   };
   const backLabel=language==='en'?'Back':language==='es'?'Volver':'Voltar';
   const refreshLabel=language==='en'?'Refresh':language==='es'?'Actualizar':'Atualizar';

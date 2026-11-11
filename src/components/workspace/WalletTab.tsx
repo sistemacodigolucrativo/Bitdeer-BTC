@@ -280,9 +280,10 @@ export const WalletTab: React.FC<WalletTabProps> = ({
   const [isSubmittingReferral, setIsSubmittingReferral] = useState(false);
 
   const handleCopy = async () => {
-    await copyToClipboard(referralCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (await copyToClipboard(referralCode)) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const handleRegisterReferred = async (e: React.FormEvent) => {
