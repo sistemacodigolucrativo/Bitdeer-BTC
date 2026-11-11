@@ -25,7 +25,8 @@ type Order = {id:number; user_id:number; login:string; plan_id:string; status:st
 type Withdraw = {id:number;user_id:number;login:string;plan_id:string;btc_address:string;usd_cents:number;btc_satoshis:number;status:'pending'|'awaiting_vip'|'approved'|'rejected';created_at:number;reference:string};
 type Ticket = {id:number;user_id:number;login:string;subject:string;message:string;
   status:'open'|'resolved';ticket_state:'open'|'replied'|'closed';admin_reply:string|null;
-  notification_status:'pending'|'accepted'|'failed';created_at:number};
+  notification_status:'pending'|'accepted'|'failed';created_at:number;
+  replies:Array<{id:number;author:'admin'|'member';message:string;created_at:number}>};
 export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onChangeLanguage:(language:LanguageCode)=>void;onLogout:()=>void}> = ({user,language,onChangeLanguage,onLogout}) => {
   const tx=(portuguese:string)=>adminText(language,portuguese);
   const {copy,mockupMode,setMockupMode,legitPreviewActive,startLegitPreview}=useProjectCopy(language);
@@ -461,7 +462,7 @@ export const AdminWorkspace: React.FC<{user:AuthUser;language:LanguageCode;onCha
           <p className="font-bold text-sm">#{t.id} · {t.subject}</p>
           <p className="text-xs text-slate-400">{t.login} · {adminText(language,t.ticket_state==='replied'?'Respondido':t.ticket_state==='closed'?'Fechado':'Aberto')} · {tx('notificação:')} {adminText(language,t.notification_status==='pending'?'Pendente':t.notification_status==='accepted'?'Encaminhada':'Falhou')}</p>
           <p className="whitespace-pre-wrap text-sm">{t.message}</p>
-          {t.admin_reply&&<p className="whitespace-pre-wrap text-xs text-emerald-200">{tx("Resposta registrada:")} {t.admin_reply}</p>}
+          {t.replies?.map(reply=><p key={`${reply.author}-${reply.id}`} className="whitespace-pre-wrap text-xs text-emerald-200">{reply.author==='member'?t.login:tx('Suporte')} · {new Date(reply.created_at*1000).toLocaleString(dateLocale)}: {reply.message}</p>)}
           <p className="text-xs text-slate-400">{new Date(t.created_at*1000).toLocaleString(dateLocale)}</p>
           <div className="flex flex-wrap gap-2">
             {t.ticket_state!=='closed'&&<button disabled={busy} className={btn}

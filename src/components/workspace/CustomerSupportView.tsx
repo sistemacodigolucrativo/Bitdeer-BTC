@@ -6,7 +6,8 @@ import { api } from '../../services/api';
 type Props = {language: LanguageCode; onBack: () => void};
 type Ticket = {id:number;subject:string;message:string;status:'open'|'resolved';
   ticket_state:'open'|'replied'|'closed';admin_reply:string|null;
-  notification_status:'pending'|'accepted'|'failed';created_at:number};
+  notification_status:'pending'|'accepted'|'failed';created_at:number;
+  replies:Array<{id:number;author:'admin'|'member';message:string;created_at:number}>};
 const draftKey = 'bitdeer_support_draft_v2';
 const labels = {
   pt: {title:'Atendimento',subject:'Assunto',message:'Descreva sua solicitação',
@@ -27,6 +28,17 @@ export const CustomerSupportView: React.FC<Props> = ({language,onBack}) => {
   const [tickets,setTickets]=useState<Ticket[]>([]);
   const [loading,setLoading]=useState(false);
   const [notice,setNotice]=useState('');
+  const [replyTicket,setReplyTicket]=useState<number|null>(null);
+  const [replyMessage,setReplyMessage]=useState('');
+  const replyLabels=language==='en'?{reply:'Reply',send:'Send reply',cancel:'Cancel',you:'You',support:'Support',closed:'This ticket is closed.'}:
+    language==='es'?{reply:'Responder',send:'Enviar respuesta',cancel:'Cancelar',you:'Tú',support:'Soporte',closed:'Este ticket está cerrado.'}:
+    {reply:'Responder',send:'Enviar resposta',cancel:'Cancelar',you:'Você',support:'Suporte',closed:'Este ticket está fechado.'};
+  async function submitReply(e:React.FormEvent,ticketId:number){
+    e.preventDefault();setLoading(true);setNotice('');
+    try{await api('support.ticket.reply',{ticketId,message:replyMessage.trim()});setReplyMessage('');setReplyTicket(null);await refresh();}
+    catch(error){setNotice((error as Error).message);}
+    finally{setLoading(false);}
+  }
   async function refresh(){
     try {setTickets((await api<{tickets:Ticket[]}>('support.tickets.mine')).tickets);}
     catch(e){setNotice((e as Error).message);}
@@ -103,10 +115,17 @@ export const CustomerSupportView: React.FC<Props> = ({language,onBack}) => {
           <strong>#{ticket.id} · {ticket.subject}</strong>
           <p>{ticket.ticket_state==='replied'?(language==='en'?'Answered':language==='es'?'Respondido':'Respondido'):ticket.ticket_state==='closed'?(language==='en'?'Closed':language==='es'?'Cerrado':'Fechado'):tr.open} · {new Date(ticket.created_at*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR')}</p>
           <p className="text-slate-300 whitespace-pre-wrap">{ticket.message}</p>
-          {ticket.admin_reply&&<div data-testid="member-ticket-reply" className="border-t border-[#3d465c] mt-2 pt-2 text-emerald-200">
-            <p className="font-semibold mb-1">{language==='en'?'Support reply':language==='es'?'Respuesta del soporte':'Resposta do suporte'}</p>
-            <p className="whitespace-pre-wrap">{ticket.admin_reply}</p>
-          </div>}
+          {ticket.replies?.map(reply=><div key={`${reply.author}-${reply.id}`} data-testid="member-ticket-reply" className="border-t border-[#3d465c] mt-2 pt-2 text-emerald-200">
+            <p className="font-semibold mb-1">{reply.author==='admin'?replyLabels.support:replyLabels.you} · {new Date(reply.created_at*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR')}</p>
+            <p className="whitespace-pre-wrap">{reply.message}</p>
+          </div>)}
+          {ticket.ticket_state==='closed'?<p>{replyLabels.closed}</p>:replyTicket===ticket.id?
+            <form onSubmit={e=>void submitReply(e,ticket.id)} className="space-y-2 pt-2">
+              <textarea aria-label={replyLabels.reply} required minLength={2} maxLength={2500} rows={3} value={replyMessage} onChange={e=>setReplyMessage(e.target.value)} className="w-full rounded-xl bg-[#121626] p-3 border border-[#3d465c]"/>
+              <button disabled={loading} className="rounded-lg bg-indigo-600 px-3 py-2">{replyLabels.send}</button>{' '}
+              <button type="button" onClick={()=>setReplyTicket(null)} className="text-slate-300 underline">{replyLabels.cancel}</button>
+            </form>:
+            <button type="button" onClick={()=>{setReplyTicket(ticket.id);setReplyMessage('');}} className="rounded-lg border border-indigo-400 px-3 py-2 mt-2">{replyLabels.reply}</button>}
           <p className="text-slate-400">{ticket.notification_status==='accepted'?tr.accepted:tr.unconfirmed}</p>
         </article>)}
       </section>

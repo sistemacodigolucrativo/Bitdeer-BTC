@@ -161,6 +161,13 @@ CREATE TABLE IF NOT EXISTS support_replies (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_ticket_replies ON support_replies(ticket_id,created_at);
+CREATE TABLE IF NOT EXISTS support_member_replies (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticket_id INTEGER NOT NULL REFERENCES support_tickets(id),
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  message TEXT NOT NULL, created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ticket_member_replies ON support_member_replies(ticket_id,created_at);
 CREATE TABLE IF NOT EXISTS mock_payment_feed (
   user_id INTEGER NOT NULL REFERENCES users(id),
   ordinal INTEGER NOT NULL CHECK(ordinal BETWEEN 0 AND 199),

@@ -27,6 +27,7 @@ function delete_member_preserving_affiliates(PDO $db, int $memberId, int $adminI
     execute_sql($db,'UPDATE referral_events SET invitee_id=NULL WHERE invitee_id=?',[$memberId]);
     execute_sql($db,'DELETE FROM admin_notification_reads WHERE notification_id IN (SELECT id FROM admin_notifications WHERE order_id IN (SELECT id FROM orders WHERE user_id=?) OR user_id=?)',[$memberId,$memberId]);
     execute_sql($db,'DELETE FROM admin_notifications WHERE order_id IN (SELECT id FROM orders WHERE user_id=?) OR user_id=?',[$memberId,$memberId]);
+    execute_sql($db,'DELETE FROM support_member_replies WHERE ticket_id IN (SELECT id FROM support_tickets WHERE user_id=?)',[$memberId]);
     execute_sql($db,'DELETE FROM support_replies WHERE ticket_id IN (SELECT id FROM support_tickets WHERE user_id=?)',[$memberId]);
     foreach(['sessions','mining_state','reward_ledger','bonus_claims','member_history_edits','support_tickets','mock_payment_feed','mock_payment_cursor','demo_new_investor_impressions','demo_new_investor_cycle_impressions','language_preferences','withdraw_requests','contracts','orders','referral_codes'] as $table)
         execute_sql($db,'DELETE FROM "'.$table.'" WHERE user_id=?',[$memberId]);

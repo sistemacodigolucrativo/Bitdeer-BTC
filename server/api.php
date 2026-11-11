@@ -143,6 +143,12 @@ function is_email_or_empty(string $email): bool {
     return $email === '' || (strlen($email)<=254 && (bool)filter_var($email,FILTER_VALIDATE_EMAIL));
 }
 
+function support_conversation(PDO $db,int $ticketId): array {
+    return query_all($db,"SELECT id, message, created_at, 'admin' AS author FROM support_replies WHERE ticket_id=?
+      UNION ALL SELECT id, message, created_at, 'member' AS author FROM support_member_replies WHERE ticket_id=?
+      ORDER BY created_at ASC, author ASC, id ASC",[$ticketId,$ticketId]);
+}
+
 function send_ticket_notification(PDO $db, int $ticketId): string {
     $ticket=query_one($db,'SELECT t.*,u.login FROM support_tickets t JOIN users u ON u.id=t.user_id
       WHERE t.id=?',[$ticketId]);
@@ -278,6 +284,10 @@ function ensure_member_features(PDO $db): void {
       message TEXT NOT NULL, created_at INTEGER NOT NULL
     )");
     $db->exec('CREATE INDEX IF NOT EXISTS idx_ticket_replies ON support_replies(ticket_id,created_at)');
+    $db->exec('CREATE TABLE IF NOT EXISTS support_member_replies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, ticket_id INTEGER NOT NULL REFERENCES support_tickets(id),
+      user_id INTEGER NOT NULL REFERENCES users(id), message TEXT NOT NULL, created_at INTEGER NOT NULL)');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_ticket_member_replies ON support_member_replies(ticket_id,created_at)');
     $db->exec("CREATE TABLE IF NOT EXISTS mock_payment_feed (
       user_id INTEGER NOT NULL REFERENCES users(id),ordinal INTEGER NOT NULL
         CHECK(ordinal BETWEEN 0 AND 199),
@@ -422,21 +432,42 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     if ($action === 'support.tickets.mine' && $method === 'GET') {
         $actor=auth_user($db);
         if ($actor['role'] !== 'member') fail(403,'Apenas membros');
-        json_out(['tickets'=>query_all($db,'SELECT t.id,t.subject,t.message,t.status,t.notification_status,t.created_at,
+        $tickets=query_all($db,'SELECT t.id,t.subject,t.message,t.status,t.notification_status,t.created_at,
           t.workflow_state AS ticket_state,
           (SELECT r.message FROM support_replies r WHERE r.ticket_id=t.id
             ORDER BY r.id DESC LIMIT 1) AS admin_reply
           FROM support_tickets t WHERE t.user_id=? AND t.workflow_state!="deleted"
-          ORDER BY t.id DESC LIMIT 100',[$actor['id']])]);
+          ORDER BY t.id DESC LIMIT 100',[$actor['id']]);
+        foreach($tickets as &$ticket)$ticket['replies']=support_conversation($db,(int)$ticket['id']);
+        unset($ticket);
+        json_out(['tickets'=>$tickets]);
+    }
+    if ($action === 'support.ticket.reply' && $method === 'POST') {
+        $actor=require_post_csrf($db);
+        if($actor['role']!=='member')fail(403,'Apenas membros podem responder');
+        $body=request_body();$id=param_id($body,'ticketId');$message=string_field($body,'message',2500);
+        if(mb_strlen($message)<2)fail(422,'Digite uma resposta de pelo menos dois caracteres');
+        atomic($db,static function() use($db,$actor,$id,$message):void {
+            $ticket=query_one($db,'SELECT workflow_state FROM support_tickets WHERE id=? AND user_id=?',[$id,$actor['id']]);
+            if(!$ticket || $ticket['workflow_state']==='deleted')fail(404,'Ticket indisponível');
+            if($ticket['workflow_state']==='closed')fail(409,'Ticket fechado. Solicite a reabertura ao suporte');
+            $at=now();
+            execute_sql($db,'INSERT INTO support_member_replies(ticket_id,user_id,message,created_at) VALUES (?,?,?,?)',[$id,$actor['id'],$message,$at]);
+            execute_sql($db,'UPDATE support_tickets SET workflow_state="open",status="open",updated_at=? WHERE id=?',[$at,$id]);
+        });
+        json_out(['ok'=>true]);
     }
     if ($action === 'admin.support.tickets' && $method === 'GET') {
         auth_user($db,true);
-        json_out(['tickets'=>query_all($db,'SELECT t.id,t.user_id,u.login,t.subject,t.message,
+        $tickets=query_all($db,'SELECT t.id,t.user_id,u.login,t.subject,t.message,
            t.status,t.workflow_state AS ticket_state,t.notification_status,t.created_at,t.notification_at,
            (SELECT r.message FROM support_replies r WHERE r.ticket_id=t.id
             ORDER BY r.id DESC LIMIT 1) AS admin_reply
            FROM support_tickets t JOIN users u ON u.id=t.user_id
-           WHERE t.workflow_state!="deleted" ORDER BY t.id DESC LIMIT 100')]);
+           WHERE t.workflow_state!="deleted" ORDER BY t.id DESC LIMIT 100');
+        foreach($tickets as &$ticket)$ticket['replies']=support_conversation($db,(int)$ticket['id']);
+        unset($ticket);
+        json_out(['tickets'=>$tickets]);
     }
     if ($action === 'admin.support.status' && $method === 'POST') {
         $actor=require_post_csrf($db,true);

@@ -13,10 +13,10 @@ export const WelcomeBackCard:React.FC<Props>=({language,name,days,demo,unavailab
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-300/30 bg-amber-400/10 text-amber-300"><Sparkles size={25}/></div>
       <h2 id="welcome-back-title" className="mt-4 text-center text-xl font-extrabold">{t.title}</h2>
       <p className="mt-2 break-words text-center text-sm text-slate-200">{name}</p>
-      <p className="mt-3 text-center text-sm leading-relaxed text-slate-300">{t.description}</p>
       <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3 text-center text-xs text-slate-200">
         {days===null?(unavailable?t.unavailable:t.empty):<>{t.reference} <strong className="text-amber-300">{days}</strong>{demo&&<span className="block mt-1 text-amber-200">{t.demo}</span>}<p className="mt-1 text-[10px] text-slate-400">{t.hint}</p></>}
       </div>
+      <p className="mt-3 text-center text-sm leading-relaxed text-slate-300">{t.description}</p>
       <ul className="mt-4 space-y-2 text-sm text-slate-200"><li>• {t.profile}</li><li>• {t.wallet}</li><li>• {t.kyc}</li></ul>
       <label className="mt-4 flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)} className="h-4 w-4 accent-indigo-500"/>{t.remember}</label>
       <button type="button" onClick={()=>onClose(remember)} className="mt-4 w-full rounded-xl bg-indigo-600 p-3 text-sm font-bold text-white">OK</button>
