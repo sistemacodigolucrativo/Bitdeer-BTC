@@ -20,11 +20,13 @@ import { memberTexts } from '../i18n/memberTexts';
 import { memberViewCopy } from '../i18n/memberViewCopy';
 import { NewInvestorToast } from './NewInvestorToast';
 import { useProjectCopy } from '../i18n/copyMode';
+import { LocalKycView, readLocalKyc, LocalKycRecord } from './workspace/LocalKycView';
+import { descriptions as topMinerDescriptions } from './workspace/TopMinersView';
 import { readLastKnownQuote, saveLastKnownQuote } from '../utils/lastKnownQuote';
 import { PaymentInstructionsCard } from './PaymentInstructionsCard';
 import type { PaymentInstructionsOrder } from './PaymentInstructionsCard';
 
-type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'withdraw';
+type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'kyc' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'withdraw';
 type PurchaseOrder = PaymentInstructionsOrder & {status:string;createdAt:number};
 type PurchaseHistoryOrder = {
   id:number|string;plan_id:string;status:string;created_at:number;btc_sats:number;
@@ -83,7 +85,12 @@ export const MemberWorkspace: React.FC<{
     accruals: Array<{plan_id:string;start_ts:number;end_ts:number;earned_units:number}>;
     bonuses: Array<{plan_id:string;claimed_at:number;bonus_usd_units:number;bonus_satoshis:number}>;
   }>({accruals:[],bonuses:[]});
-  const [profile, setProfile] = useState({displayName:'',email:'',phone:'',avatarUrl:'',avatarLocked:false,walletAddress:''});
+  const [profile, setProfile] = useState({displayName:'',email:'',phone:'',avatarUrl:'',avatarPhoto:'',favoritePhrase:-1,avatarLocked:false,walletAddress:''});
+  const [profilePhoto,setProfilePhoto]=useState<string|null>(null);
+  const [localKyc,setLocalKyc]=useState<LocalKycRecord|null>(null);
+  const [kycClock,setKycClock]=useState(Date.now());
+  useEffect(()=>{let mounted=true;readLocalKyc(user.id).then(record=>{if(mounted)setLocalKyc(record);}).catch(()=>{});return()=>{mounted=false;};},[user.id]);
+  useEffect(()=>{const timer=window.setInterval(()=>setKycClock(Date.now()),30000);return()=>window.clearInterval(timer);},[]);
   const [avatarModal,setAvatarModal]=useState(false);
   const [avatarDraft,setAvatarDraft]=useState('');
   const [busy, setBusy] = useState(false);
@@ -444,6 +451,30 @@ export const MemberWorkspace: React.FC<{
     }catch(e){setNotice((e as Error).message);}
     finally{setBusy(false);}
   }
+  async function chooseProfilePhoto(file:File|null){
+    if(!file)return;
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024){setNotice('Selecione uma imagem JPG, PNG ou WebP de até 8 MB.');return;}
+    setBusy(true);
+    try{
+      const bitmap=await createImageBitmap(file);const canvas=document.createElement('canvas');
+      canvas.width=160;canvas.height=160;const context=canvas.getContext('2d');
+      if(!context)throw new Error('Canvas indisponível');
+      const size=Math.min(bitmap.width,bitmap.height);context.drawImage(bitmap,(bitmap.width-size)/2,(bitmap.height-size)/2,size,size,0,0,160,160);bitmap.close();
+      let quality=0.8;let image=canvas.toDataURL('image/jpeg',quality);
+      while(image.length>26000 && quality>0.2){quality-=0.1;image=canvas.toDataURL('image/jpeg',quality);}
+      if(image.length>26000)throw new Error('Imagem muito grande');
+      setProfilePhoto(image);setNotice('');
+    }catch{setNotice('Não foi possível processar a imagem neste dispositivo.');}finally{setBusy(false);}
+  }
+  async function saveProfile(){
+    setBusy(true);setNotice('');
+    try{
+      if(!validInternationalPhone(profile.phone))throw new Error(tr.phone);
+      await api('profile.update',profile);
+      await api('profile.preferences',{favoritePhrase:profile.favoritePhrase,...(profilePhoto?{avatarPhoto:profilePhoto}:{})});
+      setProfilePhoto(null);await reload();setNotice(words.saved);
+    }catch(e){setNotice((e as Error).message);}finally{setBusy(false);}
+  }
   const tab = (p:Page, label:string, Icon:typeof Home) =>
     <button type="button" onClick={()=>{navigateToPage(p);setNotice('');}}
       aria-current={page===p?'page':undefined}
@@ -555,6 +586,7 @@ export const MemberWorkspace: React.FC<{
             </form>}
           </section>}
     </div> :
+      page==='kyc' ? <LocalKycView userId={user.id} language={language} onBack={()=>setPage('profile')} onSaved={setLocalKyc}/> :
       page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('settings')}/> :
       page==='topMiners' ? <TopMinersView language={language} btcUsd={displayBtcUsd} quoteTime={btcQuote?.quotedAt??null} onBack={()=>setPage('settings')}/> :
       page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
@@ -705,7 +737,7 @@ export const MemberWorkspace: React.FC<{
         </>}
         {page==='history' && <RewardHistoryLog language={language} ledger={ledger}
           onRefresh={()=>{void api<typeof ledger>('ledger').then(setLedger).catch(e=>setNotice((e as Error).message));}}/>}
-        {page==='profile' && <form onSubmit={e=>{e.preventDefault();void act('profile.update',profile)}} className="space-y-3">
+        {page==='profile' && <form onSubmit={e=>{e.preventDefault();void saveProfile();}} className="space-y-3">
           <h2 className="text-lg font-bold">{words.profile}</h2>
           {(['displayName','email','phone','walletAddress'] as const).map(k=><label key={k} className="block text-sm text-slate-300">
             {({displayName:words.name,email:words.optionalEmail,phone:words.phone,walletAddress:words.btcWallet} as const)[k]}
@@ -717,6 +749,20 @@ export const MemberWorkspace: React.FC<{
               onBlur={e=>{if(k==='phone')setProfile(p=>({...p,phone:normalizeInternationalPhone(e.target.value)}));}}
               className="mt-1 w-full bg-[#1b2137] border border-[#2b3350] p-3 rounded-xl text-white"/>
           </label>)}
+          {!mockupMode&&<>
+            <label className="block text-sm text-slate-300">{language==='en'?'Profile photo':language==='es'?'Foto de perfil':'Foto de perfil'}
+              <input type="file" accept="image/jpeg,image/png,image/webp" disabled={profile.avatarLocked} onChange={e=>void chooseProfilePhoto(e.target.files?.[0]??null)} className="mt-2 block w-full rounded-xl bg-[#1b2137] p-3 text-xs disabled:opacity-50"/>
+              {profile.avatarLocked&&<span className="mt-1 block text-xs text-slate-400">{language==='en'?'Profile image already set.':language==='es'?'La imagen de perfil ya fue definida.':'A imagem de perfil já foi definida.'}</span>}
+              {profilePhoto&&<img src={profilePhoto} alt="" className="mt-2 h-16 w-16 rounded-full object-cover"/>}
+            </label>
+            <label className="block text-sm text-slate-300">{language==='en'?'Favorite phrase':language==='es'?'Frase favorita':'Frase favorita'}
+              <select value={profile.favoritePhrase} onChange={e=>setProfile(p=>({...p,favoritePhrase:Number(e.target.value)}))} className="mt-1 w-full rounded-xl bg-[#1b2137] p-3 text-sm">
+                <option value={-1}>—</option>{topMinerDescriptions[language].map((phrase,index)=><option value={index} key={phrase}>{phrase}</option>)}
+              </select>
+            </label>
+            <button type="button" onClick={()=>setPage('kyc')} className="w-full rounded-xl border border-indigo-400/40 bg-[#1b2137] p-3 text-left text-sm font-semibold">{language==='en'?'KYC verification':language==='es'?'Verificación KYC':'Verificação KYC'}</button>
+            {localKyc&&<p className="rounded-xl bg-indigo-500/15 p-3 text-xs text-indigo-100">{kycClock>=localKyc.approveAt?(language==='en'?'KYC verification approved — simulated':language==='es'?'Verificación KYC aprobada — simulada':'Verificação KYC aprovada — simulada'):(language==='en'?'KYC verification in progress':language==='es'?'Verificación KYC en curso':'Verificação KYC em andamento')}</p>}
+          </>}
           <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3">{words.update}</button>
         </form>}
       </div>}

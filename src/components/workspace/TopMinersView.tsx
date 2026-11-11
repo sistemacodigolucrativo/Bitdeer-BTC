@@ -124,7 +124,7 @@ export const showcase: Miner[] = (()=>{
   return result;
 })();
 
-const descriptions = {
+export const descriptions = {
  pt: ['Explorando tecnologias digitais','Construindo uma comunidade conectada','Aprendendo sobre blockchain',
       'Ideias para um futuro digital','Inovação sem fronteiras','Descobrindo oportunidades',
       'Conectados pela tecnologia'],

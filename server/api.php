@@ -92,7 +92,7 @@ function member_snapshot(PDO $db, int $userId): array {
        'asOf'=>now(),
        'user'=>public_user($user),
        'profile'=>['displayName'=>$user['display_name'], 'email'=>$user['email'],
-         'phone'=>$user['phone'],'avatarUrl'=>$user['avatar_url'] ?? '', 'avatarLocked'=>(bool)($user['avatar_locked'] ?? false), 'walletAddress'=>$user['wallet_address']],
+         'phone'=>$user['phone'],'avatarUrl'=>$user['avatar_url'] ?? '', 'avatarPhoto'=>$user['avatar_photo'] ?? '', 'favoritePhrase'=>(int)($user['favorite_phrase']??-1), 'avatarLocked'=>(bool)($user['avatar_locked'] ?? false), 'walletAddress'=>$user['wallet_address']],
        'mining'=>['running'=>(bool)$mining['running'],
          'balanceUnits'=>(int)$mining['balance_units'],
          'balanceUsd'=>units_usd((int)$mining['balance_units']),
@@ -206,6 +206,8 @@ function ensure_member_features(PDO $db): void {
         $db->exec("ALTER TABLE users ADD COLUMN avatar_locked INTEGER NOT NULL DEFAULT 0 CHECK(avatar_locked IN (0,1))");
         $db->exec("UPDATE users SET avatar_locked=1 WHERE avatar_url<>''");
     }
+    if(!in_array('avatar_photo',$userCols,true))$db->exec("ALTER TABLE users ADD COLUMN avatar_photo TEXT NOT NULL DEFAULT ''");
+    if(!in_array('favorite_phrase',$userCols,true))$db->exec('ALTER TABLE users ADD COLUMN favorite_phrase INTEGER NOT NULL DEFAULT -1');
     $cols=array_column(query_all($db,'PRAGMA table_info(plans)'),'name');
     if (!in_array('withdraw_min_cents',$cols,true))
         $db->exec('ALTER TABLE plans ADD COLUMN withdraw_min_cents INTEGER NOT NULL DEFAULT 0');
@@ -615,16 +617,35 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         });
         json_out($result);
     }
+    if ($action === 'profile.preferences' && $method === 'POST') {
+        $actor=require_post_csrf($db);if($actor['role']!=='member')fail(403,'Conta de membro necessária');
+        $body=request_body();$phrase=$body['favoritePhrase']??-1;$photo=$body['avatarPhoto']??null;
+        if(!is_int($phrase)||$phrase < -1 || $phrase > 6)fail(422,'Frase favorita inválida');
+        if($photo!==null) {
+            if(!is_string($photo)||strlen($photo)>28000||!preg_match('#^data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$#D',$photo,$parts))fail(422,'Imagem inválida');
+            $bytes=base64_decode($parts[2],true);
+            $image=$bytes===false?false:@getimagesizefromstring($bytes);
+            if(!$image || !in_array($image['mime'],['image/jpeg','image/png','image/webp'],true) || strlen($bytes)>20000)fail(422,'Imagem inválida');
+        }
+        atomic($db,static function()use($db,$actor,$phrase,$photo):void {
+            $current=query_one($db,'SELECT avatar_locked FROM users WHERE id=?',[$actor['id']]);
+            if(!$current)fail(404,'Perfil indisponível');
+            if($photo!==null && (int)$current['avatar_locked']===1)fail(409,'A imagem de perfil já foi definida e não pode ser alterada');
+            if($photo!==null)execute_sql($db,'UPDATE users SET avatar_photo=?,avatar_locked=1,favorite_phrase=?,updated_at=? WHERE id=?',[$photo,$phrase,now(),$actor['id']]);
+            else execute_sql($db,'UPDATE users SET favorite_phrase=?,updated_at=? WHERE id=?',[$phrase,now(),$actor['id']]);
+        });
+        json_out(['ok'=>true]);
+    }
     if ($action === 'profile.update' && $method === 'POST') {
         $actor=require_post_csrf($db);
         if ($actor['role'] !== 'member') fail(403,'Conta de membro necessária');
         $body=request_body();
         $name=string_field($body,'displayName',120);$email=string_field($body,'email',254);
         $phone=normalize_member_phone(string_field($body,'phone',30));$wallet=string_field($body,'walletAddress',150);
-        $avatar=string_field($body,'avatarUrl',2048);
+        $avatar=array_key_exists('avatarUrl',$body)?string_field($body,'avatarUrl',2048):null;
         if ($name === '' || !is_email_or_empty($email) || $phone===null) fail(422,'Nome, e-mail ou telefone inválido');
         if ($wallet!=='' && !btc_receive_address_valid($wallet)) fail(422,'Carteira Bitcoin inválida');
-        if($avatar!=='' && (!filter_var($avatar,FILTER_VALIDATE_URL) ||
+        if($avatar!==null && $avatar!=='' && (!filter_var($avatar,FILTER_VALIDATE_URL) ||
             !in_array(strtolower((string)parse_url($avatar,PHP_URL_SCHEME)),['https','http'],true)))
             fail(422,'URL da imagem inválida');
         // BEGIN IMMEDIATE serializes concurrent profile changes across devices.
@@ -632,10 +653,11 @@ function api_dispatch(PDO $db, string $action, string $method): never {
         atomic($db,static function() use($db,$actor,$name,$email,$phone,$wallet,$avatar): void {
             $current=query_one($db,'SELECT avatar_url,avatar_locked FROM users WHERE id=?',[$actor['id']]);
             if($current===null) fail(404,'Perfil indisponível');
-            if((int)$current['avatar_locked']===1 && $avatar!==(string)$current['avatar_url'])
+            $resolvedAvatar=$avatar??(string)$current['avatar_url'];
+            if((int)$current['avatar_locked']===1 && $resolvedAvatar!==(string)$current['avatar_url'])
                 fail(409,'A imagem de perfil já foi definida e não pode ser alterada');
             execute_sql($db,'UPDATE users SET display_name=?,email=?,phone=?,avatar_url=?,avatar_locked=?,wallet_address=?,updated_at=? WHERE id=?',
-              [$name,$email,$phone,$avatar,$avatar!==''?1:(int)$current['avatar_locked'],$wallet,now(),$actor['id']]);
+              [$name,$email,$phone,$resolvedAvatar,$resolvedAvatar!==''?1:(int)$current['avatar_locked'],$wallet,now(),$actor['id']]);
         });
         json_out(['ok'=>true]);
     }

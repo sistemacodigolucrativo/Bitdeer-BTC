@@ -43,7 +43,7 @@ export const ServerHomeView: React.FC<Props> = ({
   const [avatarFailed,setAvatarFailed]=useState(false);
   const [welcomeVisit,setWelcomeVisit]=useState<{userId:number|null;returning:boolean}>({userId:null,returning:false});
   const processedWelcomeUser=useRef<number|null>(null);
-  const avatarUrl=account?.profile.avatarUrl ?? '';
+  const avatarUrl=account?.profile.avatarPhoto || account?.profile.avatarUrl || '';
   const welcome=greetingCopy[language] ?? greetingCopy.pt;
   const fullName=account?.profile.displayName.trim() || account?.user.login || welcome.member;
   const nameParts=fullName.split(/\s+/).filter(Boolean);
@@ -125,9 +125,7 @@ export const ServerHomeView: React.FC<Props> = ({
       </div>
       <div className="flex justify-between items-center mb-5">
         <div>
-          <div className="text-2xl font-black text-white">
-            {mockupMode ? (account?.plan.hashrate ?? '---') : 'Processor Info / Processador'}
-          </div>
+          {mockupMode&&<div className="text-2xl font-black text-white">{account?.plan.hashrate ?? '---'}</div>}
           {mockupMode&&<p className="text-[11px] mt-1 text-slate-300">{d.noHash}</p>}
           {mockupMode&&<p className="text-[11px] mt-1 flex items-center gap-2">
             <span className={'w-2 h-2 rounded-full '+(status?'bg-emerald-400 animate-pulse':'bg-slate-500')}/>
@@ -135,6 +133,7 @@ export const ServerHomeView: React.FC<Props> = ({
           </p>}
         </div>
         <div className="shrink-0 flex flex-col items-center gap-1">
+        {!mockupMode&&<span className="text-sm font-bold text-white text-center">Processador</span>}
         {!mockupMode&&<span className="text-xs font-bold text-slate-100">{account?.plan.hashrate ?? '---'}</span>}
         <svg viewBox="0 0 120 70" className="w-24 h-16 drop-shadow-md" aria-label={copy('equipmentAlt')}>
           <rect x="10" y="10" width="95" height="50" rx="6" fill="#1e294b" stroke="#3b82f6" strokeWidth="1.5"/>

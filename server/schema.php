@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS users (
   phone TEXT NOT NULL DEFAULT '',
   avatar_url TEXT NOT NULL DEFAULT '',
   avatar_locked INTEGER NOT NULL DEFAULT 0 CHECK(avatar_locked IN (0,1)),
+  avatar_photo TEXT NOT NULL DEFAULT '',
+  favorite_phrase INTEGER NOT NULL DEFAULT -1,
   wallet_address TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
