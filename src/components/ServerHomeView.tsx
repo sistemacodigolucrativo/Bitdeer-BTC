@@ -88,58 +88,65 @@ export const ServerHomeView: React.FC<Props> = ({
           className="flex items-center justify-center rounded-lg border border-[#4f46e5]/60 bg-indigo-500/15 p-2 text-indigo-400"><Gift size={24}/></button>
       </div>
     </div>
-    <section className="bg-[#191e32] border border-[#262e49] rounded-3xl p-5 overflow-hidden shadow-md">
-      <div className="mb-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-        <h3 className="single-line-ellipsis min-w-0 text-[clamp(0.625rem,2.8vw,0.75rem)] font-black tracking-wider text-slate-300 uppercase">{d.mining}</h3>
+    <section className="relative isolate overflow-hidden rounded-[1.75rem] border border-indigo-300/15 bg-gradient-to-br from-[#1b2340] via-[#171d32] to-[#101827] p-4 shadow-[0_18px_45px_-24px_rgba(59,130,246,0.48)] sm:p-6">
+      <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 -z-10 h-52 w-52 rounded-full bg-blue-500/10 blur-3xl" />
+      <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 -left-16 -z-10 h-48 w-48 rounded-full bg-emerald-400/10 blur-3xl" />
+
+      <div className="mb-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-blue-200/70">ÁRBORIS · BTC</p>
+          <h3 className="single-line-ellipsis text-sm font-black tracking-wide text-white sm:text-base">{d.mining}</h3>
+        </div>
         <span data-testid="home-plan-daily-card" aria-label={`${planLabel} · USD ${account?.plan.dailyUsd ?? '0.00'}/${language==='en'?'day':language==='es'?'día':'dia'}`}
-          className="inline-flex w-fit min-w-max shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-center font-mono text-[10px] font-bold leading-tight text-emerald-400">
-          <span className="whitespace-nowrap text-center">
-             {planLabel} · <UsdAmount>{account?.plan.dailyUsd ?? '0.00'}</UsdAmount>/{language==='en'?'day':language==='es'?'día':'dia'}
-          </span>
+          className="inline-flex w-fit max-w-full items-center justify-center rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-2 text-center font-mono text-[11px] font-bold leading-tight text-emerald-200 shadow-inner shadow-emerald-200/5">
+          <span className="whitespace-nowrap">{planLabel} · <UsdAmount>{account?.plan.dailyUsd ?? '0.00'}</UsdAmount>/{language==='en'?'day':language==='es'?'día':'dia'}</span>
         </span>
       </div>
-      <div className="bg-[#11182b] border border-[#303b59] rounded-2xl px-4 py-3 mb-4">
-        <p className="text-[11px] text-slate-400">
-          {copy('homeBtcLabel')}
-        </p>
-        <strong data-testid="mining-live-btc" className="text-2xl font-bold font-mono text-amber-300">{liveBtc??'—'} BTC</strong>
 
-        <p data-testid="mining-live-usd" className="text-xs text-slate-300 mt-1">
-          <UsdAmount>{liveBalanceUsd.toFixed(8)}</UsdAmount>
-        </p>
-      </div>
-      <div className={'flex items-center mb-5 '+(mockupMode?'justify-between':'justify-center')}>
-        {mockupMode&&<div>
-          <div className="text-2xl font-black text-white">{account?.plan.hashrate ?? '---'}</div>
-          <p className="text-[11px] mt-1 text-slate-300">{d.noHash}</p>
-          <p className="text-[11px] mt-1 flex items-center gap-2">
-            <span className={'w-2 h-2 rounded-full '+(status?'bg-emerald-400 animate-pulse':'bg-slate-500')}/>
-            {status?d.active:d.inactive}
-          </p>
-        </div>}
-        <div className="shrink-0 flex flex-col items-center gap-1">
-        {!mockupMode&&<span className="text-base font-bold text-white text-center">{language==='en'?'Processor':language==='es'?'Procesador':'Processador'}</span>}
-        {!mockupMode&&<span className="text-lg font-bold text-slate-100 text-center">{account?.plan.hashrate ?? '---'}</span>}
-        <svg viewBox="0 0 120 70" className={(mockupMode?'w-24 h-16':'w-36 h-24 max-w-full')+' drop-shadow-md'} aria-label={copy('equipmentAlt')}>
-          <rect x="10" y="10" width="95" height="50" rx="6" fill="#1e294b" stroke="#3b82f6" strokeWidth="1.5"/>
-          <circle cx="35" cy="35" r="16" fill="#0f172a" stroke="#60a5fa" strokeWidth="1.5"/>
-          <circle cx="75" cy="35" r="16" fill="#0f172a" stroke="#60a5fa" strokeWidth="1.5"/>
-          <path d="M35 21v28M21 35h28" stroke="#60a5fa" strokeWidth="2" className={status?'origin-[35px_35px] animate-spin':''}/>
-          <path d="M75 21v28M61 35h28" stroke="#60a5fa" strokeWidth="2" className={status?'origin-[75px_35px] animate-spin':''}/>
-          <circle cx="95" cy="52" r="7" fill="#f59e0b"/><text x="95" y="55" textAnchor="middle" fill="white" fontSize="8">₿</text>
-        </svg>
-        {!mockupMode&&<p className="text-sm flex items-center justify-center gap-2"><span className={'w-2.5 h-2.5 rounded-full '+(status?'bg-emerald-400 animate-pulse':'bg-slate-500')}/>{status?'Processor ON':'Processor OFF'}</p>}
+      <div className="mb-4 grid grid-cols-2 gap-2.5 sm:gap-3">
+        <div className="min-w-0 rounded-2xl border border-amber-200/10 bg-slate-950/35 p-3 sm:p-4">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{copy('homeBtcLabel')}</p>
+          <strong data-testid="mining-live-btc" className="block truncate font-mono text-lg font-extrabold tabular-nums text-amber-200 sm:text-2xl">{liveBtc??'—'} <span className="text-xs font-bold">BTC</span></strong>
+        </div>
+        <div className="min-w-0 rounded-2xl border border-emerald-200/10 bg-slate-950/35 p-3 sm:p-4">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">USD</p>
+          <strong data-testid="mining-live-usd" className="block truncate font-mono text-sm font-extrabold tabular-nums text-emerald-100 sm:text-base"><UsdAmount>{liveBalanceUsd.toFixed(8)}</UsdAmount></strong>
         </div>
       </div>
+
+      <div className="relative mb-4 overflow-hidden rounded-2xl border border-blue-300/20 bg-gradient-to-br from-[#111c36]/95 to-[#0d1426]/95 px-3 py-4 shadow-inner shadow-blue-300/5 sm:py-5">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-1/4 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/70 to-transparent" />
+        <div className="flex flex-col items-center text-center">
+          <span className="text-base font-extrabold tracking-wide text-white sm:text-lg">{mockupMode?d.noHash:(language==='en'?'Processor':language==='es'?'Procesador':'Processador')}</span>
+          <span className="mt-1 text-xl font-black tabular-nums text-slate-100 sm:text-2xl">{account?.plan.hashrate ?? '---'}</span>
+          {!mockupMode&&<span className="sr-only">{d.noHash}</span>}
+          <svg viewBox="0 0 120 70" className="my-2 h-24 w-40 max-w-full drop-shadow-[0_0_18px_rgba(59,130,246,0.24)] sm:h-28 sm:w-48" aria-label={copy('equipmentAlt')}>
+            <rect x="10" y="10" width="95" height="50" rx="6" fill="#1e294b" stroke="#60a5fa" strokeWidth="1.8"/>
+            <circle cx="35" cy="35" r="16" fill="#0f172a" stroke="#93c5fd" strokeWidth="1.8"/>
+            <circle cx="75" cy="35" r="16" fill="#0f172a" stroke="#93c5fd" strokeWidth="1.8"/>
+            <path d="M35 21v28M21 35h28" stroke="#60a5fa" strokeWidth="2.5" className={status?'origin-[35px_35px] animate-spin':''}/>
+            <path d="M75 21v28M61 35h28" stroke="#60a5fa" strokeWidth="2.5" className={status?'origin-[75px_35px] animate-spin':''}/>
+            <circle cx="95" cy="52" r="7" fill="#f59e0b"/><text x="95" y="55" textAnchor="middle" fill="white" fontSize="8">₿</text>
+          </svg>
+          <p className="flex min-h-7 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold text-slate-200 sm:text-sm">
+            <span className={'h-2.5 w-2.5 rounded-full '+(status?'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)] animate-pulse':'bg-slate-500')}/>
+            {mockupMode?(status?d.active:d.inactive):(status?'Processor ON':'Processor OFF')}
+          </p>
+        </div>
+      </div>
+
       <button data-testid="mining-session-toggle" onClick={status?onStop:onStart}
         disabled={busy}
-        className={'w-full py-4 px-4 rounded-2xl font-bold text-sm flex justify-center items-center gap-2 disabled:opacity-40 '+
-          (status?'bg-emerald-600 hover:bg-emerald-500':'bg-[#f43f5e] hover:bg-[#e11d48]')}>
+        className={'flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-extrabold shadow-lg transition duration-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 sm:py-4 '+
+          (status?'bg-gradient-to-r from-emerald-600 to-green-500 text-white shadow-emerald-950/30 hover:brightness-110':'bg-gradient-to-r from-rose-600 to-red-500 text-white shadow-rose-950/30 hover:brightness-110')}>
         {status?<><Zap size={18}/>{t.stopMining}</>:t.startMining}
       </button>
-      {status && ends!==null && ends!==undefined && <p data-testid="session-countdown" className="mt-3 flex items-center gap-2 text-xs text-slate-400"><Clock size={14}/>{d.session}: {remaining}</p>}
-      {isVip && account?.plan.expiresAt && <p className="mt-2 text-xs text-slate-400">{d.vip}: {stamp(account.plan.expiresAt)}</p>}
-      {copy('homeNotice') && <p role="note" className="mt-3 text-[11px] leading-relaxed text-amber-200/90">{copy('homeNotice')}</p>}
+
+      {(status && ends!==null && ends!==undefined || isVip && account?.plan.expiresAt) && <div className="mt-3 grid gap-2 rounded-xl border border-white/10 bg-slate-950/25 px-3 py-2.5 text-xs text-slate-300 sm:grid-cols-2">
+        {status && ends!==null && ends!==undefined && <p data-testid="session-countdown" className="flex min-w-0 items-center gap-2"><Clock size={14} className="shrink-0 text-blue-300"/><span className="truncate">{d.session}: <strong className="font-mono text-white">{remaining}</strong></span></p>}
+        {isVip && account?.plan.expiresAt && <p className="flex min-w-0 items-center gap-2"><Clock size={14} className="shrink-0 text-emerald-300"/><span className="truncate">{d.vip}: <strong className="text-white">{stamp(account.plan.expiresAt)}</strong></span></p>}
+      </div>}
+      {copy('homeNotice') && <p role="note" className="mt-3 rounded-xl border border-amber-200/10 bg-amber-300/[0.06] px-3 py-2 text-[11px] leading-relaxed text-amber-100/90">{copy('homeNotice')}</p>}
     </section>
   </div>;
 };
