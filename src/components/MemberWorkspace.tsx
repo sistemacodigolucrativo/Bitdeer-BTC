@@ -4,7 +4,7 @@ import { AuthUser, MemberData, Plan, api } from '../services/api';
 import { CustomerSupportView } from './workspace/CustomerSupportView';
 import { WalletRequiredModal } from './workspace/WalletRequiredModal';
 import { LanguageCode } from '../types';
-import { Home, Store, User, Headphones, LogOut, Wallet, Gift, Settings, Trophy, ScrollText, ArrowLeft, Crown, LockKeyhole, LayoutTemplate } from 'lucide-react';
+import { Home, Store, User, Headphones, LogOut, Wallet, Gift, Settings, Trophy, ScrollText, ArrowLeft, Crown, LockKeyhole } from 'lucide-react';
 import { translations } from '../i18n/translations';
 import QRCode from 'qrcode';
 import { ServerHomeView } from './ServerHomeView';
@@ -29,10 +29,8 @@ import { readLastKnownQuote, saveLastKnownQuote } from '../utils/lastKnownQuote'
 import { PaymentInstructionsCard } from './PaymentInstructionsCard';
 import type { PaymentInstructionsOrder } from './PaymentInstructionsCard';
 import {UsdAmount,UsdMark} from './UsdMark';
-import { MiningCardTemplatesView } from './workspace/MiningCardTemplatesView';
-import type { MiningCardTemplate } from './workspace/MiningCardTemplatesView';
 
-type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'preview' | 'profile' | 'kyc' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'withdraw';
+type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'kyc' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'withdraw';
 type PurchaseOrder = PaymentInstructionsOrder & {status:string;createdAt:number};
 type PurchaseHistoryOrder = {
   id:number|string;plan_id:string;status:string;created_at:number;btc_sats:number;
@@ -96,26 +94,12 @@ export const MemberWorkspace: React.FC<{
   const [localKyc,setLocalKyc]=useState<LocalKycRecord|null>(null);
   const [memberPreferences,setMemberPreferences]=useState<Record<string,unknown>>({});
   const [memberPreferencesReady,setMemberPreferencesReady]=useState(false);
-  const [miningCardTemplate,setMiningCardTemplate]=useState<MiningCardTemplate>('aurora');
-  const [miningCardTemplateSaving,setMiningCardTemplateSaving]=useState(false);
-  const [miningCardTemplateError,setMiningCardTemplateError]=useState('');
   const [returningMember,setReturningMember]=useState(false);
   const [legacyWallet,setLegacyWallet]=useState(()=>readMemberWalletAddress(user.id));
   const [welcomeBack,setWelcomeBack]=useState<{days:number|null;demo:boolean;unavailable:boolean}|null>(null);
   const welcomeShown=useRef<number|null>(null);
   const [kycDuration,setKycDuration]=useState<number|null>(null);
   const [kycClock,setKycClock]=useState(Date.now());
-  const saveMiningCardTemplate=async(template:MiningCardTemplate)=>{
-    setMiningCardTemplateSaving(true);setMiningCardTemplateError('');
-    try{
-      await api('member.preferences',{miningCardTemplate:template});
-      setMiningCardTemplate(template);
-      setMemberPreferences(current=>({...current,miningCardTemplate:template}));
-    }catch(error){
-      setMiningCardTemplateError((error as Error).message||
-        (language==='en'?'Could not save this layout.':language==='es'?'No se pudo guardar este diseño.':'Não foi possível salvar este layout.'));
-    }finally{setMiningCardTemplateSaving(false);}
-  };
   useEffect(()=>{let mounted=true;api<{record:(LocalKycRecord&{submittedAt:number;approvedAt:number;status:'pending'|'approved'})|null}>('kyc.mine').then(({record})=>{if(mounted&&record)setLocalKyc({...record,submittedAt:record.submittedAt*1000,approveAt:record.approvedAt*1000});}).catch(()=>{});return()=>{mounted=false;};},[user.id]);
   useEffect(()=>{let mounted=true;void (async()=>{
     try{
@@ -136,8 +120,6 @@ export const MemberWorkspace: React.FC<{
       }
       if(Object.keys(updates).length){await api('member.preferences',updates);preferences={...preferences,...updates};}
       for(const key of legacyKeysToRemove)try{localStorage.removeItem(key);}catch{}
-      const savedTemplate=preferences.miningCardTemplate;
-      if(savedTemplate==='aurora'||savedTemplate==='studio'||savedTemplate==='neon'||savedTemplate==='minimal')setMiningCardTemplate(savedTemplate);
       setMemberPreferences(preferences);setMemberPreferencesReady(true);
     }catch{if(mounted)setMemberPreferencesReady(true);}
   })();return()=>{mounted=false;};},[user.id]);
@@ -674,14 +656,13 @@ export const MemberWorkspace: React.FC<{
       page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('settings')}/> :
       page==='topMiners' ? <TopMinersView language={language} btcUsd={displayBtcUsd} quoteTime={btcQuote?.quotedAt??null} onBack={()=>setPage('settings')}/> :
       page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
-      page==='preview' ? <MiningCardTemplatesView language={language} selected={miningCardTemplate} saving={miningCardTemplateSaving} error={miningCardTemplateError} account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} onSelect={template=>void saveMiningCardTemplate(template)} onBack={()=>setPage('settings')}/> :
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y member-vertical-scroll p-4 sm:p-5 space-y-4">
         {notice && <p role="status" data-testid={page==='home'?'home-feedback-notice':undefined}
           style={page==='home'?{bottom:'calc(env(safe-area-inset-bottom, 0px) + 4.5rem)'}:undefined}
           className={page==='home'
             ?'pointer-events-none fixed right-4 z-[201] w-fit max-w-[calc(100vw-2rem)] rounded-xl border border-amber-300/25 bg-[#20243c]/95 px-3 py-2 text-xs text-amber-200 shadow-xl backdrop-blur'
             :'p-3 rounded-lg bg-[#20243c] text-sm text-amber-300'}>{notice}</p>}
-        {page==='home' && <><ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language} busy={busy} returning={returningMember} template={miningCardTemplate}
+        {page==='home' && <><ServerHomeView account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} language={language} busy={busy} returning={returningMember}
           onStart={()=>void act('mining.start')} onStop={()=>void act('mining.stop')}
           onRewards={()=>setPage('reward')}
           onHistory={()=>setPage('history')} avatarLocked={profile.avatarLocked} onAvatarClick={()=>{setAvatarDraft(profile.avatarUrl);setAvatarModal(true);}}/><MockPaymentFeed language={language}/></>}
@@ -754,10 +735,6 @@ export const MemberWorkspace: React.FC<{
           <button type="button" data-testid="settings-top-miners" onClick={()=>setPage('topMiners')}
             className="w-full flex gap-3 items-center rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-[#231905] border border-yellow-300 p-4 font-black text-sm shadow-lg shadow-amber-900/20">
             <Trophy size={19}/>{language==='en'?'Top Miners':language==='es'?'Mejores mineros':'Top Mineradores'}
-          </button>
-          <button type="button" data-testid="settings-mining-card-preview" onClick={()=>{setMiningCardTemplateError('');setPage('preview');}}
-            className="w-full flex gap-3 items-center rounded-xl border border-indigo-300/20 bg-gradient-to-r from-indigo-500/15 to-blue-500/10 p-4 text-sm font-bold text-indigo-100 hover:border-indigo-200/40">
-            <LayoutTemplate size={19}/>{language==='en'?'Preview':language==='es'?'Vista previa':'Preview'}
           </button>
           {([
             ['profile',words.profile,User],

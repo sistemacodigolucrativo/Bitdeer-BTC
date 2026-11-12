@@ -405,12 +405,11 @@ function api_dispatch(PDO $db, string $action, string $method): never {
     }
     if($action==='member.preferences' && $method==='POST') {
         $actor=require_post_csrf($db);if($actor['role']!=='member')fail(403,'Conta de membro necessária');
-        $body=request_body();$allowed=['language','theme','firstHomeVisit','welcomeDismissed','rememberSession','miningCardTemplate'];
+        $body=request_body();$allowed=['language','theme','firstHomeVisit','welcomeDismissed','rememberSession'];
         foreach($body as $key=>$value) {
             if(!in_array($key,$allowed,true))fail(422,'Preferência não permitida');
             if($key==='language'&&!in_array($value,['pt','en','es'],true))fail(422,'Idioma inválido');
             if($key==='theme'&&!in_array($value,['dark','light'],true))fail(422,'Tema inválido');
-            if($key==='miningCardTemplate'&&!in_array($value,['aurora','studio','neon','minimal'],true))fail(422,'Layout inválido');
             if(in_array($key,['firstHomeVisit','welcomeDismissed','rememberSession'],true)&&!is_bool($value))fail(422,'Preferência inválida');
         }
         atomic($db,static function()use($db,$actor,$body):void {
