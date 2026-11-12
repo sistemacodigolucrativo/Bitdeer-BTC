@@ -674,7 +674,7 @@ export const MemberWorkspace: React.FC<{
       page==='support' ? <CustomerSupportView language={language} onBack={()=>setPage('settings')}/> :
       page==='topMiners' ? <TopMinersView language={language} btcUsd={displayBtcUsd} quoteTime={btcQuote?.quotedAt??null} onBack={()=>setPage('settings')}/> :
       page==='subscriptions' ? <SubscriptionHistoryView language={language} onBack={()=>setPage('settings')}/> :
-      page==='preview' ? <MiningCardTemplatesView language={language} selected={miningCardTemplate} saving={miningCardTemplateSaving} error={miningCardTemplateError} onSelect={template=>void saveMiningCardTemplate(template)} onBack={()=>setPage('settings')}/> :
+      page==='preview' ? <MiningCardTemplatesView language={language} selected={miningCardTemplate} saving={miningCardTemplateSaving} error={miningCardTemplateError} account={account} liveBalanceUsd={liveBalanceUsd} liveBtc={liveBtc} onSelect={template=>void saveMiningCardTemplate(template)} onBack={()=>setPage('settings')}/> :
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y member-vertical-scroll p-4 sm:p-5 space-y-4">
         {notice && <p role="status" data-testid={page==='home'?'home-feedback-notice':undefined}
           style={page==='home'?{bottom:'calc(env(safe-area-inset-bottom, 0px) + 4.5rem)'}:undefined}

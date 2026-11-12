@@ -12,7 +12,7 @@ type Props = {
   liveBtc:string|null; liveBalanceUsd:number;
   onStart: () => void; onStop: () => void;
   onRewards: () => void; onHistory: () => void; onAvatarClick:()=>void; avatarLocked:boolean;
-  returning:boolean; template:MiningCardTemplate;
+  returning:boolean; template:MiningCardTemplate; previewOnly?:boolean;
 };
 const details = {
   pt:{mining:'Painel de mineração', active:'Sessão ativa',
@@ -37,7 +37,7 @@ const greetingCopy = {
   es:{hello:'Hola,', welcome:'te damos la bienvenida', returning:'te damos la bienvenida de nuevo', member:'Miembro', plan:'Plan'}
 };
 export const ServerHomeView: React.FC<Props> = ({
-  account,language,busy,liveBtc,liveBalanceUsd,onStart,onStop,onRewards,onHistory,onAvatarClick,avatarLocked,returning,template
+  account,language,busy,liveBtc,liveBalanceUsd,onStart,onStop,onRewards,onHistory,onAvatarClick,avatarLocked,returning,template,previewOnly=false
 }) => {
   const t=translations[language]?.home ?? translations.pt.home;
   const d=details[language] ?? details.pt;
@@ -73,7 +73,7 @@ export const ServerHomeView: React.FC<Props> = ({
   const dashboardLayout=template==='studio'?'mb-4 grid gap-3 sm:grid-cols-2 sm:items-stretch':`mb-4 flex flex-col ${template==='neon'?'flex-col-reverse':''} gap-3`;
   const stamp=(v:number)=>new Date(v*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR');
   return <div className="space-y-4 select-none pb-4">
-    <div data-testid="home-welcome-card" className="flex items-center gap-3 bg-[#171b2d] border border-[#252c45] rounded-2xl p-3 shadow-sm">
+    {!previewOnly&&<div data-testid="home-welcome-card" className="flex items-center gap-3 bg-[#171b2d] border border-[#252c45] rounded-2xl p-3 shadow-sm">
       <div className="relative mr-1 h-10 w-10 shrink-0 overflow-visible">
         <button type="button" onClick={onAvatarClick} disabled={avatarLocked} aria-label={language==='en'?'Set profile image':language==='es'?'Definir imagen de perfil':'Definir imagem de perfil'}
           title={avatarLocked?(language==='en'?'Profile image already set':language==='es'?'Imagen de perfil ya definida':'Imagem de perfil já definida'):undefined}
@@ -95,7 +95,7 @@ export const ServerHomeView: React.FC<Props> = ({
           aria-label={d.rewards} title={d.rewards}
           className="flex items-center justify-center rounded-lg border border-[#4f46e5]/60 bg-indigo-500/15 p-2 text-indigo-400"><Gift size={24}/></button>
       </div>
-    </div>
+    </div>}
     <section data-mining-template={template} className={`relative isolate overflow-hidden border p-4 sm:p-6 ${cardFrame}`}>
       {template!=='minimal'&&<>
         <div aria-hidden="true" className={`pointer-events-none absolute -right-16 -top-20 -z-10 h-52 w-52 rounded-full blur-3xl ${template==='neon'?'bg-emerald-400/15':'bg-blue-500/10'}`} />
@@ -148,7 +148,7 @@ export const ServerHomeView: React.FC<Props> = ({
       </div>
 
       <button data-testid="mining-session-toggle" onClick={status?onStop:onStart}
-        disabled={busy}
+        disabled={busy||previewOnly}
         className={'flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-extrabold shadow-lg transition duration-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 sm:py-4 '+
           (status?'bg-gradient-to-r from-emerald-600 to-green-500 text-white shadow-emerald-950/30 hover:brightness-110':'bg-gradient-to-r from-rose-600 to-red-500 text-white shadow-rose-950/30 hover:brightness-110')}>
         {status?<><Zap size={18}/>{t.stopMining}</>:t.startMining}
