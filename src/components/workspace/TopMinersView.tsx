@@ -3,6 +3,7 @@ import {ArrowLeft} from 'lucide-react';
 import {LanguageCode} from '../../types';
 import {readLastKnownQuote} from '../../utils/lastKnownQuote';
 import {useProjectCopy} from '../../i18n/copyMode';
+import {UsdAmount} from '../UsdMark';
 import profileSeed from '../../../server/top_miners_seed.json';
 
 type Miner = {name:string;country:string;flag:string;location:string;message:string;btcSats:number};
@@ -199,7 +200,7 @@ export const TopMinersView:React.FC<Props>=({language,onBack,btcUsd,quoteTime})=
               data-btc-usd-rate={displayRate??undefined}
               title={displayQuotedAt?new Date(displayQuotedAt*1000).toLocaleString(language==='en'?'en-US':language==='es'?'es-ES':'pt-BR'):undefined}
               className="font-mono mt-1.5 text-[11px] text-slate-400 tabular-nums whitespace-nowrap">
-              {dollar&&displayRate!==null?'$ '+dollar.format(miner.btcSats/100000000*displayRate):'USD —'}
+              <UsdAmount>{dollar&&displayRate!==null?dollar.format(miner.btcSats/100000000*displayRate):'—'}</UsdAmount>
             </p>
           </div>
         </article>})}

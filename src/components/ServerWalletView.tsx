@@ -3,6 +3,7 @@ import {Wallet, Coins, Lock, TrendingUp} from 'lucide-react';
 import {MemberData} from '../services/api';
 import {LanguageCode} from '../types';
 import { useProjectCopy } from '../i18n/copyMode';
+import {UsdAmount,UsdMark} from './UsdMark';
 type RecordItem={start_ts:number;earned_units:number;end_ts:number;plan_id:string};
 type Props={account:MemberData|null;language:LanguageCode;accruals:RecordItem[];
   onEdit:()=>void;onWithdraw:()=>void;liveBtc:string|null;
@@ -12,14 +13,14 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
   const t=language==='en'
     ?{title:'Wallet',
       address:'BTC address registered',empty:'No address registered',edit:'Edit wallet',
-      chart:'Earned USD — last 7 days',withdraw:'Withdraw'}
+      chart:'Earned — last 7 days',withdraw:'Withdraw'}
     :language==='es'
     ?{title:'Billetera',
       address:'Dirección BTC registrada',empty:'Ninguna dirección registrada',edit:'Editar billetera',
-      chart:'USD acreditados — últimos 7 días',withdraw:'Retirar'}
+      chart:'Acreditados — últimos 7 días',withdraw:'Retirar'}
     :{title:'Carteira',
       address:'Endereço BTC cadastrado',empty:'Nenhum endereço cadastrado',edit:'Editar carteira',
-      chart:'USD creditados — últimos 7 dias',withdraw:'Sacar'};
+      chart:'Créditos — últimos 7 dias',withdraw:'Sacar'};
   const { copy } = useProjectCopy(language);
   const days=useMemo(()=>{
     const today=new Date();today.setHours(0,0,0,0);
@@ -41,7 +42,7 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
       <div className="absolute right-0 top-0 h-28 w-28 bg-indigo-600/10 blur-2xl rounded-full"/>
       <p className="text-xs text-slate-400">{copy('walletBalanceLabel')}</p>
       <p data-testid="wallet-live-btc" className="block whitespace-nowrap text-[clamp(0.85rem,4.1vw,1.875rem)] tracking-tight leading-tight font-extrabold font-mono tabular-nums mt-3">{liveBtc??'—'} BTC</p>
-      <p data-testid="wallet-live-usd" className="mt-2 text-sm font-semibold font-mono tabular-nums text-slate-300">≈ USD {account?liveBalanceUsd.toFixed(8):'0.00000000'}</p>
+      <p data-testid="wallet-live-usd" className="mt-2 text-sm font-semibold font-mono tabular-nums text-slate-300">≈ <UsdAmount>{account?liveBalanceUsd.toFixed(8):'0.00000000'}</UsdAmount></p>
 
       <button onClick={onWithdraw} className="mt-4 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold w-full">{t.withdraw}</button>
       <p className="flex gap-2 items-center text-xs text-slate-300 mt-4">
@@ -52,7 +53,7 @@ export const ServerWalletView:React.FC<Props>=({account,language,accruals,onEdit
       </p>
     </div>
     <div className="bg-[#171b2d] border border-[#262e49] rounded-2xl p-4">
-      <h3 className="flex gap-2 items-center text-sm font-bold mb-3"><TrendingUp className="text-emerald-400" size={17}/>{t.chart}</h3>
+      <h3 className="flex gap-2 items-center text-sm font-bold mb-3"><TrendingUp className="text-emerald-400" size={17}/>{t.chart}<UsdMark/></h3>
       <div className="h-28 flex gap-2 justify-between items-end">
         {days.map(day=><div key={day.time} className="flex-1 flex flex-col items-center justify-end h-full">
           <div className="w-full max-w-9 bg-indigo-500 rounded-t-md"

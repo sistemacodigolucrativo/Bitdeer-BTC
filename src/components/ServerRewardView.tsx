@@ -5,6 +5,7 @@ import {LanguageCode} from '../types';
 import { useProjectCopy } from '../i18n/copyMode';
 import {ReferralHistoryView} from './workspace/ReferralHistoryView';
 import {RewardHistoryLog,RewardHistoryData} from './RewardHistoryLog';
+import {UsdAmount,UsdMark} from './UsdMark';
 
 type Props={account:MemberData|null;language:LanguageCode;busy:boolean;
   ledger:RewardHistoryData;onClaim:()=>void;onRefreshHistory:()=>void};
@@ -23,15 +24,15 @@ export const ServerRewardView:React.FC<Props>=({account,language,busy,ledger,onC
   const countdown=count(Math.floor(seconds/3600))+':'+count(Math.floor((seconds%3600)/60))+':'+count(seconds%60);
   const locale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
   const t=language==='en'?{
-    title:'Rewards',usd:'USD bonus',sats:'Satoshi bonus',claim:'Claim both daily bonuses',
+    title:'Rewards',usd:'Bonus',sats:'Satoshi bonus',claim:'Claim both daily bonuses',
     waiting:'Next claim in',ledger:'Reward history',
     notice:copy('rewardNotice')
   }:language==='es'?{
-    title:'Recompensas',usd:'Bono USD',sats:'Bono en satoshis',claim:'Reclamar ambos bonos diarios',
+    title:'Recompensas',usd:'Bono',sats:'Bono en satoshis',claim:'Reclamar ambos bonos diarios',
     waiting:'Próximo reclamo en',ledger:'Historial de recompensas',
     notice:copy('rewardNotice')
   }:{
-    title:'Recompensas',usd:'Bônus em USD',sats:'Bônus em satoshis',claim:'Resgatar ambos os bônus diários',
+    title:'Recompensas',usd:'Bônus',sats:'Bônus em satoshis',claim:'Resgatar ambos os bônus diários',
     waiting:'Próximo resgate em',ledger:'Histórico de recompensas',
     notice:copy('rewardNotice')
   };
@@ -43,8 +44,8 @@ export const ServerRewardView:React.FC<Props>=({account,language,busy,ledger,onC
     <div className="space-y-2" data-testid="rewards-compact-claim">
       <div data-testid="reward-bonus-grid" className="grid grid-cols-2 gap-2">
         <div className="rounded-xl border border-[#2c3551] bg-[#212943] p-2.5 min-w-0">
-          <p className="flex gap-1 items-center text-[11px] text-slate-300"><Gift size={14} className="text-indigo-300"/>{t.usd}</p>
-          <strong className="text-base font-extrabold tabular-nums">USD {account?.plan.bonusUsd??'0.00'}</strong>
+          <p className="flex gap-1 items-center text-[11px] text-slate-300"><Gift size={14} className="text-indigo-300"/>{t.usd} <UsdMark/></p>
+          <strong className="text-base font-extrabold tabular-nums"><UsdAmount>{account?.plan.bonusUsd??'0.00'}</UsdAmount></strong>
         </div>
         <div className="rounded-xl border border-[#2c3551] bg-[#212943] p-2.5 min-w-0">
           <p className="flex gap-1 items-center text-[11px] text-slate-300"><Coins size={14} className="text-amber-300"/>{t.sats}</p>

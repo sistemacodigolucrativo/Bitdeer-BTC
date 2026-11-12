@@ -4,6 +4,7 @@ import { MemberData } from '../services/api';
 import { LanguageCode } from '../types';
 import { translations } from '../i18n/translations';
 import { useProjectCopy } from '../i18n/copyMode';
+import {UsdAmount} from './UsdMark';
 
 type Props = {
   account: MemberData | null; language: LanguageCode; busy: boolean;
@@ -93,7 +94,7 @@ export const ServerHomeView: React.FC<Props> = ({
         <span data-testid="home-plan-daily-card" aria-label={`${planLabel} · USD ${account?.plan.dailyUsd ?? '0.00'}/${language==='en'?'day':language==='es'?'día':'dia'}`}
           className="inline-flex w-fit min-w-max shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-center font-mono text-[10px] font-bold leading-tight text-emerald-400">
           <span className="whitespace-nowrap text-center">
-             {planLabel} · USD {account?.plan.dailyUsd ?? '0.00'}/{language==='en'?'day':language==='es'?'día':'dia'}
+             {planLabel} · <UsdAmount>{account?.plan.dailyUsd ?? '0.00'}</UsdAmount>/{language==='en'?'day':language==='es'?'día':'dia'}
           </span>
         </span>
       </div>
@@ -104,7 +105,7 @@ export const ServerHomeView: React.FC<Props> = ({
         <strong data-testid="mining-live-btc" className="text-2xl font-bold font-mono text-amber-300">{liveBtc??'—'} BTC</strong>
 
         <p data-testid="mining-live-usd" className="text-xs text-slate-300 mt-1">
-          USD {liveBalanceUsd.toFixed(8)}
+          <UsdAmount>{liveBalanceUsd.toFixed(8)}</UsdAmount>
         </p>
       </div>
       <div className={'flex items-center mb-5 '+(mockupMode?'justify-between':'justify-center')}>

@@ -3,6 +3,7 @@ import {ArrowLeft,ChevronRight,Copy,RefreshCw,Users} from 'lucide-react';
 import {copyToClipboard} from '../../utils/clipboard';
 import {api} from '../../services/api';
 import {LanguageCode} from '../../types';
+import {UsdAmount} from '../UsdMark';
 
 type History={id:number;referredAlias:string;rewardUsd:string;createdAt:number};
 type Data={code:string;history:History[];totalUsd:string;count:number;unit:string};
@@ -53,7 +54,7 @@ export const ReferralHistoryView:React.FC<Props>=({language,onBack,embedded=fals
             className="shrink-0 p-2 rounded-lg text-indigo-300"><RefreshCw size={20}/></button>
         </div>
         {data&&<>
-        <strong className="text-xl">USD {data.totalUsd}</strong>
+        <strong className="text-xl"><UsdAmount>{data.totalUsd}</UsdAmount></strong>
         <p className="text-xs"><Users size={14} className="inline"/> {copy.registrations}: {data.count}</p>
         <div className="text-xs font-mono break-all">{data.code}</div>
         <button className="w-full bg-indigo-600 p-2 rounded-xl text-xs font-semibold flex gap-2 justify-center"
@@ -73,7 +74,7 @@ export const ReferralHistoryView:React.FC<Props>=({language,onBack,embedded=fals
             className="py-3 text-sm flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0 flex-1"><strong className="break-words">{entry.referredAlias}</strong>
               <p className="text-xs text-slate-400">{new Date(entry.createdAt*1000).toLocaleString(locale)}</p></div>
-            <strong className="max-w-full break-words">USD {entry.rewardUsd}</strong>
+            <strong className="max-w-full break-words"><UsdAmount>{entry.rewardUsd}</UsdAmount></strong>
           </li>)}
         </ul>
       </div>}

@@ -3,6 +3,7 @@ import {api,Plan} from '../../services/api';
 import {LanguageCode} from '../../types';
 import {adminText,adminStatus,adminDateLocale} from '../../i18n/adminTexts';
 import {useProjectCopy} from '../../i18n/copyMode';
+import {UsdAmount,UsdMark} from '../UsdMark';
 
 type Kind='accrual'|'bonus'|'purchase'|'withdrawal'|'subscription';
 type Entry=Record<string,string|number|boolean|null|undefined>&{historyId:string;adminEdited:boolean;simulation:boolean};
@@ -95,7 +96,7 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];language:La
   }
   const fieldLabel=(key:string)=>{
     if(key==='earned_units')return copy('adminRecordUnitsLabel');
-    if(key==='bonus_usd_units')return copy('adminRecordUsdUnitsLabel');
+    if(key==='bonus_usd_units')return copy('adminRecordUsdUnitsLabel').replace(/\s*USD\b/i,'');
     if(key==='bonus_satoshis'||key==='btc_satoshis')return copy('adminRecordSatoshisLabel');
     if(key==='btc_sats')return copy('adminRecordBtcEquivalent');
     if(key==='usd_cents')return copy('adminRecordCreditCentsLabel');
@@ -128,12 +129,14 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];language:La
       </div>
       <div className="border-t border-[#303a56] pt-3 space-y-2">
         <h4 className="font-bold text-sm">{copy('adminRecordsBalanceLabel')}</h4>
-        <p className="font-mono text-sm" data-testid="admin-member-balance">USD {data.balanceUsd} · {data.balanceBtc??'—'} BTC</p>
-        <p className="text-xs text-slate-400">{data.btcUsd?tx('Cotação BTC/USD: USD')+' '+data.btcUsd+' · '+(data.quoteSource||''):tx('Cotação indisponível; ajustes bloqueados.')}</p>
+        <p className="font-mono text-sm" data-testid="admin-member-balance"><UsdAmount>{data.balanceUsd}</UsdAmount> · {data.balanceBtc??'—'} BTC</p>
+        <p className="text-xs text-slate-400">{data.btcUsd?<>{tx('Cotação BTC/USD: USD').replace(/\s*USD$/,'')} <UsdAmount>{data.btcUsd}</UsdAmount> · {data.quoteSource||''}</>:tx('Cotação indisponível; ajustes bloqueados.')}</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <select className={fieldClass} value={currency} onChange={e=>{setCurrency(e.target.value as 'USD'|'BTC');setAmount('');}}>
-            <option value="USD">{tx("Dólar (USD)")}</option><option value="BTC">Bitcoin (BTC)</option>
-          </select>
+          <div className="flex min-w-0 items-center gap-1 rounded-lg border border-[#34405d] px-2">
+            <select className="min-w-0 flex-1 bg-transparent py-2" value={currency} onChange={e=>{setCurrency(e.target.value as 'USD'|'BTC');setAmount('');}}>
+              <option value="USD">{tx("Dólar (USD)").replace(/\s*\(USD\)/i,'')}</option><option value="BTC">Bitcoin (BTC)</option>
+            </select>{currency==='USD'&&<UsdMark/>}
+          </div>
           <select className={fieldClass} value={mode} onChange={e=>setMode(e.target.value as typeof mode)}>
             <option value="set">{tx("Definir total")}</option><option value="add">{tx("Adicionar")}</option>
             <option value="subtract">{tx("Remover")}</option><option value="clear">{tx("Zerar")}</option>
@@ -163,7 +166,7 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];language:La
           onSubmit={save}>
           <p className="text-xs font-semibold">{tx(historyId?'Editar':'Adicionar')} — {tx(kinds[kind])}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {fields[kind].map(key=><label key={key} className="text-xs block">{fieldLabel(key)}
+            {fields[kind].map(key=><label key={key} className="text-xs block"><span className="inline-flex items-center gap-1">{fieldLabel(key)}{['bonus_usd_units','usd_cents'].includes(key)&&<UsdMark className="h-[0.95em] w-[0.95em]"/>}</span>
               {key==='plan_id'?<select required className={fieldClass} value={draft[key]||''}
                   onChange={e=>setDraft(d=>d?{...d,[key]:e.target.value}:d)}>
                   {plans.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
@@ -187,8 +190,10 @@ export const AdminMemberRecords:React.FC<{userId:number;plans:Plan[];language:La
           {data.histories[kind].map(entry=><div key={entry.historyId}
             className="bg-[#11182c] border border-[#303a56] rounded-lg p-2 text-xs space-y-1">
             <div className="flex items-center justify-between gap-2"><strong>{entry.historyId}</strong></div>
-            <p className="break-words text-slate-300">{fields[kind].map(k=>
-              tx(names[k]||k)+': '+(dateFields.has(k)?new Date(Number(entry[k])*1000).toLocaleString(dateLocale):k==='status'?adminStatus(language,String(entry[k]??'')):String(entry[k]??''))).join(' · ')}</p>
+            <p className="flex flex-wrap gap-x-2 break-words text-slate-300">{fields[kind].map(k=><span key={k}>
+              {tx(names[k]||k)}: {k==='bonus_usd_units'?<UsdAmount>{new Intl.NumberFormat(dateLocale,{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(entry[k]??0)/864000000)}</UsdAmount>:
+                k==='usd_cents'?<UsdAmount>{new Intl.NumberFormat(dateLocale,{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(entry[k]??0)/100)}</UsdAmount>:
+                dateFields.has(k)?new Date(Number(entry[k])*1000).toLocaleString(dateLocale):k==='status'?adminStatus(language,String(entry[k]??'')):String(entry[k]??'')}</span>)}</p>
             <div className="flex gap-3">
               <button type="button" className="text-indigo-300 underline" onClick={()=>begin(entry)}>{tx("Editar")}</button>
               <button type="button" className="text-rose-300 underline" onClick={()=>remove(entry)}>{tx("Remover")}</button>

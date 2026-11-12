@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {api} from '../services/api';
 import {LanguageCode} from '../types';
 import { useProjectCopy } from '../i18n/copyMode';
+import { UsdAmount,UsdMark } from './UsdMark';
 
 type Entry={hash:string;name:string;country:string;flag:string;valueUsd:string;btc:string;createdAt:number};
 type LatestPayments={records:Entry[];total:number;simulation:true};
@@ -47,12 +48,12 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
   const [enteringHashes,setEnteringHashes]=useState<string[]>([]);
   const rowsRef=useRef<Entry[]>([]);
   const tr=language==='en'
-    ?{name:'Name',date:'Date / time',id:'Transaction',value:'Value (USD)',
+    ?{name:'Name',date:'Date / time',id:'Transaction',value:'Value',
       amount:'Amount (BTC)',loading:'Loading records…'}
     :language==='es'
-    ?{name:'Nombre',date:'Fecha / hora',id:'Transacción',value:'Valor (USD)',
+    ?{name:'Nombre',date:'Fecha / hora',id:'Transacción',value:'Valor',
       amount:'Cantidad (BTC)',loading:'Cargando registros…'}
-    :{name:'Nome',date:'Data / hora',id:'Transação',value:'Valor (USD)',
+    :{name:'Nome',date:'Data / hora',id:'Transação',value:'Valor',
       amount:'Quantidade (BTC)',loading:'Carregando registros…'};
   const locale=language==='en'?'en-US':language==='es'?'es-ES':'pt-BR';
 
@@ -166,7 +167,7 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
         <thead>
           <tr className="text-[10px] uppercase tracking-wide text-slate-400">
             {[tr.name,tr.date,tr.id,tr.value,tr.amount].map(title=>
-              <th key={title} scope="col" className="px-2 py-2 text-center font-semibold">{title}</th>)}
+              <th key={title} scope="col" className="px-2 py-2 text-center font-semibold">{title}{title===tr.value&&<> <UsdMark className="h-[0.9em] w-[0.9em]"/></>}</th>)}
           </tr>
         </thead>
         <tbody>
@@ -185,7 +186,7 @@ export const MockPaymentFeed:React.FC<{language:LanguageCode}>=({language})=>{
               <span data-testid="payment-hash" className="block max-w-full single-line-ellipsis font-mono text-[10px] text-slate-400"
                 title={row.hash}>{displayTransactionId(row.hash)}</span>
             </td>
-            <td className={cell+' font-mono tabular-nums whitespace-nowrap'}>USD {row.valueUsd}</td>
+            <td className={cell+' font-mono tabular-nums whitespace-nowrap'}><UsdAmount>{row.valueUsd}</UsdAmount></td>
             <td className={cell+' border-r rounded-r-lg font-mono tabular-nums whitespace-nowrap'}>{row.btc} BTC</td>
           </tr>)}
         </tbody>

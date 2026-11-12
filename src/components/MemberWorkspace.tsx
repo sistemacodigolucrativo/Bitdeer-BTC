@@ -28,6 +28,7 @@ import { descriptions as topMinerDescriptions } from './workspace/TopMinersView'
 import { readLastKnownQuote, saveLastKnownQuote } from '../utils/lastKnownQuote';
 import { PaymentInstructionsCard } from './PaymentInstructionsCard';
 import type { PaymentInstructionsOrder } from './PaymentInstructionsCard';
+import {UsdAmount,UsdMark} from './UsdMark';
 
 type Page = 'home' | 'store' | 'reward' | 'wallet' | 'settings' | 'profile' | 'kyc' | 'support' | 'history' | 'topMiners' | 'subscriptions' | 'withdraw';
 type PurchaseOrder = PaymentInstructionsOrder & {status:string;createdAt:number};
@@ -216,7 +217,7 @@ export const MemberWorkspace: React.FC<{
     ? Math.floor(availableUsdCents/100*100000000/freshBtcUsd)
     : null;
   const availableAmount=withdrawMode==='USD'
-    ? 'USD '+new Intl.NumberFormat(dateLocale,{minimumFractionDigits:2,maximumFractionDigits:2})
+    ? new Intl.NumberFormat(dateLocale,{minimumFractionDigits:2,maximumFractionDigits:2})
         .format(availableUsdCents/100)
     : availableBtcSatoshis!==null
       ? (availableBtcSatoshis/100000000).toFixed(8)+' BTC'
@@ -597,12 +598,12 @@ export const MemberWorkspace: React.FC<{
         className="rounded-xl border border-[#303b59] bg-[#191e32] px-3 py-2 space-y-1">
         <p className="text-[10px] font-bold uppercase tracking-wide text-slate-300">
           {withdrawMode==='USD'
-            ? language==='en'?'Available balance in USD':language==='es'?'Saldo disponible en USD':'Saldo disponível em USD'
+            ? <>{(language==='en'?'Available balance in USD':language==='es'?'Saldo disponible en USD':'Saldo disponível em USD').replace(/\s+USD$/,'')} <UsdMark/></>
             : language==='en'?'Available balance in BTC':language==='es'?'Saldo disponible en BTC':'Saldo disponível em BTC'}
         </p>
         <strong data-testid="withdraw-available-amount"
           className="block text-xl leading-tight font-black font-mono text-emerald-300 tabular-nums break-all">
-          {availableAmount}
+          {withdrawMode==='USD'?<UsdAmount>{availableAmount}</UsdAmount>:availableAmount}
         </strong>
         <p className="text-[10px] leading-tight text-slate-400">
           {copyText('withdrawalAvailableCredits')} · {copyText('withdrawalEquivalent')}
@@ -633,14 +634,14 @@ export const MemberWorkspace: React.FC<{
               </div>}
               <button disabled={busy} className="w-full bg-indigo-600 rounded-xl p-3 font-bold text-sm">{walletConfirmation?(language==='en'?'Confirm and save':language==='es'?'Confirmar y guardar':'Confirmar e salvar'):tr.save}</button>
             </form> : <form className="space-y-3" onSubmit={e=>{e.preventDefault();void submitWithdrawal();}}>
-              <p className="text-xs text-slate-400">{tr.minimum}: USD {account?.plan.withdrawMinUsd??'0.00'}.</p>
+              <p className="text-xs text-slate-400">{tr.minimum}: <UsdAmount>{account?.plan.withdrawMinUsd??'0.00'}</UsdAmount>.</p>
               <div className="flex gap-2">
-                <button type="button" className={'flex-1 p-2 rounded-lg '+(withdrawMode==='USD'?'bg-indigo-600':'bg-[#11182c]')}
-                  onClick={()=>{setWithdrawMode('USD');setWithdrawEdited(false);}}>{tr.usd}</button>
+                <button type="button" className={'flex-1 inline-flex items-center justify-center gap-1 p-2 rounded-lg '+(withdrawMode==='USD'?'bg-indigo-600':'bg-[#11182c]')}
+                  onClick={()=>{setWithdrawMode('USD');setWithdrawEdited(false);}}>{tr.usd.replace(/\s*\(USD\)/i,'')} <UsdMark/></button>
                 <button type="button" className={'flex-1 p-2 rounded-lg '+(withdrawMode==='BTC'?'bg-indigo-600':'bg-[#11182c]')}
                   onClick={()=>{setWithdrawMode('BTC');setWithdrawEdited(false);}}>{tr.btc}</button>
               </div>
-              <label className="block text-sm">{tr.amount} ({withdrawMode})
+              <label className="block text-sm">{tr.amount} {withdrawMode==='USD'?<UsdMark/>:'(BTC)'}
                 <input data-testid="withdraw-request-amount" required type="number"
                   min={withdrawMode==='BTC'?'0.00000001':'0.01'} step={withdrawMode==='BTC'?'0.00000001':'0.01'}
                   value={withdrawAmount} onChange={e=>{setWithdrawEdited(true);setWithdrawAmount(e.target.value);}}
@@ -691,7 +692,7 @@ export const MemberWorkspace: React.FC<{
                 {visibleWithdrawHistory.map(x=><div key={x.id} data-testid="withdraw-history-row"
                   className="w-full min-w-max text-xs border-b border-[#2b3350] pb-2 flex items-center gap-3">
                   <span>#{x.id}</span>
-                  <span>USD {(x.usd_cents/100).toFixed(2)}</span>
+                  <span><UsdAmount>{(x.usd_cents/100).toFixed(2)}</UsdAmount></span>
                   <span>{(x.btc_satoshis/1e8).toFixed(8)} BTC</span>
                   <span data-testid="withdraw-status"
                     className={x.status==='approved'?'text-emerald-400 font-semibold':x.status==='failed'||x.status==='rejected'?'text-rose-300 font-semibold':'text-slate-300'}>
