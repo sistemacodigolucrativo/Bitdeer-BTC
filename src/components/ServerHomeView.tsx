@@ -108,28 +108,28 @@ export const ServerHomeView: React.FC<Props> = ({
           <UsdAmount>{liveBalanceUsd.toFixed(8)}</UsdAmount>
         </p>
       </div>
-      <div className={'flex items-center mb-5 '+(mockupMode?'justify-between':'justify-center')}>
-        {mockupMode&&<div>
-          <div className="text-2xl font-black text-white">{account?.plan.hashrate ?? '---'}</div>
-          <p className="text-[11px] mt-1 text-slate-300">{d.noHash}</p>
-          <p className="text-[11px] mt-1 flex items-center gap-2">
-            <span className={'w-2 h-2 rounded-full '+(status?'bg-emerald-400 animate-pulse':'bg-slate-500')}/>
-            {status?d.active:d.inactive}
-          </p>
-        </div>}
-        <div className="shrink-0 flex flex-col items-center gap-1">
-        {!mockupMode&&<span className="text-base font-bold text-white text-center">{language==='en'?'Processor':language==='es'?'Procesador':'Processador'}</span>}
-        {!mockupMode&&<span className="text-lg font-bold text-slate-100 text-center">{account?.plan.hashrate ?? '---'}</span>}
-        <svg viewBox="0 0 120 70" className={(mockupMode?'w-24 h-16':'w-36 h-24 max-w-full')+' drop-shadow-md'} aria-label={copy('equipmentAlt')}>
-          <rect x="10" y="10" width="95" height="50" rx="6" fill="#1e294b" stroke="#3b82f6" strokeWidth="1.5"/>
-          <circle cx="35" cy="35" r="16" fill="#0f172a" stroke="#60a5fa" strokeWidth="1.5"/>
-          <circle cx="75" cy="35" r="16" fill="#0f172a" stroke="#60a5fa" strokeWidth="1.5"/>
-          <path d="M35 21v28M21 35h28" stroke="#60a5fa" strokeWidth="2" className={status?'origin-[35px_35px] animate-spin':''}/>
-          <path d="M75 21v28M61 35h28" stroke="#60a5fa" strokeWidth="2" className={status?'origin-[75px_35px] animate-spin':''}/>
-          <circle cx="95" cy="52" r="7" fill="#f59e0b"/><text x="95" y="55" textAnchor="middle" fill="white" fontSize="8">₿</text>
-        </svg>
-        {!mockupMode&&<p className="text-sm flex items-center justify-center gap-2"><span className={'w-2.5 h-2.5 rounded-full '+(status?'bg-emerald-400 animate-pulse':'bg-slate-500')}/>{status?'Processor ON':'Processor OFF'}</p>}
+      <div className="mb-5">
+        <div className="flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-[#303b59] bg-[#11182b] p-3 sm:p-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold leading-tight text-white sm:text-base">{language==='en'?'Processor':language==='es'?'Procesador':'Processador'}</p>
+            <p className="mt-1 text-xl font-black leading-tight text-slate-100 sm:text-2xl">{account?.plan.hashrate ?? '---'}</p>
+            {mockupMode&&<p className="mt-1 text-[10px] leading-tight text-slate-400">{d.noHash}</p>}
+          </div>
+          <div className="flex h-[78px] w-[132px] shrink-0 items-center justify-center rounded-xl border border-blue-400/50 bg-gradient-to-br from-[#1e294b] to-[#101a35] shadow-inner shadow-blue-300/10 sm:h-[88px] sm:w-36">
+            <svg viewBox="0 0 120 70" className="h-16 w-[112px] drop-shadow-md sm:h-[72px] sm:w-[126px]" aria-label={copy('equipmentAlt')}>
+              <rect x="10" y="10" width="95" height="50" rx="6" fill="#1e294b" stroke="#3b82f6" strokeWidth="1.5"/>
+              <circle cx="35" cy="35" r="16" fill="#0f172a" stroke="#60a5fa" strokeWidth="1.5"/>
+              <circle cx="75" cy="35" r="16" fill="#0f172a" stroke="#60a5fa" strokeWidth="1.5"/>
+              <path d="M35 21v28M21 35h28" stroke="#60a5fa" strokeWidth="2" className={status?'origin-[35px_35px] animate-spin':''}/>
+              <path d="M75 21v28M61 35h28" stroke="#60a5fa" strokeWidth="2" className={status?'origin-[75px_35px] animate-spin':''}/>
+              <circle cx="95" cy="52" r="7" fill="#f59e0b"/><text x="95" y="55" textAnchor="middle" fill="white" fontSize="8">₿</text>
+            </svg>
+          </div>
         </div>
+        <p className="mt-2 flex items-center justify-center gap-2 text-xs font-semibold text-slate-300">
+          <span className={'h-2.5 w-2.5 rounded-full '+(status?'bg-emerald-400 animate-pulse':'bg-slate-500')}/>
+          {mockupMode?(status?d.active:d.inactive):(status?'Processor ON':'Processor OFF')}
+        </p>
       </div>
       <button data-testid="mining-session-toggle" onClick={status?onStop:onStart}
         disabled={busy}
